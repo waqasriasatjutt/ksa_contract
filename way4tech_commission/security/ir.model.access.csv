@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_commission_receipt_user,commission.receipt user,model_commission_receipt,group_commission_user,1,1,1,0
+access_commission_receipt_manager,commission.receipt manager,model_commission_receipt,group_commission_manager,1,1,1,1
+access_commission_receipt_line_user,commission.receipt.line user,model_commission_receipt_line,group_commission_user,1,1,1,0
+access_commission_receipt_line_manager,commission.receipt.line manager,model_commission_receipt_line,group_commission_manager,1,1,1,1

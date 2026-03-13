@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_rider_payroll_batch">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h2>Rider Payroll Sheet</h2>
+                                <h4 t-field="o.name"/>
+                            </div>
+                            <div class="col-6 text-end">
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <td><strong>Client:</strong></td>
+                                        <td t-field="o.client_id"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Date:</strong></td>
+                                        <td t-field="o.date"/>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Period:</strong></td>
+                                        <td>
+                                            <span t-field="o.period_start"/> –
+                                            <span t-field="o.period_end"/>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Status:</strong></td>
+                                        <td><span t-field="o.state"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Company Riders -->
+                        <t t-set="employee_lines" t-value="o.line_ids.filtered(lambda l: l.rider_type == 'employee')"/>
+                        <t t-if="employee_lines">
+                            <h5 class="mt-4">Company Riders</h5>
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Rider Name</th>
+                                        <th class="text-end">Fixed Salary</th>
+                                        <th class="text-end">Order Earnings</th>
+                                        <th class="text-end">Bonus</th>
+                                        <th class="text-end">Petrol</th>
+                                        <th class="text-end">Deduction</th>
+                                        <th class="text-end">Advance</th>
+                                        <th class="text-end">Fine</th>
+                                        <th class="text-end">Net Payable</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="employee_lines" t-as="line">
+                                        <tr>
+                                            <td t-out="line_index + 1"/>
+                                            <td t-field="line.name"/>
+                                            <td class="text-end" t-field="line.fixed_salary"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.order_earnings"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.bonus"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.petrol"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.deduction"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.advance_deduction"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.fine"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end fw-bold" t-field="line.net_payable"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="9" class="text-end fw-bold">Total Company Riders:</td>
+                                        <td class="text-end fw-bold">
+                                            <t t-out="'{:,.2f}'.format(sum(employee_lines.mapped('net_payable')))"/>
+                                            <span t-field="o.currency_id.symbol"/>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </t>
+
+                        <!-- Freelancers -->
+                        <t t-set="freelancer_lines" t-value="o.line_ids.filtered(lambda l: l.rider_type == 'freelancer')"/>
+                        <t t-if="freelancer_lines">
+                            <h5 class="mt-4">Freelancers</h5>
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Rider Name</th>
+                                        <th>Vendor</th>
+                                        <th class="text-end">Fixed Salary</th>
+                                        <th class="text-end">Order Earnings</th>
+                                        <th class="text-end">Bonus</th>
+                                        <th class="text-end">Petrol</th>
+                                        <th class="text-end">Deductions</th>
+                                        <th class="text-end">Net Payable</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="freelancer_lines" t-as="line">
+                                        <tr>
+                                            <td t-out="line_index + 1"/>
+                                            <td t-field="line.name"/>
+                                            <td t-field="line.vendor_id"/>
+                                            <td class="text-end" t-field="line.fixed_salary"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.order_earnings"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.bonus"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.petrol"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end" t-field="line.total_deductions"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                            <td class="text-end fw-bold" t-field="line.net_payable"
+                                                t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="8" class="text-end fw-bold">Total Freelancers:</td>
+                                        <td class="text-end fw-bold">
+                                            <t t-out="'{:,.2f}'.format(sum(freelancer_lines.mapped('net_payable')))"/>
+                                            <span t-field="o.currency_id.symbol"/>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </t>
+
+                        <!-- Grand Total -->
+                        <div class="row mt-4">
+                            <div class="col-6 offset-6">
+                                <table class="table table-sm table-bordered">
+                                    <tr class="table-light">
+                                        <td><strong>Total Riders:</strong></td>
+                                        <td class="text-end" t-field="o.rider_count"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Fixed Salary:</td>
+                                        <td class="text-end" t-field="o.total_fixed_salary"
+                                            t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Order Earnings:</td>
+                                        <td class="text-end" t-field="o.total_order_earnings"
+                                            t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Deductions:</td>
+                                        <td class="text-end" t-field="o.total_deductions"
+                                            t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                    </tr>
+                                    <tr class="table-success">
+                                        <td><strong>Total Net Payable:</strong></td>
+                                        <td class="text-end fw-bold" t-field="o.total_net_payable"
+                                            t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <t t-if="o.notes">
+                            <div class="mt-3">
+                                <strong>Notes:</strong>
+                                <p t-field="o.notes"/>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

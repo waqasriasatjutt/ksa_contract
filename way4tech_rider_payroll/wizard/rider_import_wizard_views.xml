@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_rider_import_wizard_form" model="ir.ui.view">
+        <field name="name">rider.import.wizard.form</field>
+        <field name="model">rider.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import Rider Payroll from Excel">
+                <sheet>
+                    <!-- Upload Step -->
+                    <group invisible="state != 'upload'">
+                        <group string="Excel File">
+                            <field name="file" widget="binary" filename="file_name"
+                                   required="state == 'upload'"/>
+                            <field name="file_name" invisible="1"/>
+                        </group>
+                        <group string="Batch Settings">
+                            <field name="batch_id" options="{'no_create': True}"
+                                   domain="[('state', 'in', ('draft', 'imported'))]"/>
+                            <field name="client_id" options="{'no_create': True}"
+                                   required="not batch_id"/>
+                            <field name="period_start" required="not batch_id"/>
+                            <field name="period_end" required="not batch_id"/>
+                            <field name="journal_id" options="{'no_create': True}"
+                                   required="not batch_id"/>
+                            <field name="analytic_account_id" options="{'no_create': True}"/>
+                            <field name="default_rider_type"/>
+                        </group>
+                    </group>
+
+                    <!-- Preview Step -->
+                    <group invisible="state == 'upload'">
+                        <div class="alert alert-warning mb-3" role="alert"
+                             invisible="not error_log">
+                            <strong>Validation Errors</strong>
+                            <field name="error_log" widget="text" readonly="1"/>
+                        </div>
+                        <div class="alert alert-success mb-3" role="alert"
+                             invisible="error_log">
+                            <strong>File parsed successfully. Review and confirm import.</strong>
+                        </div>
+                    </group>
+
+                    <field name="preview_line_ids" widget="one2many"
+                           invisible="state == 'upload'">
+                        <list string="Preview" editable="bottom"
+                              decoration-danger="has_error"
+                              decoration-muted="net_payable == 0">
+                            <field name="row_number" string="#" readonly="1"/>
+                            <field name="name"/>
+                            <field name="rider_type" widget="badge"
+                                   decoration-info="rider_type == 'employee'"
+                                   decoration-warning="rider_type == 'freelancer'"/>
+                            <field name="employee_ref" optional="show"/>
+                            <field name="vendor_ref" optional="show"/>
+                            <field name="fixed_salary"/>
+                            <field name="order_earnings"/>
+                            <field name="bonus" optional="show"/>
+                            <field name="petrol" optional="show"/>
+                            <field name="deduction" optional="show"/>
+                            <field name="advance_deduction" optional="show"/>
+                            <field name="fine" optional="show"/>
+                            <field name="net_payable" string="Net"/>
+                            <field name="note" optional="show"/>
+                            <field name="has_error" column_invisible="True"/>
+                            <field name="error_message" optional="show" readonly="1"
+                                   string="Error"/>
+                        </list>
+                    </field>
+
+                    <field name="state" invisible="1"/>
+                </sheet>
+                <footer>
+                    <button name="action_preview" string="Parse &amp; Preview" type="object"
+                            class="btn-primary" invisible="state != 'upload'"/>
+                    <button name="action_import" string="Confirm Import" type="object"
+                            class="btn-primary" invisible="state == 'upload'"/>
+                    <button name="action_preview" string="Re-parse File" type="object"
+                            invisible="state == 'upload'"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_rider_import_wizard" model="ir.actions.act_window">
+        <field name="name">Import from Excel</field>
+        <field name="res_model">rider.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

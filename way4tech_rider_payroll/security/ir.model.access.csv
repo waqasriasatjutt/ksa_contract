@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_rider_payroll_batch_user,rider.payroll.batch user,model_rider_payroll_batch,group_rider_payroll_user,1,1,1,0
+access_rider_payroll_batch_manager,rider.payroll.batch manager,model_rider_payroll_batch,group_rider_payroll_manager,1,1,1,1
+access_rider_payroll_line_user,rider.payroll.line user,model_rider_payroll_line,group_rider_payroll_user,1,1,1,0
+access_rider_payroll_line_manager,rider.payroll.line manager,model_rider_payroll_line,group_rider_payroll_manager,1,1,1,1
+access_rider_import_wizard,rider.import.wizard,model_rider_import_wizard,group_rider_payroll_user,1,1,1,1
+access_rider_import_preview_line,rider.import.preview.line,model_rider_import_preview_line,group_rider_payroll_user,1,1,1,1
