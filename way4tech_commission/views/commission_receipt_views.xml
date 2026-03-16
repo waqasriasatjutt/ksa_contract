@@ -12,6 +12,7 @@
                             invisible="state != 'draft'"
                             groups="way4tech_commission.group_commission_user"
                             confirm="This will create a journal entry recording the full amount as a liability. Continue?"/>
+
                     <button name="action_generate_commission_invoice" string="Generate Commission Invoice"
                             type="object" class="btn-primary"
                             invisible="state != 'confirmed'"
@@ -49,7 +50,9 @@
                     </div>
                     <div class="oe_title">
                         <label for="name"/>
-                        <h1><field name="name" readonly="1"/></h1>
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
                     </div>
                     <group>
                         <group string="General">
@@ -75,7 +78,9 @@
                         <div class="o_wrap_field o_field_widget">
                             <table class="table table-sm table-bordered" style="max-width: 500px;">
                                 <tr class="table-light">
-                                    <td colspan="2"><strong>Commission Summary</strong></td>
+                                    <td colspan="2">
+                                        <strong>Commission Summary</strong>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td>Total Received:</td>
@@ -91,7 +96,8 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td>Commission (<field name="commission_rate" readonly="1" nolabel="1"/>%):</td>
+                                    <td>Commission (<field name="commission_rate" readonly="1" nolabel="1"/>%):
+                                    </td>
                                     <td class="text-end">
                                         <field name="commission_amount" readonly="1"/>
                                     </td>
@@ -103,15 +109,23 @@
                                     </td>
                                 </tr>
                                 <tr class="table-info">
-                                    <td><strong>Commission + VAT:</strong></td>
+                                    <td>
+                                        <strong>Commission + VAT:</strong>
+                                    </td>
                                     <td class="text-end">
-                                        <strong><field name="commission_total" readonly="1"/></strong>
+                                        <strong>
+                                            <field name="commission_total" readonly="1"/>
+                                        </strong>
                                     </td>
                                 </tr>
                                 <tr class="table-success">
-                                    <td><strong>Subcontractor Payable:</strong></td>
+                                    <td>
+                                        <strong>Subcontractor Payable:</strong>
+                                    </td>
                                     <td class="text-end">
-                                        <strong><field name="subcontractor_payable" readonly="1"/></strong>
+                                        <strong>
+                                            <field name="subcontractor_payable" readonly="1"/>
+                                        </strong>
                                     </td>
                                 </tr>
                             </table>
@@ -198,21 +212,14 @@
                 <filter string="Invoiced" name="invoiced" domain="[('state', '=', 'invoiced')]"/>
                 <filter string="Settled" name="settled" domain="[('state', '=', 'settled')]"/>
                 <separator/>
-                <filter string="Today" name="today"
-                        domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
-                <filter string="This Month" name="this_month"
-                        domain="[('date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')),
-                                 ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
-                <filter string="This Year" name="this_year"
-                        domain="[('date', '&gt;=', context_today().strftime('%Y-01-01')),
-                                 ('date', '&lt;=', context_today().strftime('%Y-12-31'))]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
-                    <filter string="Subcontractor" name="group_sub" context="{'group_by': 'subcontractor_id'}"/>
-                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Month" name="group_month" context="{'group_by': 'date:month'}"/>
-                    <filter string="Year" name="group_year" context="{'group_by': 'date:year'}"/>
-                </group>
+
+<!--                <group expand="0" string="Group By">-->
+<!--                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>-->
+<!--                    <filter string="Subcontractor" name="group_sub" context="{'group_by': 'subcontractor_id'}"/>-->
+<!--                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>-->
+<!--                    <filter string="Month" name="group_month" context="{'group_by': 'date:month'}"/>-->
+<!--                    <filter string="Year" name="group_year" context="{'group_by': 'date:year'}"/>-->
+<!--                </group>-->
             </search>
         </field>
     </record>

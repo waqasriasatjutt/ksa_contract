@@ -21,7 +21,7 @@ This module automates rider payroll processing for logistics and delivery compan
     'author': 'Way4Tech',
     'website': 'https://way4tech.com',
     'license': 'LGPL-3',
-    'depends': ['base', 'account', 'hr', 'analytic', 'mail'],
+    'depends': ['base', 'account', 'hr', 'analytic', 'mail', 'hr_payroll'],
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',

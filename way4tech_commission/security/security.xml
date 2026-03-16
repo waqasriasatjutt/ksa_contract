@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
+    <data noupdate="1">
+        <!-- Commission / User Group -->
         <record id="group_commission_user" model="res.groups">
             <field name="name">Commission / User</field>
-            <field name="category_id" ref="base.module_category_accounting_accounting"/>
+            <!-- Implied groups: basic internal user -->
             <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         </record>
 
+        <!-- Commission / Manager Group -->
         <record id="group_commission_manager" model="res.groups">
             <field name="name">Commission / Manager</field>
-            <field name="category_id" ref="base.module_category_accounting_accounting"/>
+            <!-- Implies Commission / User group -->
             <field name="implied_ids" eval="[(4, ref('group_commission_user'))]"/>
-            <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
         </record>
     </data>
 </odoo>

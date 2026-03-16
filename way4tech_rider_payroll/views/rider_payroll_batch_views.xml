@@ -161,14 +161,14 @@
                 <filter string="Validated" name="validated" domain="[('state', '=', 'validated')]"/>
                 <filter string="Posted" name="posted" domain="[('state', '=', 'posted')]"/>
                 <separator/>
-                <filter string="This Month" name="this_month"
-                        domain="[('date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')),
-                                 ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Client" name="group_client" context="{'group_by': 'client_id'}"/>
-                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Month" name="group_month" context="{'group_by': 'date:month'}"/>
-                </group>
+<!--                <filter string="This Month" name="this_month"-->
+<!--                        domain="[('date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')),-->
+<!--                                 ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>-->
+<!--                <group expand="0" string="Group By">-->
+<!--                    <filter string="Client" name="group_client" context="{'group_by': 'client_id'}"/>-->
+<!--                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>-->
+<!--                    <filter string="Month" name="group_month" context="{'group_by': 'date:month'}"/>-->
+<!--                </group>-->
             </search>
         </field>
     </record>

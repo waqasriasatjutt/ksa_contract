@@ -42,10 +42,10 @@
                         domain="[('rider_type', '=', 'employee')]"/>
                 <filter string="Freelancers" name="freelancers"
                         domain="[('rider_type', '=', 'freelancer')]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Batch" name="group_batch" context="{'group_by': 'batch_id'}"/>
-                    <filter string="Type" name="group_type" context="{'group_by': 'rider_type'}"/>
-                </group>
+<!--                <group expand="0" string="Group By">-->
+<!--                    <filter string="Batch" name="group_batch" context="{'group_by': 'batch_id'}"/>-->
+<!--                    <filter string="Type" name="group_type" context="{'group_by': 'rider_type'}"/>-->
+<!--                </group>-->
             </search>
         </field>
     </record>
