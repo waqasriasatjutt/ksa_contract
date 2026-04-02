@@ -4,7 +4,7 @@
     <!-- Root Menu -->
     <menuitem
         id="menu_way4tech_logistics_root"
-        name="Way4Tech Logistics"
+        name="Alzain Logistics"
         sequence="50"
         web_icon="way4tech_logistics,static/description/icon.svg"
     />
