@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Truck Maintenance Form View
+         =================================================== -->
+    <record id="view_truck_maintenance_form" model="ir.ui.view">
+        <field name="name">way4tech.truck.maintenance.form</field>
+        <field name="model">fleet.vehicle.log.services</field>
+        <field name="arch" type="xml">
+            <form string="Truck Maintenance">
+                <header>
+                    <button
+                        name="action_confirm"
+                        type="object"
+                        string="Confirm"
+                        class="btn-primary"
+                        invisible="way4tech_state != 'draft'"
+                        confirm="This will set the truck status to Under Maintenance. Continue?"
+                    />
+                    <button
+                        name="action_done"
+                        type="object"
+                        string="Mark Done"
+                        class="btn-success"
+                        invisible="way4tech_state != 'confirmed'"
+                        confirm="This will restore the truck to Active status. Continue?"
+                    />
+                    <button
+                        name="action_create_bill"
+                        type="object"
+                        string="Create Vendor Bill"
+                        class="btn-primary"
+                        invisible="not vendor_id or way4tech_bill_id != False"
+                    />
+                    <button
+                        name="action_reset_draft"
+                        type="object"
+                        string="Reset to Draft"
+                        class="btn-secondary"
+                        invisible="way4tech_state in ('draft', 'done')"
+                    />
+                    <field name="way4tech_state" widget="statusbar" statusbar_visible="draft,confirmed,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_view_bill"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-pencil-square-o"
+                            invisible="not way4tech_bill_id"
+                        >
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Vendor Bill</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="way4tech_ref" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Maintenance Details">
+                            <field name="vehicle_id"
+                                   help="The truck that needs or received maintenance. When confirmed, this truck's status is set to 'Under Maintenance'. When done, it is restored to 'Active'."/>
+                            <field name="date"
+                                   help="Date the maintenance was performed or scheduled. Used as the vendor bill date when creating the bill."/>
+                            <field name="way4tech_maint_type"
+                                   help="Category of maintenance work: &#10;• Repair — unplanned breakdown or damage repair &#10;• Preventive — scheduled servicing (oil change, tyre rotation, etc.) &#10;• Tyres — tyre replacement &#10;• Other — any other maintenance type &#10;Used for filtering and reporting."/>
+                        </group>
+                        <group string="Cost &amp; Vendor">
+                            <field name="vendor_id"
+                                   help="The workshop, garage, or supplier that performed the maintenance. Required to create a vendor bill. Must be set up as a vendor in Odoo."/>
+                            <field name="amount"
+                                   help="Total cost of the maintenance work. This amount is used on the vendor bill line. &#10;Also included in the truck's Total Expenses when calculating monthly investor profit share."/>
+                            <field name="notes"
+                                   help="Brief description of the work performed, e.g. 'Engine oil change + filter replacement' or 'Right front tyre replaced'. Appears on the vendor bill line description."/>
+                            <field name="way4tech_bill_id" readonly="1"
+                                   help="The vendor bill (in_invoice) created when you click 'Create Vendor Bill'. Read-only — generated automatically. The expense account is set in Payroll Settings → Fleet &amp; Trucks."/>
+                            <field name="way4tech_analytic_account_id"
+                                   help="Analytic Account — tags this maintenance cost to a cost centre so you can see exactly how much was spent maintaining each truck in Accounting → Reporting → Analytic Report. &#10;&#10;What is an analytic account? It is a reporting label — not an accounting account. It does not affect which GL account is debited (that is set in Payroll &amp; Accounting Setup). It lets you group costs by truck, client, or project in management reports. &#10;&#10;Leave blank to use the truck's default analytic account automatically. &#10;Priority: (1) this field → (2) truck's analytic account → (3) system default in Payroll &amp; Accounting Setup."/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        <strong>Accounting:</strong> The expense account and journal for the vendor bill
+                        are set in <strong>Configuration → Payroll &amp; Accounting Setup → Fleet &amp; Trucks</strong>.
+                        Set the analytic account above for cost-centre reporting.
+                    </div>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Truck Maintenance List View
+         =================================================== -->
+    <record id="view_truck_maintenance_list" model="ir.ui.view">
+        <field name="name">way4tech.truck.maintenance.list</field>
+        <field name="model">fleet.vehicle.log.services</field>
+        <field name="arch" type="xml">
+            <list string="Maintenance Logs">
+                <field name="way4tech_ref"/>
+                <field name="date"/>
+                <field name="vehicle_id"/>
+                <field name="way4tech_maint_type"/>
+                <field name="notes"/>
+                <field name="vendor_id"/>
+                <field name="amount" sum="Total Cost"/>
+                <field name="way4tech_state" widget="badge"
+                    decoration-info="way4tech_state == 'draft'"
+                    decoration-warning="way4tech_state == 'confirmed'"
+                    decoration-success="way4tech_state == 'done'"
+                />
+            </list>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Truck Maintenance Search View
+         =================================================== -->
+    <record id="view_truck_maintenance_search" model="ir.ui.view">
+        <field name="name">way4tech.truck.maintenance.search</field>
+        <field name="model">fleet.vehicle.log.services</field>
+        <field name="arch" type="xml">
+            <search string="Search Maintenance">
+                <field name="way4tech_ref"/>
+                <field name="vehicle_id"/>
+                <field name="vendor_id"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('way4tech_state','=','draft')]"/>
+                <filter string="Confirmed" name="confirmed" domain="[('way4tech_state','=','confirmed')]"/>
+                <filter string="Done" name="done" domain="[('way4tech_state','=','done')]"/>
+                <separator/>
+                <filter string="Truck" name="group_truck" context="{'group_by': 'vehicle_id'}"/>
+                <filter string="Type" name="group_type" context="{'group_by': 'way4tech_maint_type'}"/>
+                <filter string="Month" name="group_month" context="{'group_by': 'date:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Truck Maintenance Action
+         =================================================== -->
+    <record id="action_truck_maintenance" model="ir.actions.act_window">
+        <field name="name">Maintenance Logs</field>
+        <field name="res_model">fleet.vehicle.log.services</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_truck_maintenance_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Log your first Maintenance Record
+            </p>
+            <p>
+                Track all maintenance work, costs, and vendor bills per truck.
+            </p>
+        </field>
+    </record>
+
+</odoo>

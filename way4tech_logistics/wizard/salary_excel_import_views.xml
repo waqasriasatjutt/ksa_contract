@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Wizard Form View
+         =================================================== -->
+    <record id="view_salary_excel_import_form" model="ir.ui.view">
+        <field name="name">way4tech.salary.excel.import.form</field>
+        <field name="model">way4tech.salary.excel.import</field>
+        <field name="arch" type="xml">
+            <form string="Import Salary from Excel">
+                <group>
+                    <field name="import_id" invisible="context.get('default_import_id')"/>
+                    <field name="excel_file" widget="binary" filename="file_name"/>
+                    <field name="file_name" invisible="1"/>
+                </group>
+                <div class="alert alert-info" role="alert">
+                    <strong>Expected Excel Format — 21 columns (A to U), Row 1 = header, data from Row 2:</strong>
+                    <table style="width:100%;margin-top:6px;font-size:12px;border-collapse:collapse">
+                        <tr style="background:#d9edf7"><th style="padding:2px 6px;text-align:left">Col</th><th style="padding:2px 6px;text-align:left">Field</th><th style="padding:2px 6px;text-align:left">Notes</th></tr>
+                        <tr><td><strong>A</strong></td><td>Employee Name</td><td>Required. Auto-creates employee if not found.</td></tr>
+                        <tr><td><strong>B</strong></td><td>Rider Type</td><td><em>employee</em> or <em>freelancer</em>. Defaults to employee.</td></tr>
+                        <tr><td><strong>C</strong></td><td>Platform</td><td>Platform name (Hungerstation, Keeta…). Auto-computes salary if matched.</td></tr>
+                        <tr><td><strong>D</strong></td><td>Valid Days</td><td>Integer. Used with platform rules.</td></tr>
+                        <tr><td><strong>E</strong></td><td>Orders Completed</td><td>Integer. Used with platform rules.</td></tr>
+                        <tr><td><strong>F</strong></td><td>Fixed Salary</td><td>Override. Leave blank to auto-compute from platform.</td></tr>
+                        <tr><td><strong>G</strong></td><td>Order Adjustment</td><td>Positive = bonus, negative = deduction. Auto if platform set.</td></tr>
+                        <tr><td><strong>H</strong></td><td>Bonus</td><td>Additional bonus amount.</td></tr>
+                        <tr><td><strong>I</strong></td><td>Petrol Allowance</td><td></td></tr>
+                        <tr><td><strong>J</strong></td><td>On-Time Deduction</td><td>Performance deduction.</td></tr>
+                        <tr><td><strong>K</strong></td><td>Food Damage Deduction</td><td></td></tr>
+                        <tr><td><strong>L</strong></td><td>Miss Day Penalty</td><td></td></tr>
+                        <tr><td><strong>M</strong></td><td>Order Rejection Deduction</td><td></td></tr>
+                        <tr><td><strong>N</strong></td><td>Misc Deduction</td><td></td></tr>
+                        <tr><td><strong>O</strong></td><td>Advance</td><td>Office deduction.</td></tr>
+                        <tr><td><strong>P</strong></td><td>Fuel</td><td></td></tr>
+                        <tr><td><strong>Q</strong></td><td>SIM Charges</td><td></td></tr>
+                        <tr><td><strong>R</strong></td><td>Loan</td><td></td></tr>
+                        <tr><td><strong>S</strong></td><td>Traffic Violation</td><td></td></tr>
+                        <tr><td><strong>T</strong></td><td>Rent</td><td></td></tr>
+                        <tr><td><strong>U</strong></td><td>Note</td><td>Free-text note per line.</td></tr>
+                    </table>
+                </div>
+                <footer>
+                    <button
+                        name="action_import"
+                        type="object"
+                        string="Import"
+                        class="btn-primary"
+                    />
+                    <button
+                        name="action_download_template"
+                        type="object"
+                        string="Download Template"
+                        class="btn-secondary"
+                    />
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Action to open wizard
+         =================================================== -->
+    <record id="action_salary_excel_import_wizard" model="ir.actions.act_window">
+        <field name="name">Import Salary from Excel</field>
+        <field name="res_model">way4tech.salary.excel.import</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_salary_excel_import_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_import_id': active_id}</field>
+    </record>
+
+</odoo>

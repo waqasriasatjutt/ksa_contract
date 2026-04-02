@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Employee Cost Form View
+         =================================================== -->
+    <record id="view_employee_cost_form" model="ir.ui.view">
+        <field name="name">way4tech.employee.cost.form</field>
+        <field name="model">way4tech.employee.cost</field>
+        <field name="arch" type="xml">
+            <form string="Employee KSA Cost">
+                <header>
+                    <button
+                        name="action_confirm"
+                        type="object"
+                        string="Confirm"
+                        class="btn-primary"
+                        invisible="state != 'draft'"
+                    />
+                    <button
+                        name="action_post_expenses"
+                        type="object"
+                        string="Post Expenses"
+                        class="btn-secondary"
+                        invisible="state != 'confirmed' or move_id != False"
+                        confirm="This will create an accounting journal entry for the compliance costs. Continue?"
+                    />
+                    <button
+                        name="action_reset_draft"
+                        type="object"
+                        string="Reset to Draft"
+                        class="btn-secondary"
+                        invisible="state != 'confirmed'"
+                    />
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_view_move"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-book"
+                            invisible="move_id == False"
+                        >
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Journal Entry</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Employee">
+                            <field name="employee_id" readonly="state != 'draft'"
+                                   help="The employee for whom these KSA statutory costs are being recorded this month."/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   help="Branch company incurring these costs. Determines which compliance accounts and journal are used."/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Period &amp; Assignment">
+                            <field name="period_start" readonly="state != 'draft'"
+                                   help="First day of the month for which these compliance costs are being recorded."/>
+                            <field name="period_end" readonly="state != 'draft'"
+                                   help="Last day of the month. Used as the journal entry date when you click 'Post Expenses'."/>
+                            <field name="client_id" readonly="state != 'draft'"
+                                   help="Optional: the food delivery client or project this employee is deployed on. Used for per-client cost analysis in pivot and graph views."/>
+                            <field name="analytic_account_id" readonly="state != 'draft'"
+                                   help="Analytic Account — a reporting label applied to all journal entry lines posted by 'Post Expenses' (GOSI, Iqama, Insurance, Saudization, Other). &#10;&#10;It does not change which GL account is debited — those are set in Payroll &amp; Accounting Setup → Compliance Costs tab. The analytic account is an extra tag used in management reports. &#10;&#10;Example: create one analytic account per client (e.g. 'HungerStation') and assign it here — then in Accounting → Analytic Report you can see the total compliance cost your company bears for employees deployed to that client. &#10;&#10;Leave blank to use the company default from Payroll &amp; Accounting Setup → Analytics tab."/>
+                        </group>
+                    </group>
+                    <div class="mb-3" invisible="state != 'draft'">
+                        <button
+                            name="action_compute_gosi"
+                            type="object"
+                            string="Auto-Calculate GOSI"
+                            class="btn-secondary"
+                        />
+                        <span class="ms-2 text-muted">Calculates GOSI from Basic Salary × GOSI Rate %</span>
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        <strong>Accounting Setup Required:</strong>
+                        Before clicking <em>Post Expenses</em>, configure all compliance accounts in
+                        <strong>Configuration → Payroll &amp; Accounting Setup → Compliance Costs (KSA)</strong>:
+                        Employee Compliance Journal, Compliance Costs Payable Account,
+                        and the four expense accounts (GOSI, Iqama, Insurance, Saudization).
+                    </div>
+                    <group>
+                        <group string="Cost Components">
+                            <field name="basic_salary" readonly="state != 'draft'"
+                                   help="The employee's basic monthly salary. Used as the GOSI calculation base. &#10;GOSI Amount = basic_salary × gosi_rate / 100. Enter the same basic salary as on the payslip."/>
+                            <field name="gosi_rate" readonly="state != 'draft'"
+                                   help="Employer GOSI contribution rate (%). KSA standards: &#10;• Non-Saudi: 11.75% (2% annuity + 9.75% hazard) &#10;• Saudi national: 11.75% employer share &#10;Click 'Auto-Calculate GOSI' to compute the amount automatically."/>
+                            <field name="gosi_amount" readonly="state != 'draft'"
+                                   help="Employer GOSI contribution = Basic Salary × GOSI Rate / 100. Auto-filled by 'Auto-Calculate GOSI'. &#10;Posted: Dr GOSI Expense Account / Cr Compliance Payable."/>
+                            <field name="iqama_amount" readonly="state != 'draft'"
+                                   help="Monthly share of the annual Iqama (residency permit) renewal cost. Only for expatriate employees. &#10;Typically: annual Iqama fee ÷ 12. &#10;Posted: Dr Iqama Expense Account / Cr Compliance Payable."/>
+                            <field name="insurance_amount" readonly="state != 'draft'"
+                                   help="Monthly medical insurance premium for this employee. Mandatory under KSA Labour Law. &#10;Typically annual premium ÷ 12. &#10;Posted: Dr Insurance Expense Account / Cr Compliance Payable."/>
+                            <field name="saudization_amount" readonly="state != 'draft'"
+                                   help="Monthly Saudization (Nitaqat) compliance cost — levies, training costs, or Ministry of HR quota fees. &#10;Posted: Dr Saudization Expense Account / Cr Compliance Payable."/>
+                            <field name="other_costs" readonly="state != 'draft'"
+                                   help="Any other monthly statutory or compliance cost not covered above (e.g. work permit fees, medical checks). &#10;Posted to the GOSI Expense Account unless a separate account is configured."/>
+                        </group>
+                        <group string="Summary">
+                            <field name="total_cost" readonly="1" class="o_field_highlight"
+                                   help="Total = Basic Salary + GOSI + Iqama + Insurance + Saudization + Other. Auto-calculated. &#10;Used for profitability reporting. &#10;Note: the journal entry (Post Expenses) posts only the compliance costs (GOSI + Iqama + Insurance + Saudization + Other) to the Compliance Payable account — the basic salary is handled separately via the payslip."/>
+                        </group>
+                    </group>
+                    <group string="Notes">
+                        <field name="notes" nolabel="1" colspan="2"/>
+                    </group>
+                    <field name="move_id" invisible="1"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Employee Cost List View
+         =================================================== -->
+    <record id="view_employee_cost_list" model="ir.ui.view">
+        <field name="name">way4tech.employee.cost.list</field>
+        <field name="model">way4tech.employee.cost</field>
+        <field name="arch" type="xml">
+            <list string="Employee KSA Costs">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="client_id"/>
+                <field name="period_start"/>
+                <field name="period_end"/>
+                <field name="basic_salary" sum="Total Basic"/>
+                <field name="gosi_amount" sum="Total GOSI"/>
+                <field name="iqama_amount" sum="Total Iqama"/>
+                <field name="insurance_amount" sum="Total Insurance"/>
+                <field name="total_cost" sum="Total Cost"/>
+                <field name="state" widget="badge"
+                    decoration-info="state == 'draft'"
+                    decoration-success="state == 'confirmed'"
+                />
+            </list>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Employee Cost Search View
+         =================================================== -->
+    <record id="view_employee_cost_search" model="ir.ui.view">
+        <field name="name">way4tech.employee.cost.search</field>
+        <field name="model">way4tech.employee.cost</field>
+        <field name="arch" type="xml">
+            <search string="Search Employee Costs">
+                <field name="employee_id"/>
+                <field name="client_id"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Confirmed" name="confirmed" domain="[('state','=','confirmed')]"/>
+                <separator/>
+                <filter string="Employee" name="group_employee" context="{'group_by': 'employee_id'}"/>
+                <filter string="Client" name="group_client" context="{'group_by': 'client_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Employee Cost Pivot View
+         =================================================== -->
+    <record id="view_employee_cost_pivot" model="ir.ui.view">
+        <field name="name">way4tech.employee.cost.pivot</field>
+        <field name="model">way4tech.employee.cost</field>
+        <field name="arch" type="xml">
+            <pivot string="Employee KSA Cost Analysis">
+                <field name="employee_id" type="row"/>
+                <field name="client_id" type="row"/>
+                <field name="period_start" type="col" interval="month"/>
+                <field name="basic_salary" type="measure"/>
+                <field name="gosi_amount" type="measure"/>
+                <field name="iqama_amount" type="measure"/>
+                <field name="insurance_amount" type="measure"/>
+                <field name="saudization_amount" type="measure"/>
+                <field name="total_cost" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Employee Cost Graph View
+         =================================================== -->
+    <record id="view_employee_cost_graph" model="ir.ui.view">
+        <field name="name">way4tech.employee.cost.graph</field>
+        <field name="model">way4tech.employee.cost</field>
+        <field name="arch" type="xml">
+            <graph string="Employee Cost by Client" type="bar">
+                <field name="client_id" type="row"/>
+                <field name="total_cost" type="measure"/>
+                <field name="gosi_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Employee Cost Action
+         =================================================== -->
+    <record id="action_employee_cost" model="ir.actions.act_window">
+        <field name="name">Employee KSA Costs</field>
+        <field name="res_model">way4tech.employee.cost</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="search_view_id" ref="view_employee_cost_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Record your first Employee Cost
+            </p>
+            <p>
+                Track monthly KSA employee costs including GOSI, Iqama, Insurance,
+                Saudization, and other costs per employee for profitability analysis.
+            </p>
+        </field>
+    </record>
+
+</odoo>

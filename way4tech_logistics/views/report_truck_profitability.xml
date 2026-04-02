@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Truck-wise Profitability — Report Action
+         =================================================== -->
+    <record id="action_report_truck_profitability" model="ir.actions.report">
+        <field name="name">Truck-wise Profitability Report</field>
+        <field name="model">way4tech.truck.profitability.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_truck_profitability_doc</field>
+        <field name="report_file">way4tech_logistics.report_truck_profitability_doc</field>
+    </record>
+
+    <!-- ===================================================
+         Customer-wise Profitability — Report Action
+         =================================================== -->
+    <record id="action_report_client_profitability" model="ir.actions.report">
+        <field name="name">Customer-wise Profitability Report</field>
+        <field name="model">way4tech.truck.profitability.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_client_profitability_doc</field>
+        <field name="report_file">way4tech_logistics.report_client_profitability_doc</field>
+    </record>
+
+    <!-- ===================================================
+         Shared sub-template: one group section (truck or client)
+         =================================================== -->
+    <template id="report_profitability_group">
+        <!--
+            Parameters passed via t-call:
+              group  — dict from wizard.get_grouped_data()
+              sym    — currency symbol string
+        -->
+        <div class="page" style="page-break-after: always;">
+
+            <div class="row mb-3">
+                <div class="col-8">
+                    <h3 class="mb-0"><t t-esc="group['label']"/></h3>
+                    <t t-if="group['sub_label']">
+                        <small class="text-muted"><t t-esc="group['sub_label']"/></small>
+                    </t>
+                </div>
+                <div class="col-4 text-end">
+                    <span class="badge bg-secondary fs-6">
+                        <t t-esc="group['trip_count']"/> trip(s)
+                    </span>
+                </div>
+            </div>
+
+            <!-- Trip detail table -->
+            <table class="table table-sm table-bordered mb-4" style="font-size:10px;">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Truck</th>
+                        <th>Client</th>
+                        <th>Type</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Cost</th>
+                        <th class="text-end">Profit</th>
+                        <th class="text-end">Margin%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="group['trips']" t-as="trip">
+                        <tr>
+                            <td><t t-esc="trip.trip_date"/></td>
+                            <td><t t-esc="trip.name"/></td>
+                            <td><t t-esc="trip.truck_id.name or '-'"/></td>
+                            <td><t t-esc="trip.client_id.name or '-'"/></td>
+                            <td><t t-esc="trip.trip_type or '-'"/></td>
+                            <td class="text-end"><t t-esc="'%.2f' % trip.revenue"/></td>
+                            <td class="text-end"><t t-esc="'%.2f' % trip.total_cost"/></td>
+                            <td class="text-end"
+                                t-attf-style="color: #{trip.gross_profit >= 0 and 'green' or 'red'}">
+                                <t t-esc="'%.2f' % trip.gross_profit"/>
+                            </td>
+                            <td class="text-end">
+                                <t t-esc="'%.1f' % (trip.gross_profit / trip.revenue * 100 if trip.revenue else 0)"/>%
+                            </td>
+                        </tr>
+                    </t>
+                </tbody>
+                <tfoot class="fw-bold table-light">
+                    <tr>
+                        <td colspan="5" class="text-end">Subtotal</td>
+                        <td class="text-end"><t t-esc="'%.2f' % group['total_revenue']"/></td>
+                        <td class="text-end"><t t-esc="'%.2f' % group['total_cost']"/></td>
+                        <td class="text-end"
+                            t-attf-style="color: #{group['total_profit'] >= 0 and 'green' or 'red'}">
+                            <t t-esc="'%.2f' % group['total_profit']"/>
+                        </td>
+                        <td class="text-end"><t t-esc="'%.1f' % group['margin_pct']"/>%</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Per-group KPI cards -->
+            <div class="row text-center mb-2" style="font-size:11px;">
+                <div class="col-3">
+                    <div class="border rounded p-2">
+                        <div class="text-muted">Revenue</div>
+                        <div class="fw-bold">
+                            <t t-esc="sym"/>&amp;nbsp;<t t-esc="'%.2f' % group['total_revenue']"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="border rounded p-2">
+                        <div class="text-muted">Total Cost</div>
+                        <div class="fw-bold">
+                            <t t-esc="sym"/>&amp;nbsp;<t t-esc="'%.2f' % group['total_cost']"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="border rounded p-2">
+                        <div class="text-muted">Net Profit</div>
+                        <div class="fw-bold"
+                             t-attf-style="color: #{group['total_profit'] >= 0 and 'green' or 'red'}">
+                            <t t-esc="sym"/>&amp;nbsp;<t t-esc="'%.2f' % group['total_profit']"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="border rounded p-2">
+                        <div class="text-muted">Profit Margin</div>
+                        <div class="fw-bold"
+                             t-attf-style="color: #{group['margin_pct'] >= 0 and 'green' or 'red'}">
+                            <t t-esc="'%.1f' % group['margin_pct']"/>%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ===================================================
+         Truck-wise Profitability Report — QWeb Template
+         =================================================== -->
+    <template id="report_truck_profitability_doc">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="wizard">
+                <t t-set="groups" t-value="wizard.get_grouped_data()"/>
+                <t t-set="totals" t-value="wizard.get_grand_totals()"/>
+                <t t-set="sym" t-value="wizard.env.company.currency_id.symbol"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <!-- Cover / summary header -->
+                        <div class="row mb-4">
+                            <div class="col-8">
+                                <h2>Truck-wise Profitability Report</h2>
+                                <p class="text-muted mb-0">
+                                    Period:
+                                    <strong><t t-esc="wizard.date_from"/> — <t t-esc="wizard.date_to"/></strong>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    Status filter: <t t-esc="dict(wizard.fields_get(['state_filter'])['state_filter']['selection'])[wizard.state_filter]"/>
+                                </p>
+                            </div>
+                            <div class="col-4 text-end">
+                                <p class="mb-0">
+                                    Company: <strong><t t-esc="wizard.env.company.name"/></strong>
+                                </p>
+                                <p class="mb-0">
+                                    Printed: <t t-esc="context_timestamp(datetime.datetime.now()).strftime('%Y-%m-%d %H:%M')"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Grand-total summary table -->
+                        <table class="table table-bordered mb-4">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Trucks</th>
+                                    <th class="text-end">Trips</th>
+                                    <th class="text-end">Total Revenue (<t t-esc="sym"/>)</th>
+                                    <th class="text-end">Total Cost (<t t-esc="sym"/>)</th>
+                                    <th class="text-end">Net Profit (<t t-esc="sym"/>)</th>
+                                    <th class="text-end">Margin %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="groups" t-as="g">
+                                    <tr>
+                                        <td>
+                                            <strong><t t-esc="g['label']"/></strong>
+                                            <t t-if="g['sub_label']">
+                                                <br/><small class="text-muted"><t t-esc="g['sub_label']"/></small>
+                                            </t>
+                                        </td>
+                                        <td class="text-end"><t t-esc="g['trip_count']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % g['total_revenue']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % g['total_cost']"/></td>
+                                        <td class="text-end"
+                                            t-attf-style="color: #{g['total_profit'] >= 0 and 'green' or 'red'}">
+                                            <t t-esc="'%.2f' % g['total_profit']"/>
+                                        </td>
+                                        <td class="text-end"><t t-esc="'%.1f' % g['margin_pct']"/>%</td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot class="fw-bold table-warning">
+                                <tr>
+                                    <td>GRAND TOTAL</td>
+                                    <td class="text-end"><t t-esc="totals['trip_count']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % totals['total_revenue']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % totals['total_cost']"/></td>
+                                    <td class="text-end"
+                                        t-attf-style="color: #{totals['total_profit'] >= 0 and 'green' or 'red'}">
+                                        <t t-esc="'%.2f' % totals['total_profit']"/>
+                                    </td>
+                                    <td class="text-end"><t t-esc="'%.1f' % totals['margin_pct']"/>%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </t>
+
+                <!-- Detailed page per truck -->
+                <t t-foreach="groups" t-as="group">
+                    <t t-call="web.external_layout">
+                        <t t-call="way4tech_logistics.report_profitability_group"/>
+                    </t>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ===================================================
+         Customer-wise Profitability Report — QWeb Template
+         =================================================== -->
+    <template id="report_client_profitability_doc">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="wizard">
+                <t t-set="groups" t-value="wizard.get_grouped_data()"/>
+                <t t-set="totals" t-value="wizard.get_grand_totals()"/>
+                <t t-set="sym" t-value="wizard.env.company.currency_id.symbol"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <!-- Cover / summary header -->
+                        <div class="row mb-4">
+                            <div class="col-8">
+                                <h2>Customer-wise Profitability Report</h2>
+                                <p class="text-muted mb-0">
+                                    Period:
+                                    <strong><t t-esc="wizard.date_from"/> — <t t-esc="wizard.date_to"/></strong>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    Status filter: <t t-esc="dict(wizard.fields_get(['state_filter'])['state_filter']['selection'])[wizard.state_filter]"/>
+                                </p>
+                            </div>
+                            <div class="col-4 text-end">
+                                <p class="mb-0">
+                                    Company: <strong><t t-esc="wizard.env.company.name"/></strong>
+                                </p>
+                                <p class="mb-0">
+                                    Printed: <t t-esc="context_timestamp(datetime.datetime.now()).strftime('%Y-%m-%d %H:%M')"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Grand-total summary table -->
+                        <table class="table table-bordered mb-4">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Customer</th>
+                                    <th class="text-end">Trips</th>
+                                    <th class="text-end">Total Revenue (<t t-esc="sym"/>)</th>
+                                    <th class="text-end">Total Cost (<t t-esc="sym"/>)</th>
+                                    <th class="text-end">Net Profit (<t t-esc="sym"/>)</th>
+                                    <th class="text-end">Margin %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="groups" t-as="g">
+                                    <tr>
+                                        <td>
+                                            <strong><t t-esc="g['label']"/></strong>
+                                            <t t-if="g['sub_label']">
+                                                <br/><small class="text-muted"><t t-esc="g['sub_label']"/></small>
+                                            </t>
+                                        </td>
+                                        <td class="text-end"><t t-esc="g['trip_count']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % g['total_revenue']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % g['total_cost']"/></td>
+                                        <td class="text-end"
+                                            t-attf-style="color: #{g['total_profit'] >= 0 and 'green' or 'red'}">
+                                            <t t-esc="'%.2f' % g['total_profit']"/>
+                                        </td>
+                                        <td class="text-end"><t t-esc="'%.1f' % g['margin_pct']"/>%</td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot class="fw-bold table-warning">
+                                <tr>
+                                    <td>GRAND TOTAL</td>
+                                    <td class="text-end"><t t-esc="totals['trip_count']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % totals['total_revenue']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % totals['total_cost']"/></td>
+                                    <td class="text-end"
+                                        t-attf-style="color: #{totals['total_profit'] >= 0 and 'green' or 'red'}">
+                                        <t t-esc="'%.2f' % totals['total_profit']"/>
+                                    </td>
+                                    <td class="text-end"><t t-esc="'%.1f' % totals['margin_pct']"/>%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </t>
+
+                <!-- Detailed page per client -->
+                <t t-foreach="groups" t-as="group">
+                    <t t-call="web.external_layout">
+                        <t t-call="way4tech_logistics.report_profitability_group"/>
+                    </t>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

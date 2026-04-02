@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Maintenance History — Wizard View
+         =================================================== -->
+    <record id="view_maintenance_history_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.maintenance.history.wizard.form</field>
+        <field name="model">way4tech.maintenance.history.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Maintenance History Report">
+                <group>
+                    <group string="Date Range">
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group string="Filters">
+                        <field name="vehicle_ids" widget="many2many_tags"/>
+                        <field name="maint_type_filter"/>
+                    </group>
+                </group>
+                <footer>
+                    <button
+                        name="action_print_report"
+                        type="object"
+                        string="Print PDF"
+                        class="btn-primary"
+                    />
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Maintenance History — Window Action (opens wizard)
+         =================================================== -->
+    <record id="action_maintenance_history_wizard" model="ir.actions.act_window">
+        <field name="name">Maintenance History Report</field>
+        <field name="res_model">way4tech.maintenance.history.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- ===================================================
+         Maintenance History — Report Action (PDF)
+         =================================================== -->
+    <record id="action_report_maintenance_history" model="ir.actions.report">
+        <field name="name">Maintenance History Report</field>
+        <field name="model">way4tech.maintenance.history.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_maintenance_history_doc</field>
+        <field name="report_file">way4tech_logistics.report_maintenance_history_doc</field>
+    </record>
+
+    <!-- ===================================================
+         Maintenance History — QWeb Template
+         =================================================== -->
+    <template id="report_maintenance_history_doc">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="wizard">
+                <t t-set="groups" t-value="wizard.get_grouped_data()"/>
+                <t t-set="totals" t-value="wizard.get_grand_totals()"/>
+                <t t-set="sym"    t-value="wizard.env.company.currency_id.symbol"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+
+                        <!-- Report Header -->
+                        <div class="row mb-4">
+                            <div class="col-8">
+                                <h2>Maintenance History Report</h2>
+                                <p class="text-muted mb-0">
+                                    Period: <strong><t t-esc="wizard.date_from"/> — <t t-esc="wizard.date_to"/></strong>
+                                </p>
+                                <t t-if="wizard.maint_type_filter != 'all'">
+                                    <p class="text-muted mb-0">
+                                        Category: <strong><t t-esc="dict(wizard.fields_get(['maint_type_filter'])['maint_type_filter']['selection'])[wizard.maint_type_filter]"/></strong>
+                                    </p>
+                                </t>
+                            </div>
+                            <div class="col-4 text-end">
+                                <p class="mb-0">Company: <strong><t t-esc="wizard.env.company.name"/></strong></p>
+                                <p class="mb-0">Printed: <t t-esc="context_timestamp(datetime.datetime.now()).strftime('%Y-%m-%d %H:%M')"/></p>
+                            </div>
+                        </div>
+
+                        <!-- Summary Table -->
+                        <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366">Fleet Summary</h4>
+                        <table class="table table-bordered mb-4" style="font-size:11px;">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Truck</th>
+                                    <th>Plate</th>
+                                    <th class="text-end">Records</th>
+                                    <th class="text-end">Total Cost (<t t-esc="sym"/>)</th>
+                                    <th>Repeated Categories</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="groups" t-as="g">
+                                    <tr>
+                                        <td><strong><t t-esc="g['vehicle_name']"/></strong></td>
+                                        <td><t t-esc="g['license_plate']"/></td>
+                                        <td class="text-end"><t t-esc="g['record_count']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % g['total_cost']"/></td>
+                                        <td>
+                                            <t t-if="g['repeat_types']">
+                                                <span class="badge bg-warning text-dark">
+                                                    <t t-esc="', '.join(g['repeat_types'])"/>
+                                                </span>
+                                            </t>
+                                            <t t-else="">—</t>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot class="fw-bold table-warning">
+                                <tr>
+                                    <td colspan="2">GRAND TOTAL (<t t-esc="totals['vehicle_count']"/> trucks)</td>
+                                    <td class="text-end"><t t-esc="totals['record_count']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % totals['total_cost']"/></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                    </div>
+                </t>
+
+                <!-- Detailed page per truck -->
+                <t t-foreach="groups" t-as="group">
+                    <t t-call="web.external_layout">
+                        <div class="page" style="page-break-after: always;">
+
+                            <div class="row mb-3">
+                                <div class="col-8">
+                                    <h3 class="mb-0"><t t-esc="group['vehicle_name']"/></h3>
+                                    <t t-if="group['license_plate']">
+                                        <small class="text-muted">Plate: <t t-esc="group['license_plate']"/></small>
+                                    </t>
+                                </div>
+                                <div class="col-4 text-end">
+                                    <span class="badge bg-secondary fs-6">
+                                        <t t-esc="group['record_count']"/> record(s)
+                                    </span>
+                                    <t t-if="group['repeat_types']">
+                                        <br/>
+                                        <span class="badge bg-warning text-dark mt-1">
+                                            Repeat: <t t-esc="', '.join(group['repeat_types'])"/>
+                                        </span>
+                                    </t>
+                                </div>
+                            </div>
+
+                            <!-- Maintenance Records Table -->
+                            <table class="table table-sm table-bordered mb-3" style="font-size:10px;">
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Date</th>
+                                        <th>Category</th>
+                                        <th>State</th>
+                                        <th>Vendor</th>
+                                        <th>Notes</th>
+                                        <th class="text-end">Cost (<t t-esc="sym"/>)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="group['records']" t-as="rec">
+                                        <tr>
+                                            <td><t t-esc="rec.way4tech_ref or '-'"/></td>
+                                            <td><t t-esc="rec.date"/></td>
+                                            <td><t t-esc="dict(rec._fields['way4tech_maint_type'].selection).get(rec.way4tech_maint_type, rec.way4tech_maint_type or '-')"/></td>
+                                            <td>
+                                                <span t-attf-class="badge #{rec.way4tech_state == 'done' and 'bg-success' or rec.way4tech_state == 'confirmed' and 'bg-primary' or 'bg-secondary'}">
+                                                    <t t-esc="rec.way4tech_state or '-'"/>
+                                                </span>
+                                            </td>
+                                            <td><t t-esc="rec.vendor_id.name or '-'"/></td>
+                                            <td><t t-esc="(rec.notes or '')[:50]"/></td>
+                                            <td class="text-end"><t t-esc="'%.2f' % (rec.amount or 0)"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                                <tfoot class="fw-bold table-light">
+                                    <tr>
+                                        <td colspan="6" class="text-end">Total Cost</td>
+                                        <td class="text-end"><t t-esc="'%.2f' % group['total_cost']"/></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                        </div>
+                    </t>
+                </t>
+
+            </t>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- List View -->
+    <record id="view_asset_register_list" model="ir.ui.view">
+        <field name="name">way4tech.asset.register.list</field>
+        <field name="model">way4tech.asset.register</field>
+        <field name="arch" type="xml">
+            <list string="Asset Register"
+                  decoration-success="state == 'running'"
+                  decoration-muted="state in ('closed', 'disposed')">
+                <field name="ref"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="purchase_date"/>
+                <field name="purchase_value"/>
+                <field name="total_depreciated"/>
+                <field name="book_value"/>
+                <field name="depreciation_method"/>
+                <field name="state" widget="badge"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_asset_register_form" model="ir.ui.view">
+        <field name="name">way4tech.asset.register.form</field>
+        <field name="model">way4tech.asset.register</field>
+        <field name="arch" type="xml">
+            <form string="Fixed Asset">
+                <header>
+                    <button name="action_start_depreciation" string="Start Depreciation"
+                            type="object" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_post_current_depreciation" string="Post Next Period"
+                            type="object"
+                            invisible="state != 'running'"/>
+                    <button name="action_post_all_due" string="Post All Due"
+                            type="object"
+                            invisible="state != 'running'"/>
+                    <button name="action_dispose" string="Dispose Asset"
+                            type="object"
+                            invisible="state in ('disposed', 'draft')"/>
+                    <button name="action_reset_to_draft" string="Reset to Draft"
+                            type="object"
+                            invisible="state not in ('running',)"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,running,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_rentals" type="object"
+                                class="oe_stat_button" icon="fa-key">
+                            <div class="o_field_widget o_stat_info">
+                                <field name="rental_count" widget="statinfo" string="Rentals"/>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Asset Name"/></h1>
+                        <field name="ref" readonly="1"/>
+                    </div>
+
+                    <!-- Summary badges -->
+                    <div class="o_field_widget o_stat_info mb-3"
+                         invisible="state == 'draft'">
+                        <span class="o_stat_value">
+                            <field name="purchase_value" widget="monetary"/>
+                        </span>
+                        <span class="o_stat_text">Original Cost</span>
+                        <span class="o_stat_value ms-4" style="color:var(--o-warning-color);">
+                            <field name="total_depreciated" widget="monetary"/>
+                        </span>
+                        <span class="o_stat_text">Depreciated</span>
+                        <span class="o_stat_value ms-4" style="color:var(--o-success-color);">
+                            <field name="book_value" widget="monetary"/>
+                        </span>
+                        <span class="o_stat_text">Book Value</span>
+                    </div>
+
+                    <group>
+                        <group string="Asset Information">
+                            <field name="category"/>
+                            <field name="fleet_vehicle_id"
+                                   invisible="category != 'vehicle'"/>
+                            <field name="purchase_date"/>
+                            <field name="purchase_value"/>
+                            <field name="residual_value"/>
+                            <field name="depreciable_amount"/>
+                            <field name="disposal_date" invisible="state != 'disposed'"/>
+                        </group>
+                        <group string="Depreciation Method">
+                            <field name="depreciation_method"/>
+                            <field name="useful_life_months"/>
+                            <field name="declining_rate"
+                                   invisible="depreciation_method != 'declining'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Accounting Accounts">
+                        <group>
+                            <field name="asset_account_id"/>
+                            <field name="depreciation_account_id"/>
+                        </group>
+                        <group>
+                            <field name="expense_account_id"/>
+                            <field name="journal_id"/>
+                            <field name="analytic_account_id"/>
+                        </group>
+                    </group>
+                    <group string="Notes">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+
+                    <!-- Depreciation Schedule Tab -->
+                    <notebook>
+                        <page string="Depreciation Schedule" name="schedule">
+                            <field name="depreciation_line_ids" readonly="1">
+                                <list string="Depreciation Schedule"
+                                      decoration-success="state == 'posted'"
+                                      decoration-muted="state == 'reversed'">
+                                    <field name="sequence" string="Period"/>
+                                    <field name="date"/>
+                                    <field name="depreciation_amount"/>
+                                    <field name="cumulative_depreciation"/>
+                                    <field name="book_value"/>
+                                    <field name="state" widget="badge"/>
+                                    <button name="action_post" string="Post"
+                                            type="object" icon="fa-check"
+                                            invisible="state != 'draft'"/>
+                                    <button name="action_view_entry" string="View Entry"
+                                            type="object" icon="fa-external-link"
+                                            invisible="not move_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Graph View -->
+    <record id="view_asset_register_graph" model="ir.ui.view">
+        <field name="name">way4tech.asset.register.graph</field>
+        <field name="model">way4tech.asset.register</field>
+        <field name="arch" type="xml">
+            <graph string="Asset Value vs Depreciation" type="bar">
+                <field name="name"/>
+                <field name="purchase_value" type="measure"/>
+                <field name="total_depreciated" type="measure"/>
+                <field name="book_value" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_asset_register" model="ir.actions.act_window">
+        <field name="name">Asset Register</field>
+        <field name="res_model">way4tech.asset.register</field>
+        <field name="view_mode">list,form,graph</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add your first fixed asset</p>
+            <p>Track vehicles, machinery, tools, and other fixed assets with
+               automatic straight-line or declining-balance depreciation.</p>
+        </field>
+    </record>
+
+</odoo>

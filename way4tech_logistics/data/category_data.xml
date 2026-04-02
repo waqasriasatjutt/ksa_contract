@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Default accounting entry categories.
+         noupdate="1" so admin customizations survive module upgrades. -->
+
+    <record id="category_advance" model="way4tech.entry.category">
+        <field name="name">Advance</field>
+        <field name="code">ADV</field>
+        <field name="sequence">10</field>
+        <field name="apply_to">all</field>
+        <field name="color">1</field>
+    </record>
+
+    <record id="category_loan" model="way4tech.entry.category">
+        <field name="name">Loan</field>
+        <field name="code">LN</field>
+        <field name="sequence">20</field>
+        <field name="apply_to">all</field>
+        <field name="color">2</field>
+    </record>
+
+    <record id="category_salary_payable" model="way4tech.entry.category">
+        <field name="name">Salary Payable</field>
+        <field name="code">SPAY</field>
+        <field name="sequence">30</field>
+        <field name="apply_to">all</field>
+        <field name="color">3</field>
+    </record>
+
+    <record id="category_salary" model="way4tech.entry.category">
+        <field name="name">Salary</field>
+        <field name="code">SAL</field>
+        <field name="sequence">40</field>
+        <field name="apply_to">all</field>
+        <field name="color">4</field>
+    </record>
+
+    <record id="category_rent" model="way4tech.entry.category">
+        <field name="name">Rent</field>
+        <field name="code">RNT</field>
+        <field name="sequence">50</field>
+        <field name="apply_to">all</field>
+        <field name="color">5</field>
+    </record>
+
+    <record id="category_utility" model="way4tech.entry.category">
+        <field name="name">Utility Bills</field>
+        <field name="code">UTIL</field>
+        <field name="sequence">60</field>
+        <field name="apply_to">all</field>
+        <field name="color">6</field>
+    </record>
+
+    <record id="category_maintenance" model="way4tech.entry.category">
+        <field name="name">Maintenance</field>
+        <field name="code">MAINT</field>
+        <field name="sequence">70</field>
+        <field name="apply_to">all</field>
+        <field name="color">7</field>
+    </record>
+
+    <record id="category_fuel" model="way4tech.entry.category">
+        <field name="name">Fuel / Diesel</field>
+        <field name="code">FUEL</field>
+        <field name="sequence">80</field>
+        <field name="apply_to">all</field>
+        <field name="color">8</field>
+    </record>
+
+    <record id="category_gosi_iqama" model="way4tech.entry.category">
+        <field name="name">GOSI / Iqama</field>
+        <field name="code">GOSI</field>
+        <field name="sequence">90</field>
+        <field name="apply_to">all</field>
+        <field name="color">9</field>
+    </record>
+
+    <record id="category_commission" model="way4tech.entry.category">
+        <field name="name">Commission</field>
+        <field name="code">COMM</field>
+        <field name="sequence">100</field>
+        <field name="apply_to">invoice</field>
+        <field name="color">10</field>
+    </record>
+
+    <record id="category_truck_revenue" model="way4tech.entry.category">
+        <field name="name">Truck Revenue</field>
+        <field name="code">TRK</field>
+        <field name="sequence">110</field>
+        <field name="apply_to">invoice</field>
+        <field name="color">11</field>
+    </record>
+
+    <record id="category_manpower_revenue" model="way4tech.entry.category">
+        <field name="name">Manpower Revenue</field>
+        <field name="code">MNP</field>
+        <field name="sequence">120</field>
+        <field name="apply_to">invoice</field>
+        <field name="color">12</field>
+    </record>
+
+    <record id="category_installment" model="way4tech.entry.category">
+        <field name="name">Installment Payment</field>
+        <field name="code">INST</field>
+        <field name="sequence">130</field>
+        <field name="apply_to">journal</field>
+        <field name="color">0</field>
+    </record>
+
+    <record id="category_depreciation" model="way4tech.entry.category">
+        <field name="name">Depreciation</field>
+        <field name="code">DEP</field>
+        <field name="sequence">140</field>
+        <field name="apply_to">journal</field>
+        <field name="color">0</field>
+    </record>
+
+    <record id="category_others" model="way4tech.entry.category">
+        <field name="name">Others</field>
+        <field name="code">OTH</field>
+        <field name="sequence">999</field>
+        <field name="apply_to">all</field>
+        <field name="color">0</field>
+    </record>
+
+</odoo>

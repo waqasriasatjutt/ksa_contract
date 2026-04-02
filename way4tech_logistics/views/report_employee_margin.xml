@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_employee_margin" model="ir.actions.report">
+        <field name="name">Rider / Driver Margin Report</field>
+        <field name="model">way4tech.employee.margin.report.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_employee_margin_template</field>
+        <field name="report_file">way4tech_logistics.report_employee_margin_template</field>
+        <field name="binding_model_id" ref="model_way4tech_employee_margin_report_wizard"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+    </record>
+
+    <template id="report_employee_margin_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="wizard">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h3>Rider / Driver Profitability Report</h3>
+                                <p class="text-muted">
+                                    Period: <strong>
+                                        <t t-esc="wizard.date_from"/> — <t t-esc="wizard.date_to"/>
+                                    </strong>
+                                </p>
+                            </div>
+                            <div class="col-6 text-end">
+                                <p class="text-muted mb-0">
+                                    Company: <t t-esc="wizard.company_id.name"/>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    Generated: <t t-esc="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y')"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <t t-set="result" t-value="wizard.get_data()"/>
+                        <t t-set="rows" t-value="result[0]"/>
+                        <t t-set="grand" t-value="result[1]"/>
+
+                        <table class="table table-sm table-bordered o_main_table" style="font-size:11px;">
+                            <thead>
+                                <tr style="background:#2c7be5;color:white;">
+                                    <th>Employee</th>
+                                    <th class="text-end">Revenue (SAR)</th>
+                                    <th class="text-end">Salary Cost</th>
+                                    <th class="text-end">Compliance</th>
+                                    <th class="text-end">Total Cost</th>
+                                    <th class="text-end">Margin</th>
+                                    <th class="text-end">Margin %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="rows" t-as="row">
+                                    <t t-set="margin_color"
+                                       t-value="'color:#198754;' if row['margin'] >= 0 else 'color:#dc3545;'"/>
+                                    <tr>
+                                        <td>
+                                            <strong><t t-esc="row['employee']"/></strong>
+                                            <t t-if="row.get('job')">
+                                                <br/><small class="text-muted"><t t-esc="row['job']"/></small>
+                                            </t>
+                                        </td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['revenue']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['salary_cost']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['compliance_cost']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['total_cost']"/></td>
+                                        <td class="text-end" t-attf-style="#{margin_color}">
+                                            <strong><t t-esc="'%.2f' % row['margin']"/></strong>
+                                        </td>
+                                        <td class="text-end" t-attf-style="#{margin_color}">
+                                            <t t-esc="'%.1f%%' % row['margin_pct']"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot>
+                                <t t-set="grand_color"
+                                   t-value="'color:#198754;' if grand['margin'] >= 0 else 'color:#dc3545;'"/>
+                                <tr style="font-weight:bold;background:#f8f9fa;">
+                                    <td>Grand Total</td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['revenue']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['salary_cost']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['compliance_cost']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['total_cost']"/></td>
+                                    <td class="text-end" t-attf-style="#{grand_color}">
+                                        <t t-esc="'%.2f' % grand['margin']"/>
+                                    </td>
+                                    <td class="text-end" t-attf-style="#{grand_color}">
+                                        <t t-esc="'%.1f%%' % grand['margin_pct']"/>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <p class="text-muted mt-3" style="font-size:10px;">
+                            Revenue = Truck trip revenue attributed to driver.
+                            Salary = Net payable from salary import.
+                            Compliance = GOSI + Iqama + Insurance + Saudization.
+                        </p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>
