@@ -386,6 +386,9 @@ class Way4TechTruckTrip(models.Model):
             credit_line['analytic_distribution'] = analytic_dist
 
         journal = settings.truck_expense_journal_id or settings.employee_cost_journal_id
+        # Resolve trip-cost category (Fuel / Diesel)
+        trip_category = self.env.ref('way4tech_logistics.category_fuel', raise_if_not_found=False)
+
         move_vals = {
             'move_type': 'entry',
             'date': self.trip_date,
@@ -393,6 +396,8 @@ class Way4TechTruckTrip(models.Model):
             'company_id': self.company_id.id,
             'line_ids': [(0, 0, line) for line in debit_lines] + [(0, 0, credit_line)],
         }
+        if trip_category:
+            move_vals['way4tech_category_id'] = trip_category.id
         if journal:
             move_vals['journal_id'] = journal.id
 
