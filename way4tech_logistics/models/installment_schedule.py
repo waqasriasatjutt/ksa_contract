@@ -53,12 +53,12 @@ class Way4TechInstallmentSchedule(models.Model):
             vehicle_name = rec.vehicle_id.display_name or rec.vehicle_id.license_plate or 'Vehicle'
             rec.name = f'{vehicle_name} — Installment #{rec.installment_number}'
 
-    @api.depends('due_date', 'move_id', 'move_id.state')
+    @api.depends('due_date', 'move_id', 'move_id.state', 'move_id.payment_state')
     def _compute_state(self):
         today = fields.Date.today()
         due_soon_days = 7
         for rec in self:
-            if rec.move_id and rec.move_id.state == 'posted':
+            if rec.move_id and rec.move_id.payment_state in ('paid', 'in_payment'):
                 rec.state = 'paid'
             elif rec.due_date and rec.due_date < today:
                 rec.state = 'overdue'
@@ -68,61 +68,65 @@ class Way4TechInstallmentSchedule(models.Model):
                 rec.state = 'pending'
 
     def action_pay(self):
-        """Create a draft journal entry for this installment payment."""
+        """Create a draft vendor bill for this installment payment.
+
+        The user confirms the bill and uses Odoo's standard 'Register Payment'
+        to record the bank/cash outflow — proper reconciliation comes for free.
+        """
         self.ensure_one()
         if self.state == 'paid':
             raise UserError(_('This installment is already paid.'))
+        if self.move_id:
+            raise UserError(_('A bill already exists for this installment. Please check it first.'))
+
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
         if not settings.installment_payable_account_id:
             raise UserError(_(
                 'Set the Installment Payable Account in\n'
                 'Configuration → Payroll & Accounting Setup → Fleet & Trucks tab.'
             ))
-        journal = settings.truck_expense_journal_id
-        # Credit side: find bank/cash journal for the payment account
-        bank_journal = self.env['account.journal'].search(
-            [('type', 'in', ['bank', 'cash']), ('company_id', '=', self.company_id.id)],
-            limit=1,
-        )
-        credit_account = bank_journal.default_account_id if bank_journal else False
-        if not credit_account:
+
+        vendor = self.vehicle_id.installment_vendor_id
+        if not vendor:
             raise UserError(_(
-                'No bank or cash journal found in your company.\n'
-                'Please create a Bank or Cash journal in Accounting → Configuration → Journals.'
+                'No Financing Vendor set on this vehicle.\n'
+                'Go to Fleet & Vehicles → open the vehicle → set the Financing Vendor field.'
             ))
+
+        analytic = (
+            self.vehicle_id.analytic_account_id
+            or settings.default_analytic_account_id
+        )
+
+        bill_line = {
+            'name': f'Installment #{self.installment_number} — {self.vehicle_id.display_name}',
+            'quantity': 1.0,
+            'price_unit': self.amount,
+            'account_id': settings.installment_payable_account_id.id,
+        }
+        if analytic:
+            bill_line['analytic_distribution'] = {str(analytic.id): 100}
+
         inst_category = self.env.ref('way4tech_logistics.category_installment', raise_if_not_found=False)
-        move_vals = {
-            'move_type': 'entry',
-            'date': fields.Date.today(),
+        bill_vals = {
+            'move_type': 'in_invoice',
+            'partner_id': vendor.id,
+            'invoice_date': self.due_date or fields.Date.today(),
             'ref': f'Installment #{self.installment_number} — {self.vehicle_id.display_name or self.vehicle_id.license_plate}',
             'company_id': self.company_id.id,
-            'line_ids': [
-                (0, 0, {
-                    'name': f'Installment Payment #{self.installment_number} — {self.vehicle_id.display_name}',
-                    'account_id': settings.installment_payable_account_id.id,
-                    'debit': self.amount,
-                    'credit': 0.0,
-                }),
-                (0, 0, {
-                    'name': f'Installment Payment (Bank) #{self.installment_number} — {self.vehicle_id.display_name}',
-                    'account_id': credit_account.id,
-                    'debit': 0.0,
-                    'credit': self.amount,
-                }),
-            ],
+            'invoice_line_ids': [(0, 0, bill_line)],
         }
         if inst_category:
-            move_vals['way4tech_category_id'] = inst_category.id
-        if journal:
-            move_vals['journal_id'] = journal.id
-        move = self.env['account.move'].create(move_vals)
-        self.write({'move_id': move.id, 'paid_date': fields.Date.today()})
-        self.vehicle_id.installments_paid = (self.vehicle_id.installments_paid or 0) + 1
+            bill_vals['way4tech_category_id'] = inst_category.id
+
+        bill = self.env['account.move'].create(bill_vals)
+        self.write({'move_id': bill.id})
         return {
             'type': 'ir.actions.act_window',
+            'name': _('Installment Bill'),
             'res_model': 'account.move',
             'view_mode': 'form',
-            'res_id': move.id,
+            'res_id': bill.id,
             'target': 'current',
         }
 

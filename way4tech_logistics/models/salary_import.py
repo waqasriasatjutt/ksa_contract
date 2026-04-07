@@ -295,11 +295,13 @@ class SalaryImport(models.Model):
             move_lines += [(0, 0, debit_vals), (0, 0, credit_vals)]
 
         move_vals = {
+            'move_type': 'entry',
             'narration': _('Salary — %s  |  %s to %s') % (
                 self.name, self.period_start, self.period_end),
             'ref': self.name,
             'journal_id': settings.payroll_journal_id.id,
             'date': self.period_end,
+            'company_id': self.company_id.id,
             'line_ids': move_lines,
         }
         _category = self.env.ref('way4tech_logistics.category_salary', raise_if_not_found=False)
