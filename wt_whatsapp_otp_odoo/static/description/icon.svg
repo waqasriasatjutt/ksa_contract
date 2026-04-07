@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#075e54"/>
+      <stop offset="100%" style="stop-color:#128c7e"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="64" fill="url(#bg)"/>
+  <!-- WhatsApp phone + speech bubble -->
+  <path d="M64 22C41.9 22 24 39.9 24 62c0 7.8 2.2 15.1 6 21.3L24 106l23.3-6c5.9 3.2 12.7 5 20.7 5
+           22.1 0 40-17.9 40-40S86.1 22 64 22z" fill="#ffffff" opacity="0.95"/>
+  <path d="M64 27C44.7 27 29 42.7 29 62c0 7.3 2.1 14.1 5.8 19.8L29 101l19.7-5.1
+           C54.3 99 59 100 64 100c19.3 0 35-15.7 35-38S83.3 27 64 27z" fill="#25d366"/>
+  <!-- Lock icon overlaid bottom-right -->
+  <rect x="78" y="84" width="24" height="18" rx="3" fill="#ffffff" opacity="0.9"/>
+  <rect x="83" y="78" width="14" height="10" rx="7" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
+  <circle cx="90" cy="93" r="3" fill="#128c7e"/>
+  <!-- OTP "123" text hint -->
+  <text x="64" y="70" font-family="Arial, sans-serif" font-size="20" font-weight="700"
+        fill="#ffffff" text-anchor="middle">OTP</text>
+</svg>

@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Inject WhatsApp OTP fields into auth_signup.signup
+     Template structure (Odoo 19):
+       t-call="web.login_layout"
+         form.oe_signup_form
+           input#login  ← inject phone + OTP after this
+           t-call="auth_signup.fields"
+           div.oe_login_buttons
+             button[type=submit]  ← add id here
+       div#oe_structure_signup_bottom  ← inject JS before this
+════════════════════════════════════════════════════════════════════════════ -->
+<template id="wt_signup_otp_inject" name="WT WhatsApp OTP — Signup Inject"
+          inherit_id="auth_signup.signup">
+
+    <!-- 1. Phone + OTP fields injected after the email input -->
+    <xpath expr="//input[@id='login']" position="after">
+        <t t-if="wt_otp_enabled">
+
+            <!-- Phone Number field + Send OTP button -->
+            <div class="mb-3" id="wt_phone_row">
+                <label for="signup_phone" class="form-label">
+                    Phone Number <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    <input type="tel"
+                           name="phone"
+                           id="signup_phone"
+                           class="form-control"
+                           placeholder="+92 300 1234567"
+                           autocomplete="tel"
+                           t-att-value="wt_phone or ''"
+                           required="required"/>
+                    <button type="button"
+                            id="wt_send_otp_btn"
+                            class="btn btn-outline-secondary"
+                            onclick="wtSendOtp()">
+                        Send OTP
+                    </button>
+                </div>
+                <div id="wt_otp_send_msg" class="form-text" style="display:none;"></div>
+            </div>
+
+            <!-- OTP Code field + Verify button (hidden until OTP is sent) -->
+            <div class="mb-3" id="wt_otp_code_row" style="display:none;">
+                <label for="signup_otp_code" class="form-label">
+                    WhatsApp OTP Code <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    <input type="text"
+                           name="otp_code"
+                           id="signup_otp_code"
+                           class="form-control"
+                           placeholder="6-digit code"
+                           maxlength="6"
+                           inputmode="numeric"
+                           autocomplete="one-time-code"/>
+                    <button type="button"
+                            id="wt_verify_otp_btn"
+                            class="btn btn-outline-secondary"
+                            onclick="wtVerifyOtp()">
+                        Verify
+                    </button>
+                </div>
+                <div id="wt_otp_verify_msg" class="form-text" style="display:none;"></div>
+            </div>
+
+            <!-- Hidden flag — server side also re-checks, this just blocks the button -->
+            <input type="hidden" name="otp_verified" id="wt_otp_verified_flag" value="0"/>
+
+        </t>
+    </xpath>
+
+    <!-- 2. Add id to the submit button so JS can enable/disable it -->
+    <xpath expr="//button[@type='submit']" position="attributes">
+        <attribute name="id">wt_signup_submit_btn</attribute>
+    </xpath>
+
+    <!-- 3. OTP JavaScript — injected just before the bottom structure div -->
+    <xpath expr="//div[@id='oe_structure_signup_bottom']" position="before">
+        <t t-if="wt_otp_enabled">
+            <script type="text/javascript">
+            (function () {
+                // Disable submit until OTP is verified
+                var submitBtn = document.getElementById('wt_signup_submit_btn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.title = 'Please verify your phone number via WhatsApp OTP first.';
+                }
+
+                function getPhone() {
+                    var el = document.getElementById('signup_phone');
+                    var ph = el ? el.value.trim().replace(/[\s\-]/g, '') : '';
+                    if (ph &amp;&amp; !ph.startsWith('+')) ph = '+' + ph;
+                    return ph;
+                }
+
+                function showMsg(elId, msg, isError) {
+                    var el = document.getElementById(elId);
+                    if (!el) return;
+                    el.textContent = msg;
+                    el.style.color = isError ? '#dc3545' : '#198754';
+                    el.style.display = msg ? 'block' : 'none';
+                }
+
+                window.wtSendOtp = function () {
+                    var phone = getPhone();
+                    if (!phone) {
+                        showMsg('wt_otp_send_msg', 'Please enter your phone number with country code.', true);
+                        return;
+                    }
+                    var btn = document.getElementById('wt_send_otp_btn');
+                    btn.disabled = true;
+                    btn.textContent = 'Sending…';
+                    showMsg('wt_otp_send_msg', '', false);
+
+                    fetch('/wa/send-otp', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            jsonrpc: '2.0', method: 'call', id: 1,
+                            params: {phone: phone}
+                        })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        btn.disabled = false;
+                        btn.textContent = 'Resend OTP';
+                        var res = data.result || {};
+                        if (res.success) {
+                            showMsg('wt_otp_send_msg',
+                                'OTP sent to ' + phone + '. Check WhatsApp.', false);
+                            document.getElementById('wt_otp_code_row').style.display = 'block';
+                            // Reset verification state on resend
+                            document.getElementById('wt_otp_verified_flag').value = '0';
+                            if (submitBtn) { submitBtn.disabled = true; }
+                            showMsg('wt_otp_verify_msg', '', false);
+                        } else {
+                            showMsg('wt_otp_send_msg', res.error || 'Failed to send OTP. Please try again.', true);
+                        }
+                    })
+                    .catch(function () {
+                        btn.disabled = false;
+                        btn.textContent = 'Send OTP';
+                        showMsg('wt_otp_send_msg', 'Network error. Please try again.', true);
+                    });
+                };
+
+                window.wtVerifyOtp = function () {
+                    var phone = getPhone();
+                    var codeEl = document.getElementById('signup_otp_code');
+                    var code = codeEl ? codeEl.value.trim() : '';
+                    if (!phone || !code) {
+                        showMsg('wt_otp_verify_msg', 'Enter your phone number and the OTP code.', true);
+                        return;
+                    }
+                    var btn = document.getElementById('wt_verify_otp_btn');
+                    btn.disabled = true;
+                    btn.textContent = 'Checking…';
+
+                    fetch('/wa/verify-otp', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            jsonrpc: '2.0', method: 'call', id: 2,
+                            params: {phone: phone, code: code}
+                        })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        btn.disabled = false;
+                        btn.textContent = 'Verify';
+                        var res = data.result || {};
+                        if (res.valid) {
+                            showMsg('wt_otp_verify_msg', '✓ Phone number verified!', false);
+                            document.getElementById('wt_otp_verified_flag').value = '1';
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.title = '';
+                            }
+                        } else {
+                            showMsg('wt_otp_verify_msg', 'Invalid or expired OTP. Please request a new code.', true);
+                            document.getElementById('wt_otp_verified_flag').value = '0';
+                        }
+                    })
+                    .catch(function () {
+                        btn.disabled = false;
+                        btn.textContent = 'Verify';
+                        showMsg('wt_otp_verify_msg', 'Network error. Please try again.', true);
+                    });
+                };
+            })();
+            </script>
+        </t>
+    </xpath>
+
+</template>
+
+</odoo>

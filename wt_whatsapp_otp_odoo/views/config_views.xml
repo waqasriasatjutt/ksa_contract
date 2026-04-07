@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Inject WhatsApp OTP settings into the existing Website configuration section -->
+    <record id="view_wt_whatsapp_otp_config_settings" model="ir.ui.view">
+        <field name="name">res.config.settings.wt.whatsapp.otp</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="website.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='website']" position="inside">
+
+                <block title="WhatsApp OTP — Signup Verification" name="wt_otp_block">
+
+                    <setting string="Enable WhatsApp OTP on Signup"
+                             help="Require customers to verify their WhatsApp phone number before creating a portal account.">
+                        <field name="wt_otp_enabled"/>
+                    </setting>
+
+                    <setting string="WhatsApp API Token"
+                             help="Bearer token from Meta WhatsApp Cloud API. Found in Meta Business Manager → App → WhatsApp → API Setup."
+                             invisible="not wt_otp_enabled">
+                        <field name="wt_whatsapp_token" class="o_light_label" password="True"/>
+                    </setting>
+
+                    <setting string="WhatsApp Phone Number ID"
+                             help="Phone Number ID from Meta Business Manager → WhatsApp → API Setup."
+                             invisible="not wt_otp_enabled">
+                        <field name="wt_whatsapp_phone_id" class="o_light_label"/>
+                    </setting>
+
+                    <setting string="OTP Template Name"
+                             help="Name of the Meta-approved WhatsApp message template. Must have exactly one body variable {{1}} which will receive the OTP code."
+                             invisible="not wt_otp_enabled">
+                        <field name="wt_otp_template" class="o_light_label"/>
+                    </setting>
+
+                    <setting string="OTP Expiry (minutes)"
+                             help="How many minutes before a generated OTP expires. Default: 10 minutes."
+                             invisible="not wt_otp_enabled">
+                        <field name="wt_otp_expiry_minutes"/>
+                    </setting>
+
+                </block>
+
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

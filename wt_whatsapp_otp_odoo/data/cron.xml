@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="action_cron_wt_cleanup_otps" model="ir.actions.server">
+        <field name="name">WT WhatsApp OTP: Cleanup Expired OTPs</field>
+        <field name="model_id" ref="model_wt_phone_otp"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_cleanup_expired_otps()</field>
+    </record>
+
+    <record id="cron_wt_cleanup_otps" model="ir.cron">
+        <field name="cron_name">WT WhatsApp OTP: Cleanup Expired OTPs</field>
+        <field name="ir_actions_server_id" ref="action_cron_wt_cleanup_otps"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active">True</field>
+    </record>
+
+</odoo>

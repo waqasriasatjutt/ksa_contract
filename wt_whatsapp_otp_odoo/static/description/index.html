@@ -1,0 +1,600 @@
+<!-- WT WhatsApp OTP — Odoo Store Description -->
+
+<h1 style="text-align: center; color: #075e54; padding-top: 10px; padding-bottom: 10px; font-family: Montserrat, sans-serif;">
+    WT WhatsApp OTP — Signup Verification
+</h1>
+<p style="text-align: center; color: #777783; font-family: Montserrat, sans-serif; font-size: 16px; margin-bottom: 20px;">
+    Verify customer phone numbers via WhatsApp OTP during Odoo signup — standalone, works with any module, zero configuration required beyond a Meta API token.
+</p>
+
+
+<!-- BANNER -->
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_demo oe_picture oe_screenshot">
+            <img src="banner.png" alt="WT WhatsApp OTP Banner"/>
+        </div>
+    </div>
+</section>
+
+<div style="height: 30px;"></div>
+
+
+<!-- GETTING STARTED -->
+
+<div class="container my-5">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <h2 style="font-weight: bold; color: #3D3D4E; font-family: Montserrat, sans-serif;">Getting Started</h2>
+        <p style="color: #777783; font-family: Montserrat, sans-serif;">Get WhatsApp OTP running on your Odoo signup page in 5 steps.</p>
+        <hr/>
+    </div>
+    <div class="row">
+
+        <div class="col-lg-3 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 50% !important; height: 50px; width: 50px;">
+                <span style="font-size: 20px; font-weight: 800; color: #fff;">1</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Create Meta App</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Log in to <strong>developers.facebook.com</strong>, create a new App of type <strong>Business</strong>, and add the <strong>WhatsApp</strong> product to it.
+            </p>
+        </div>
+
+        <div class="col-lg-3 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 50% !important; height: 50px; width: 50px;">
+                <span style="font-size: 20px; font-weight: 800; color: #fff;">2</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Approve OTP Template</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                In WhatsApp Manager, create a message template named <strong>phone_otp</strong> with one body variable <strong>&#123;&#123;1&#125;&#125;</strong> containing the code. Wait for Meta approval (usually &lt;24 hours).
+            </p>
+        </div>
+
+        <div class="col-lg-3 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #1aaa96 !important; border-radius: 50% !important; height: 50px; width: 50px;">
+                <span style="font-size: 20px; font-weight: 800; color: #fff;">3</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Install Module</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Install <strong>WT WhatsApp OTP</strong> from Odoo Apps. Required dependencies (Portal, Auth Signup, Website) install automatically.
+            </p>
+        </div>
+
+        <div class="col-lg-3 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #25d366 !important; border-radius: 50% !important; height: 50px; width: 50px;">
+                <span style="font-size: 20px; font-weight: 800; color: #fff;">4</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Configure &amp; Enable</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Go to <strong>Settings &rarr; Website &rarr; WhatsApp OTP</strong>. Paste your API Token, Phone Number ID, template name, then tick <strong>Enable WhatsApp OTP on Signup</strong>.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- FEATURES -->
+
+<div class="container my-5">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <h2 style="font-weight: bold; color: #3D3D4E; font-family: Montserrat, sans-serif;">Module Features</h2>
+        <p style="color: #777783; font-family: Montserrat, sans-serif;">Everything you need for secure phone verification on Odoo signup — nothing more, nothing less.</p>
+        <hr/>
+    </div>
+    <div class="row">
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128241;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">WhatsApp Cloud API</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Sends OTP codes via the official <strong>Meta WhatsApp Cloud API</strong> (v18.0). No third-party intermediary — direct from your Meta Business account to the customer's WhatsApp.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128272;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Secure 6-Digit OTP</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Generates a cryptographically random 6-digit numeric code. OTPs are single-use, expire after a configurable number of minutes, and prior codes are invalidated when a new one is requested.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #1aaa96 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#9989;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Inline Verification UI</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Phone field and OTP code input are injected directly into the standard Odoo <strong>/web/signup</strong> page. The Submit button stays disabled until OTP is verified — no redirect, no separate page.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #25d366 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128101;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Auto Partner Link</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                If a <strong>res.partner</strong> with the same email already exists (e.g. created from a booking or inquiry), the new user account is automatically linked to it — no duplicate contacts.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128222;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Phone Saved to Partner</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                After successful signup, the verified phone number is automatically saved to the customer's <strong>res.partner</strong> record (both phone and mobile fields) so you always have a valid number on file.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128336;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Configurable Expiry</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Set OTP expiry from 1 to 60 minutes in Website Settings. A scheduled cron job automatically cleans up expired OTP records every hour to keep the database lean.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #1aaa96 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128274;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Server-Side Validation</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                OTP is validated <strong>server-side</strong> at form submission — not just in JavaScript. Even if a user bypasses the browser UI, the server rejects the signup with an error message if the OTP is invalid.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #25d366 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128257;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Resend OTP</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Customer can request a new OTP at any time by clicking <strong>Resend OTP</strong>. Previous codes for the same phone are automatically invalidated so only the latest code is valid.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128268;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Fully Standalone</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Does <strong>not</strong> depend on any other WT module. Works alongside <strong>any</strong> Odoo module that uses the standard portal signup — salon, real estate, school, ecommerce, or custom apps.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- HOW TO USE — DETAILED STEP BY STEP GUIDE -->
+
+<div class="container my-5">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <h2 style="font-weight: bold; color: #3D3D4E; font-family: Montserrat, sans-serif;">Step-by-Step Setup Guide</h2>
+        <p style="color: #777783; font-family: Montserrat, sans-serif;">Complete guide from creating your Meta App all the way to a customer receiving their OTP on WhatsApp.</p>
+        <hr/>
+    </div>
+    <div class="row">
+
+        <!-- Step 1 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #075e54 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">1</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Create a Meta Developer Account</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                Go to <strong>developers.facebook.com</strong> and log in with your Facebook / Meta account.
+                Click <strong>My Apps &rarr; Create App</strong>. Select <strong>Other</strong> as the use case,
+                then choose <strong>Business</strong> as the app type. Give your app a name (e.g. &ldquo;My Odoo Notifications&rdquo;)
+                and click <strong>Create App</strong>.
+            </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #128c7e !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">2</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Add WhatsApp to Your App</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                Inside your app dashboard, scroll down to <strong>Add Products</strong> and click <strong>Set Up</strong>
+                next to <strong>WhatsApp</strong>. You will be taken to the WhatsApp Getting Started page.
+                Link your app to a <strong>Meta Business Account</strong> when prompted — create one if you don't have it yet.
+            </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #1aaa96 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">3</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Get Your API Token &amp; Phone Number ID</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                In your app, go to <strong>WhatsApp &rarr; API Setup</strong>. You will see two important values:<br/>
+                &bull; <strong>Temporary access token</strong> — for testing (expires in 24 hours). For production, generate a
+                <strong>permanent System User token</strong> from <em>Business Settings &rarr; System Users</em>.<br/>
+                &bull; <strong>Phone Number ID</strong> — a long numeric ID shown under <em>From</em>.<br/>
+                Copy both — you will need them in Odoo Settings.
+            </p>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #25d366 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">4</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Add a Test Phone Number (Development Only)</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                During development, Meta only allows sending to <strong>verified test numbers</strong>. Go to
+                <strong>WhatsApp &rarr; API Setup &rarr; To</strong> and click <strong>Manage phone number list</strong>.
+                Add your mobile number and verify it with the code Meta sends. You can add up to 5 test numbers for free.
+                In production, you must upgrade your Meta App to <strong>Live mode</strong> to message any number.
+            </p>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #075e54 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">5</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Create the OTP Message Template</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                Go to <strong>business.facebook.com &rarr; WhatsApp Manager &rarr; Message Templates &rarr; Create Template</strong>.<br/>
+                &bull; <strong>Category:</strong> Authentication<br/>
+                &bull; <strong>Name:</strong> <code>phone_otp</code> (must match the template name in Odoo Settings)<br/>
+                &bull; <strong>Language:</strong> English (en_US)<br/>
+                &bull; <strong>Body text example:</strong> <em>&ldquo;Your verification code is &#123;&#123;1&#125;&#125;. Valid for 10 minutes.&rdquo;</em><br/>
+                The variable <strong>&#123;&#123;1&#125;&#125;</strong> will be replaced with the 6-digit OTP. Submit and wait for approval.
+            </p>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #128c7e !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">6</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Install the Odoo Module</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                In Odoo, go to <strong>Apps</strong>, search for <strong>WT WhatsApp OTP</strong> and click <strong>Install</strong>.
+                The module automatically installs <em>Portal</em>, <em>Auth Signup</em>, and <em>Website</em> if they are not already installed.
+                No additional configuration of those modules is needed.
+            </p>
+        </div>
+
+        <!-- Step 7 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #1aaa96 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">7</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Configure in Website Settings</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                Go to <strong>Settings &rarr; Website</strong> and scroll down to the
+                <strong>&ldquo;WhatsApp OTP — Signup Verification&rdquo;</strong> section.<br/>
+                Fill in:<br/>
+                &bull; <strong>WhatsApp API Token</strong> — paste your permanent system user token.<br/>
+                &bull; <strong>WhatsApp Phone Number ID</strong> — paste the numeric ID from Meta.<br/>
+                &bull; <strong>OTP Template Name</strong> — default is <code>phone_otp</code>.<br/>
+                &bull; <strong>OTP Expiry (minutes)</strong> — default is 10 minutes.<br/>
+                Then tick <strong>Enable WhatsApp OTP on Signup</strong> and click <strong>Save</strong>.
+            </p>
+        </div>
+
+        <!-- Step 8 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #25d366 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">8</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Test the Signup Flow</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                Open your Odoo website in an incognito window and go to <strong>/web/signup</strong>.
+                You will see a <strong>Phone Number</strong> field has been added. Enter your number (with country code, e.g. +923001234567),
+                click <strong>Send OTP</strong>, check WhatsApp for the 6-digit code, enter it, click <strong>Verify</strong>,
+                and then complete the form. The <strong>Create Account</strong> button becomes active only after verification.
+            </p>
+        </div>
+
+        <!-- Step 9 -->
+        <div class="col-lg-6 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex align-items-center my-2">
+                <div class="d-flex justify-content-center align-items-center me-3"
+                     style="background-color: #075e54 !important; border-radius: 50% !important; height: 40px; width: 40px; flex-shrink:0;">
+                    <span style="font-size: 16px; font-weight: 800; color: #fff;">9</span>
+                </div>
+                <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E; margin:0;">Go Live — Upgrade App to Production</h6>
+            </div>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783; padding-left: 52px;">
+                Once testing is confirmed, switch your Meta App from <strong>Development</strong> to <strong>Live</strong> mode
+                (toggle at the top of your app dashboard). Generate a <strong>permanent System User token</strong> (no expiry)
+                from <em>Business Settings &rarr; Users &rarr; System Users &rarr; Generate Token</em> with the
+                <strong>whatsapp_business_messaging</strong> permission, and update it in Odoo Website Settings.
+                Now any phone number in the world can receive OTPs.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- WHATSAPP API QUICK REFERENCE -->
+
+<div class="container my-5">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <h2 style="font-weight: bold; color: #3D3D4E; font-family: Montserrat, sans-serif;">WhatsApp API Quick Reference</h2>
+        <p style="color: #777783; font-family: Montserrat, sans-serif;">Where to find each value you need in the Meta dashboard.</p>
+        <hr/>
+    </div>
+    <div class="row">
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128273;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">API Token (Bearer)</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                <strong>Location:</strong> developers.facebook.com &rarr; Your App &rarr; WhatsApp &rarr; API Setup &rarr; Temporary access token<br/>
+                <strong>Production:</strong> Business Settings &rarr; Users &rarr; System Users &rarr; Generate Token<br/>
+                <strong>Required permission:</strong> whatsapp_business_messaging
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128222;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Phone Number ID</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                <strong>Location:</strong> developers.facebook.com &rarr; Your App &rarr; WhatsApp &rarr; API Setup &rarr; <em>From</em> section — the number below the dropdown<br/>
+                <strong>Format:</strong> A long numeric string e.g. <code>123456789012345</code><br/>
+                <strong>Note:</strong> This is NOT your actual phone number.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #1aaa96 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128203;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Template Name</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                <strong>Location:</strong> business.facebook.com &rarr; WhatsApp Manager &rarr; Message Templates<br/>
+                <strong>Default name used:</strong> <code>phone_otp</code><br/>
+                <strong>Requirements:</strong> Category = Authentication, Language = en_US, Body has exactly one variable <code>&#123;&#123;1&#125;&#125;</code>, Status = Approved.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- IMPORTANT NOTES -->
+
+<div class="container my-5">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <h2 style="font-weight: bold; color: #3D3D4E; font-family: Montserrat, sans-serif;">Important Notes</h2>
+        <p style="color: #777783; font-family: Montserrat, sans-serif;">Read these before going live.</p>
+        <hr/>
+    </div>
+    <div class="row">
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#9888;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Phone Format</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Phone numbers must include the country code. The module automatically prefixes a <strong>+</strong> if missing and strips spaces and dashes. Example: <code>923001234567</code> &rarr; <code>+923001234567</code>. Educate your users to enter their number with country code.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128260;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Development vs Live Mode</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                In Meta App <strong>Development mode</strong>, OTPs can only be sent to phone numbers you have explicitly added as test numbers. Switch the app to <strong>Live mode</strong> to send OTPs to any WhatsApp user in the world.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #1aaa96 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128176;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Meta Costs</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Meta charges per message. Authentication template messages (OTPs) are billed at the <strong>authentication</strong> conversation rate which is lower than marketing. Check Meta's current pricing at <em>business.facebook.com/pricing/whatsapp</em> for your region.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #25d366 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128274;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Token Security</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                The WhatsApp API Token is stored as an Odoo system parameter (encrypted field in UI). Never share it publicly. Use a <strong>System User token</strong> (not a personal user token) in production for better security and no expiry.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128296;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Template Must Be Approved</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Meta reviews every message template before it can be used. The <strong>Status</strong> must show <strong>Approved</strong> in WhatsApp Manager. If it shows Pending or Rejected, OTPs will not be sent (no error shown to user — OTP is generated but delivery fails silently).
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128202;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">OTP Cleanup Cron</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                A scheduled action <strong>&ldquo;WT WhatsApp OTP: Cleanup Expired OTPs&rdquo;</strong> runs every hour to remove OTP records older than 1 hour. You can find and adjust it in <em>Settings &rarr; Technical &rarr; Automation &rarr; Scheduled Actions</em>.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- 90 DAYS SUPPORT -->
+
+<div class="container my-5">
+    <div style="background: linear-gradient(135deg, #075e54 0%, #25d366 100%); border-radius: 16px; padding: 50px 40px; text-align: center; color: #fff;">
+        <h2 style="font-family: Montserrat, sans-serif; font-weight: bold; color: #fff; margin-bottom: 15px;">
+            90 Days Free Support
+        </h2>
+        <p style="font-family: Montserrat, sans-serif; font-size: 1.1rem; color: rgba(255,255,255,0.9); margin-bottom: 30px;">
+            Get 90 days of free support after purchase — Meta API setup help, template approval guidance, Odoo integration questions — we've got you covered.
+        </p>
+        <div class="row justify-content-center">
+            <div class="col-md-3 my-2">
+                <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px;">
+                    <div style="font-size: 36px;">&#128233;</div>
+                    <h6 style="font-family: Montserrat, sans-serif; font-weight: bold; color: #fff; margin-top: 10px;">Email Support</h6>
+                    <p style="font-family: Montserrat, sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.85); margin: 0;">
+                        Respond within 24 hours on business days.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-3 my-2">
+                <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px;">
+                    <div style="font-size: 36px;">&#128187;</div>
+                    <h6 style="font-family: Montserrat, sans-serif; font-weight: bold; color: #fff; margin-top: 10px;">Bug Fixes</h6>
+                    <p style="font-family: Montserrat, sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.85); margin: 0;">
+                        All bugs reported within 90 days fixed at no charge.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-3 my-2">
+                <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px;">
+                    <div style="font-size: 36px;">&#128218;</div>
+                    <h6 style="font-family: Montserrat, sans-serif; font-weight: bold; color: #fff; margin-top: 10px;">Setup Guide</h6>
+                    <p style="font-family: Montserrat, sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.85); margin: 0;">
+                        We'll walk you through Meta App setup if needed.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- GET HELP / CONTACT -->
+
+<div class="container my-5">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <h2 style="font-weight: bold; color: #3D3D4E; font-family: Montserrat, sans-serif;">Get Help</h2>
+        <hr/>
+    </div>
+    <div class="row">
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #075e54 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#127760;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Website</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Visit us at <strong>way4tech.com</strong> for documentation, demos and all our Odoo modules.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #128c7e !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128231;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Email</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Send your support questions or purchase enquiries to <strong>info@way4tech.com</strong>. Include your Odoo version and module version in the subject.
+            </p>
+        </div>
+
+        <div class="col-lg-4 d-flex flex-column justify-content-start align-items-start my-3 px-4">
+            <div class="d-flex justify-content-center align-items-center mx-0 my-3"
+                 style="background-color: #1aaa96 !important; border-radius: 15px !important; height: 70px; width: 70px;">
+                <span style="font-size: 32px;">&#128187;</span>
+            </div>
+            <h6 style="font-family: Montserrat, sans-serif !important; font-weight: bold; color: #3D3D4E;">Custom Development</h6>
+            <p style="font-family: Montserrat, sans-serif !important; font-size: 0.9rem; color: #777783;">
+                Need OTP on a custom form, SMS fallback, or a different API provider? We do custom Odoo development. Contact us at <strong>info@way4tech.com</strong> with your requirements.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- FOOTER -->
+
+<div style="background-color: #075e54; padding: 30px; text-align: center; margin-top: 40px;">
+    <p style="font-family: Montserrat, sans-serif; color: #a7f3d0; font-size: 14px; margin: 0;">
+        <strong style="color: #ffffff;">WT WhatsApp OTP — Signup Verification</strong>
+        &nbsp;|&nbsp; Version 19.0.1.0.0
+        &nbsp;|&nbsp; By Waqas Riasat / Way4Tech
+        &nbsp;|&nbsp; way4tech.com
+        &nbsp;|&nbsp; info@way4tech.com
+    </p>
+</div>
