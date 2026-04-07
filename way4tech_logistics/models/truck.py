@@ -202,6 +202,8 @@ class Way4TechInvestorPayable(models.Model):
 
     def action_create_bill(self):
         self.ensure_one()
+        if self.bill_id:
+            raise UserError(_('An investor bill already exists for this record.'))
         if self.truck_id.ownership_type != 'investor':
             raise UserError(_('Vendor bills are only created for investor-owned vehicles. This is a company-owned vehicle.'))
         if self.investor_amount <= 0:

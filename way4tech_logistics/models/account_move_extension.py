@@ -103,16 +103,20 @@ class AccountMoveWay4Tech(models.Model):
             )
         )
 
-        # Fetch default category once for auto-assignment
-        _default_cat = self.env['way4tech.entry.category'].sudo().search(
-            [], order='id asc', limit=1
-        )
+        # Check if categories are configured at all
+        _categories_exist = bool(self.env['way4tech.entry.category'].sudo().search(
+            [], limit=1
+        ))
 
         for move in self:
-            # 1. Mandatory category (logistics users only, skip system/cron)
-            #    Skip entirely if no categories exist (feature not configured yet).
-            if is_logistics_user and not move.way4tech_category_id and _default_cat:
-                move.sudo().way4tech_category_id = _default_cat.id
+            # 1. Mandatory category — block posting without a category
+            #    Only enforce when categories are configured (feature active).
+            #    Skip for non-logistics users (system, cron, other modules).
+            if _categories_exist and is_logistics_user and not move.way4tech_category_id:
+                raise UserError(_(
+                    'Entry Category is required before posting.\n\n'
+                    'Please select a category from the "Entry Category" field.'
+                ))
 
             # 2. Approval threshold (non-managers only, not already approved)
             if (is_logistics_user and not is_manager

@@ -64,11 +64,17 @@ class Way4TechClientPO(models.Model):
     )
     notes = fields.Text(string='Internal Notes')
 
-    @api.depends('trip_ids.revenue', 'trip_ids.state', 'total_amount')
+    @api.depends('trip_ids.revenue', 'trip_ids.state', 'trip_ids.invoice_id', 'trip_ids.invoice_id.state', 'total_amount')
     def _compute_balance(self):
         for rec in self:
             active = rec.trip_ids.filtered(lambda t: t.state in ('confirmed', 'done'))
-            consumed = sum(active.mapped('revenue'))
+            # Use actual posted invoice amounts where available, fall back to trip revenue
+            consumed = 0.0
+            for trip in active:
+                if trip.invoice_id and trip.invoice_id.state == 'posted':
+                    consumed += trip.invoice_id.amount_untaxed
+                else:
+                    consumed += trip.revenue
             remaining = rec.total_amount - consumed
             pct = (consumed / rec.total_amount * 100) if rec.total_amount else 0.0
             rec.consumed_amount = consumed
