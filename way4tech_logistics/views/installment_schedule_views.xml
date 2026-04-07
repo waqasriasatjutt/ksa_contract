@@ -10,6 +10,7 @@
                   decoration-danger="state == 'overdue'"
                   decoration-warning="state == 'due'"
                   decoration-success="state == 'paid'"
+                  decoration-info="state in ('invoiced', 'posted')"
                   decoration-muted="state == 'pending'">
                 <field name="vehicle_id"/>
                 <field name="installment_number" string="#"/>
@@ -19,8 +20,8 @@
                 <field name="state" widget="badge"/>
                 <field name="move_id" optional="hide"/>
                 <field name="note" optional="hide"/>
-                <button name="action_pay" string="Pay" type="object"
-                        icon="fa-money" invisible="state == 'paid'"/>
+                <button name="action_pay" string="Create Bill" type="object"
+                        icon="fa-money" invisible="move_id"/>
             </list>
         </field>
     </record>
@@ -32,11 +33,11 @@
         <field name="arch" type="xml">
             <form string="Installment">
                 <header>
-                    <button name="action_pay" string="Record Payment"
+                    <button name="action_pay" string="Create Bill"
                             type="object" class="btn-primary"
-                            invisible="state == 'paid'"/>
+                            invisible="move_id"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="pending,due,overdue,paid"/>
+                           statusbar_visible="pending,invoiced,posted,paid"/>
                 </header>
                 <sheet>
                     <group>

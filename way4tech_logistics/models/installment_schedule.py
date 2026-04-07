@@ -26,11 +26,13 @@ class Way4TechInstallmentSchedule(models.Model):
     installment_number = fields.Integer(string='Installment #', required=True)
     due_date = fields.Date(string='Due Date', required=True, tracking=True)
     amount = fields.Monetary(string='Amount', required=True, tracking=True)
-    paid_date = fields.Date(string='Paid Date', tracking=True)
+    paid_date = fields.Date(string='Paid Date', compute='_compute_paid_date', store=True, tracking=True)
     state = fields.Selection([
         ('pending', 'Pending'),
         ('due', 'Due Soon'),
         ('overdue', 'Overdue'),
+        ('invoiced', 'Invoiced'),
+        ('posted', 'Posted'),
         ('paid', 'Paid'),
     ], string='Status', compute='_compute_state', store=True, tracking=True)
     move_id = fields.Many2one(
@@ -60,12 +62,24 @@ class Way4TechInstallmentSchedule(models.Model):
         for rec in self:
             if rec.move_id and rec.move_id.payment_state in ('paid', 'in_payment'):
                 rec.state = 'paid'
+            elif rec.move_id and rec.move_id.state == 'posted':
+                rec.state = 'posted'
+            elif rec.move_id and rec.move_id.state == 'draft':
+                rec.state = 'invoiced'
             elif rec.due_date and rec.due_date < today:
                 rec.state = 'overdue'
             elif rec.due_date and rec.due_date <= today + datetime.timedelta(days=due_soon_days):
                 rec.state = 'due'
             else:
                 rec.state = 'pending'
+
+    @api.depends('move_id', 'move_id.payment_state')
+    def _compute_paid_date(self):
+        for rec in self:
+            if rec.move_id and rec.move_id.payment_state in ('paid', 'in_payment'):
+                rec.paid_date = rec.paid_date or fields.Date.today()
+            else:
+                rec.paid_date = False
 
     def action_pay(self):
         """Create a draft vendor bill for this installment payment.
