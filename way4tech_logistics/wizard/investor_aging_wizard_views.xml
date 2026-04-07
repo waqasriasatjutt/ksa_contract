@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Investor Aging Report Wizard — Form View
+         =================================================== -->
+    <record id="view_investor_aging_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.investor.aging.wizard.form</field>
+        <field name="model">way4tech.investor.aging.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Investor Aging Report">
+                <group>
+                    <group string="Report Options">
+                        <field name="as_of_date"/>
+                        <field name="include_draft"/>
+                    </group>
+                    <group string="Optional Filters">
+                        <field name="investor_ids" widget="many2many_tags"
+                               help="Leave empty to include all investors."/>
+                    </group>
+                </group>
+                <div class="alert alert-info" role="alert">
+                    Aging is calculated from each record's <strong>Period End</strong>
+                    to the <strong>As Of Date</strong>.
+                    Only <em>Confirmed</em> (and optionally <em>Draft</em>) records
+                    that have not been marked <em>Paid</em> are included.
+                </div>
+                <footer>
+                    <button name="action_print_report"
+                            type="object"
+                            string="Print Aging Report"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Wizard Window Action
+         =================================================== -->
+    <record id="action_investor_aging_wizard" model="ir.actions.act_window">
+        <field name="name">Investor Aging Report</field>
+        <field name="res_model">way4tech.investor.aging.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

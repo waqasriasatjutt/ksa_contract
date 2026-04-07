@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_rejection_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.rejection.wizard.form</field>
+        <field name="model">way4tech.rejection.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject Journal Entry">
+                <group>
+                    <field name="move_ids" widget="many2many_tags" readonly="1"
+                           string="Entries being rejected"/>
+                    <field name="reason" placeholder="Enter rejection reason for the accountant..."/>
+                </group>
+                <footer>
+                    <button name="action_reject" string="Reject &amp; Return to Draft"
+                            type="object" class="btn-danger"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

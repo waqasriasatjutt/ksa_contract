@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_salary_import" model="ir.actions.report">
+        <field name="name">Salary Import Summary</field>
+        <field name="model">way4tech.salary.import</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_salary_import_doc</field>
+        <field name="report_file">way4tech_logistics.report_salary_import_doc</field>
+        <field name="binding_model_id" ref="model_way4tech_salary_import"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_salary_import_doc">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <!-- Header -->
+                        <div class="row mb-3">
+                            <div class="col-7">
+                                <h2>Rider Salary Sheet</h2>
+                                <p class="text-muted mb-1">
+                                    <strong>Ref:</strong> <t t-esc="o.name"/>
+                                    &amp;nbsp;&amp;nbsp;
+                                    <strong>Period:</strong> <t t-esc="o.period_start"/> — <t t-esc="o.period_end"/>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    <t t-if="o.client_id"><strong>Client:</strong> <t t-esc="o.client_id.name"/>&amp;nbsp;&amp;nbsp;</t>
+                                    <t t-if="o.platform_id"><strong>Platform:</strong> <t t-esc="o.platform_id.name"/></t>
+                                </p>
+                            </div>
+                            <div class="col-5 text-end">
+                                <span t-attf-class="badge #{o.state == 'done' and 'bg-success' or o.state == 'imported' and 'bg-warning' or 'bg-secondary'} fs-6">
+                                    <t t-esc="dict(o.fields_get(['state'])['state']['selection'])[o.state]"/>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Main Table -->
+                        <table class="table table-sm table-bordered" style="font-size:10px;">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th rowspan="2">#</th>
+                                    <th rowspan="2">Employee</th>
+                                    <th rowspan="2" class="text-center">Days</th>
+                                    <th rowspan="2" class="text-center">Orders</th>
+                                    <th colspan="4" class="text-center bg-success bg-opacity-75">Earnings</th>
+                                    <th colspan="5" class="text-center bg-warning bg-opacity-75">Perf. Deductions</th>
+                                    <th colspan="6" class="text-center bg-danger bg-opacity-75">Office Deductions</th>
+                                    <th rowspan="2" class="text-end">Net</th>
+                                    <th rowspan="2">Status</th>
+                                </tr>
+                                <tr>
+                                    <th class="text-end">Basic</th>
+                                    <th class="text-end">Ord.Adj</th>
+                                    <th class="text-end">Bonus</th>
+                                    <th class="text-end">Petrol</th>
+                                    <th class="text-end">OnTime</th>
+                                    <th class="text-end">FoodDmg</th>
+                                    <th class="text-end">MissDay</th>
+                                    <th class="text-end">OrdRej</th>
+                                    <th class="text-end">Misc</th>
+                                    <th class="text-end">Adv</th>
+                                    <th class="text-end">Fuel</th>
+                                    <th class="text-end">SIM</th>
+                                    <th class="text-end">Loan</th>
+                                    <th class="text-end">Traffic</th>
+                                    <th class="text-end">Rent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="o.line_ids" t-as="line">
+                                    <tr t-attf-class="#{line.has_error and 'table-danger' or ''}">
+                                        <td><t t-esc="line_index + 1"/></td>
+                                        <td><t t-esc="line.employee_name"/></td>
+                                        <td class="text-center"><t t-esc="line.valid_days or '-'"/></td>
+                                        <td class="text-center"><t t-esc="line.orders_completed or '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.fixed_salary"/></td>
+                                        <td t-attf-class="text-end #{line.order_adjustment &lt; 0 and 'text-danger' or line.order_adjustment &gt; 0 and 'text-success' or ''}">
+                                            <t t-esc="'%.0f' % line.order_adjustment if line.order_adjustment else '-'"/>
+                                        </td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.bonus if line.bonus else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.petrol_allowance if line.petrol_allowance else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.on_time_deduction if line.on_time_deduction else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.food_damage_deduction if line.food_damage_deduction else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.miss_day_penalty if line.miss_day_penalty else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.order_rejection_deduction if line.order_rejection_deduction else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.misc_deduction if line.misc_deduction else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.advance_deduction if line.advance_deduction else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.fuel_deduction if line.fuel_deduction else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.sim_charges if line.sim_charges else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.loan if line.loan else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.traffic_violation if line.traffic_violation else '-'"/></td>
+                                        <td class="text-end"><t t-esc="'%.0f' % line.rent if line.rent else '-'"/></td>
+                                        <td class="text-end fw-bold"><t t-esc="'%.2f' % line.net_payable"/></td>
+                                        <td>
+                                            <t t-if="line.has_error"><span class="badge bg-danger">Error</span></t>
+                                            <t t-else=""><span class="badge bg-secondary">—</span></t>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot class="table-secondary fw-bold">
+                                <tr>
+                                    <td colspan="5" class="text-end">TOTALS</td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('fixed_salary'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('order_adjustment'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('bonus'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('petrol_allowance'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('on_time_deduction'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('food_damage_deduction'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('miss_day_penalty'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('order_rejection_deduction'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('misc_deduction'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('advance_deduction'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('fuel_deduction'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('sim_charges'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('loan'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('traffic_violation'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.0f' % sum(o.line_ids.mapped('rent'))"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % o.total_net"/></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- Summary -->
+                        <div class="row mt-3">
+                            <div class="col-3">
+                                <strong>Employees:</strong> <t t-esc="o.total_employees"/>
+                            </div>
+                            <div class="col-3">
+                                <strong>Errors:</strong>
+                                <span t-attf-class="#{o.error_count and 'text-danger fw-bold' or ''}"><t t-esc="o.error_count"/></span>
+                            </div>
+                            <div class="col-6 text-end">
+                                <strong>Total Net Payable:</strong>
+                                <span class="fs-5 ms-2">
+                                    <t t-esc="o.currency_id.symbol"/> <t t-esc="'%.2f' % o.total_net"/>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

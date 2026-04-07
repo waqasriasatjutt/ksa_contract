@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Form View -->
+    <record id="view_equipment_rental_form" model="ir.ui.view">
+        <field name="name">way4tech.equipment.rental.form</field>
+        <field name="model">way4tech.equipment.rental</field>
+        <field name="arch" type="xml">
+            <form string="Equipment Rental">
+                <header>
+                    <button name="action_confirm" type="object" string="Confirm"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_start" type="object" string="Start Rental"
+                            class="btn-primary" invisible="state != 'confirmed'"/>
+                    <button name="action_create_invoice" type="object" string="Create Invoice"
+                            class="btn-secondary"
+                            invisible="state not in ('confirmed','active','completed') or invoice_id != False"/>
+                    <button name="action_complete" type="object" string="Mark Completed"
+                            class="btn-success" invisible="state != 'active'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            class="btn-secondary"
+                            invisible="state in ('completed','cancelled')"/>
+                    <button name="action_reset_draft" type="object" string="Reset to Draft"
+                            class="btn-secondary"
+                            invisible="state not in ('confirmed','cancelled')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,confirmed,active,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_invoice" type="object"
+                                class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="invoice_id == False">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Invoice</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+
+                    <group>
+                        <group string="Equipment">
+                            <field name="asset_register_id"
+                                   help="Link to the asset register. Auto-fills name and category."/>
+                            <field name="equipment_name"/>
+                            <field name="equipment_category"/>
+                        </group>
+                        <group string="Client">
+                            <field name="client_id"/>
+                            <field name="salesperson_id"/>
+                            <field name="analytic_account_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Rental Period">
+                            <field name="rental_start"/>
+                            <field name="rental_end"/>
+                            <field name="rental_duration" readonly="1"
+                                   invisible="rate_type == 'fixed'"
+                                   help="Auto-computed from dates. Days / weeks / months based on Rate Type."/>
+                        </group>
+                        <group string="Rate &amp; Revenue">
+                            <field name="rate_type" widget="radio"/>
+                            <field name="rate_amount"
+                                   string="Rate / Period"
+                                   invisible="rate_type == 'fixed'"
+                                   help="Rate per day / week / month."/>
+                            <field name="rate_amount"
+                                   string="Total Fixed Price"
+                                   invisible="rate_type != 'fixed'"
+                                   help="The agreed lump-sum rental price."/>
+                            <field name="revenue" readonly="1"
+                                   class="o_field_highlight"
+                                   invisible="rate_type == 'fixed'"
+                                   help="Duration × Rate. Auto-calculated."/>
+                        </group>
+                    </group>
+
+                    <group string="Notes / Terms">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+
+                    <field name="invoice_id" invisible="1"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- List View -->
+    <record id="view_equipment_rental_list" model="ir.ui.view">
+        <field name="name">way4tech.equipment.rental.list</field>
+        <field name="model">way4tech.equipment.rental</field>
+        <field name="arch" type="xml">
+            <list string="Equipment Rentals"
+                  decoration-success="state == 'completed'"
+                  decoration-info="state == 'active'"
+                  decoration-warning="state == 'confirmed'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="equipment_name"/>
+                <field name="equipment_category"/>
+                <field name="client_id"/>
+                <field name="rental_start"/>
+                <field name="rental_end"/>
+                <field name="rate_type"/>
+                <field name="revenue" sum="Total Revenue"/>
+                <field name="invoice_id" optional="hide" string="Invoice"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'completed'"
+                       decoration-info="state == 'active'"
+                       decoration-warning="state == 'confirmed'"
+                       decoration-muted="state == 'cancelled'"
+                />
+            </list>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_equipment_rental_search" model="ir.ui.view">
+        <field name="name">way4tech.equipment.rental.search</field>
+        <field name="model">way4tech.equipment.rental</field>
+        <field name="arch" type="xml">
+            <search string="Equipment Rentals">
+                <field name="name"/>
+                <field name="equipment_name"/>
+                <field name="client_id"/>
+                <field name="salesperson_id"/>
+                <separator/>
+                <filter string="Active" name="active"
+                        domain="[('state','=','active')]"/>
+                <filter string="Confirmed" name="confirmed"
+                        domain="[('state','=','confirmed')]"/>
+                <filter string="Completed" name="completed"
+                        domain="[('state','=','completed')]"/>
+                <filter string="Not Invoiced" name="not_invoiced"
+                        domain="[('invoice_id','=',False),('state','not in',['cancelled'])]"/>
+                <separator/>
+                <filter string="Client" name="group_client"
+                        context="{'group_by': 'client_id'}"/>
+                <filter string="Category" name="group_category"
+                        context="{'group_by': 'equipment_category'}"/>
+                <filter string="Salesperson" name="group_salesperson"
+                        context="{'group_by': 'salesperson_id'}"/>
+                <filter string="Month" name="group_month"
+                        context="{'group_by': 'rental_start:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Pivot View -->
+    <record id="view_equipment_rental_pivot" model="ir.ui.view">
+        <field name="name">way4tech.equipment.rental.pivot</field>
+        <field name="model">way4tech.equipment.rental</field>
+        <field name="arch" type="xml">
+            <pivot string="Equipment Rental Analysis">
+                <field name="equipment_category" type="row"/>
+                <field name="client_id" type="row"/>
+                <field name="rental_start" type="col" interval="month"/>
+                <field name="revenue" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_equipment_rental" model="ir.actions.act_window">
+        <field name="name">Equipment Rentals</field>
+        <field name="res_model">way4tech.equipment.rental</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="search_view_id" ref="view_equipment_rental_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No rental agreements yet</p>
+            <p>
+                Record equipment and machinery rental income — generators, cranes,
+                forklifts, compressors, and more. Choose daily, weekly, monthly,
+                or fixed pricing. Create customer invoices with 15% VAT in one click.
+            </p>
+        </field>
+    </record>
+
+</odoo>

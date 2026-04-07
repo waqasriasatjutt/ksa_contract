@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 180" width="760" height="180">
+  <defs>
+    <linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   style="stop-color:#0d2137"/>
+      <stop offset="55%"  style="stop-color:#1f3a5f"/>
+      <stop offset="100%" style="stop-color:#2d6a9f"/>
+    </linearGradient>
+    <linearGradient id="truckWhite" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#b8d8f0"/>
+    </linearGradient>
+    <linearGradient id="accentLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   style="stop-color:#4da6e8;stop-opacity:0"/>
+      <stop offset="30%"  style="stop-color:#4da6e8;stop-opacity:1"/>
+      <stop offset="70%"  style="stop-color:#4da6e8;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#4da6e8;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── Background ── -->
+  <rect width="760" height="180" fill="url(#bgG)"/>
+
+  <!-- ── Geometric grid pattern (subtle) ── -->
+  <line x1="0"   y1="60"  x2="760" y2="60"  stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <line x1="0"   y1="120" x2="760" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <line x1="190" y1="0"   x2="190" y2="180" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <line x1="380" y1="0"   x2="380" y2="180" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <line x1="570" y1="0"   x2="570" y2="180" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <!-- Diagonal speed lines -->
+  <line x1="600" y1="0"   x2="760" y2="120" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+  <line x1="620" y1="0"   x2="760" y2="100" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <line x1="650" y1="0"   x2="760" y2="80"  stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+
+  <!-- ── Accent bottom line ── -->
+  <rect x="0" y="172" width="760" height="8" fill="url(#accentLine)"/>
+
+  <!-- ════════════════════════
+       TRUCK ILLUSTRATION (right side)
+       ════════════════════════ -->
+
+  <!-- Road -->
+  <rect x="440" y="142" width="310" height="5" rx="2" fill="rgba(255,255,255,0.12)"/>
+  <rect x="475" y="143" width="22" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="520" y="143" width="22" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="565" y="143" width="22" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="610" y="143" width="22" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="655" y="143" width="22" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="700" y="143" width="22" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+
+  <!-- Truck cargo body -->
+  <rect x="460" y="72" width="155" height="70" rx="5" fill="url(#truckWhite)"/>
+  <!-- Cargo door line -->
+  <line x1="537" y1="72" x2="537" y2="142" stroke="#2d6a9f" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <!-- Cargo vents -->
+  <line x1="470" y1="88"  x2="527" y2="88"  stroke="#4a90c4" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="470" y1="100" x2="527" y2="100" stroke="#4a90c4" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="470" y1="112" x2="527" y2="112" stroke="#4a90c4" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="470" y1="124" x2="527" y2="124" stroke="#4a90c4" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- W4T logo on cargo -->
+  <text x="550" y="114" font-family="Arial" font-size="11" font-weight="900" fill="#2d6a9f" text-anchor="middle" letter-spacing="2">W4T</text>
+
+  <!-- Truck cab -->
+  <path d="M615 90 L652 90 L676 110 L676 142 L615 142 Z" fill="url(#truckWhite)"/>
+  <!-- Cab roof curve -->
+  <path d="M615 90 Q634 74 652 90" fill="#90c5e8"/>
+  <!-- Windshield -->
+  <path d="M622 90 L650 90 L666 107 L622 107 Z" fill="#5ba3d4" opacity="0.75"/>
+  <!-- Windshield glare -->
+  <line x1="626" y1="93" x2="636" y2="103" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Side window -->
+  <rect x="618" y="113" width="26" height="18" rx="2" fill="#5ba3d4" opacity="0.65"/>
+  <!-- Door handle -->
+  <line x1="621" y1="124" x2="628" y2="124" stroke="#1f3a5f" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Exhaust stack -->
+  <rect x="653" y="66" width="7" height="26" rx="2.5" fill="#90c5e8"/>
+  <ellipse cx="656.5" cy="64" rx="5.5" ry="3" fill="#cfe3f7"/>
+  <circle cx="657" cy="56" r="5" fill="rgba(255,255,255,0.2)"/>
+  <circle cx="661" cy="48" r="3.5" fill="rgba(255,255,255,0.12)"/>
+  <circle cx="655" cy="42" r="2.5" fill="rgba(255,255,255,0.08)"/>
+
+  <!-- Wheels -->
+  <circle cx="497" cy="146" r="16" fill="#0d2137"/>
+  <circle cx="497" cy="146" r="10" fill="#2d6a9f"/>
+  <circle cx="497" cy="146" r="4"  fill="#cfe3f7"/>
+
+  <circle cx="528" cy="146" r="16" fill="#0d2137"/>
+  <circle cx="528" cy="146" r="10" fill="#2d6a9f"/>
+  <circle cx="528" cy="146" r="4"  fill="#cfe3f7"/>
+
+  <circle cx="648" cy="146" r="16" fill="#0d2137"/>
+  <circle cx="648" cy="146" r="10" fill="#2d6a9f"/>
+  <circle cx="648" cy="146" r="4"  fill="#cfe3f7"/>
+
+  <!-- Speed lines to left of truck -->
+  <line x1="440" y1="96"  x2="460" y2="96"  stroke="rgba(77,166,232,0.6)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="432" y1="107" x2="460" y2="107" stroke="rgba(77,166,232,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="444" y1="118" x2="460" y2="118" stroke="rgba(77,166,232,0.3)" stroke-width="1" stroke-linecap="round"/>
+
+  <!-- ════════════════════════
+       TEXT CONTENT (left side)
+       ════════════════════════ -->
+
+  <!-- Brand mark circle -->
+  <circle cx="52" cy="72" r="34" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+  <text x="52" y="66" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="900"
+        fill="#4da6e8" text-anchor="middle" letter-spacing="1">WAY4</text>
+  <text x="52" y="82" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="900"
+        fill="#ffffff" text-anchor="middle" letter-spacing="1">TECH</text>
+
+  <!-- Main title -->
+  <text x="100" y="58" font-family="'Helvetica Neue',Arial,sans-serif" font-size="28" font-weight="800"
+        fill="#ffffff" letter-spacing="0.5">Logistics &amp; HR Extensions</text>
+
+  <!-- Accent underline -->
+  <rect x="100" y="64" width="320" height="3" rx="1.5" fill="#4da6e8" opacity="0.8"/>
+
+  <!-- Subtitle -->
+  <text x="100" y="86" font-family="'Helvetica Neue',Arial,sans-serif" font-size="13"
+        fill="rgba(255,255,255,0.75)" letter-spacing="0.3">
+    Complete operations for KSA logistics &amp; manpower companies
+  </text>
+
+  <!-- Feature pills row 1 -->
+  <!-- Pill 1 -->
+  <rect x="100" y="100" width="105" height="22" rx="11" fill="rgba(77,166,232,0.2)" stroke="rgba(77,166,232,0.5)" stroke-width="1"/>
+  <text x="152" y="115" font-family="Arial" font-size="10" font-weight="600" fill="#a8d8ff" text-anchor="middle">📥 Salary Import</text>
+
+  <!-- Pill 2 -->
+  <rect x="214" y="100" width="118" height="22" rx="11" fill="rgba(77,166,232,0.2)" stroke="rgba(77,166,232,0.5)" stroke-width="1"/>
+  <text x="273" y="115" font-family="Arial" font-size="10" font-weight="600" fill="#a8d8ff" text-anchor="middle">💰 Commission &amp; VAT</text>
+
+  <!-- Pill 3 -->
+  <rect x="341" y="100" width="90" height="22" rx="11" fill="rgba(77,166,232,0.2)" stroke="rgba(77,166,232,0.5)" stroke-width="1"/>
+  <text x="386" y="115" font-family="Arial" font-size="10" font-weight="600" fill="#a8d8ff" text-anchor="middle">🚚 Fleet Mgmt</text>
+
+  <!-- Feature pills row 2 -->
+  <!-- Pill 4 -->
+  <rect x="100" y="130" width="112" height="22" rx="11" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="156" y="145" font-family="Arial" font-size="10" font-weight="600" fill="rgba(255,255,255,0.8)" text-anchor="middle">👷 KSA Employee Costs</text>
+
+  <!-- Pill 5 -->
+  <rect x="221" y="130" width="100" height="22" rx="11" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="271" y="145" font-family="Arial" font-size="10" font-weight="600" fill="rgba(255,255,255,0.8)" text-anchor="middle">📋 Manpower Billing</text>
+
+  <!-- Pill 6 -->
+  <rect x="330" y="130" width="100" height="22" rx="11" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="380" y="145" font-family="Arial" font-size="10" font-weight="600" fill="rgba(255,255,255,0.8)" text-anchor="middle">🔧 Maintenance Logs</text>
+
+  <!-- Version badge -->
+  <rect x="100" y="158" width="72" height="16" rx="8" fill="rgba(255,255,255,0.12)"/>
+  <text x="136" y="170" font-family="Arial" font-size="9" fill="rgba(255,255,255,0.6)" text-anchor="middle">v19.0.1.0.0</text>
+
+  <text x="182" y="170" font-family="Arial" font-size="9" fill="rgba(255,255,255,0.4)">Odoo 19 Community</text>
+</svg>

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- =========================================================
+         Employee Deduction — Form View
+         ========================================================= -->
+    <record id="view_employee_deduction_form" model="ir.ui.view">
+        <field name="name">way4tech.employee.deduction.form</field>
+        <field name="model">way4tech.employee.deduction</field>
+        <field name="arch" type="xml">
+            <form string="Employee Advance / Deduction">
+                <header>
+                    <button name="action_post" string="Post / Create Journal Entry"
+                            type="object" class="btn-primary"
+                            invisible="state != 'draft'"
+                            confirm="This will create a journal entry. Continue?"/>
+                    <button name="action_cancel" string="Cancel"
+                            type="object" class="btn-secondary"
+                            invisible="state != 'posted'"
+                            confirm="This will reverse the journal entry. Continue?"/>
+                    <button name="action_reset_to_draft" string="Reset to Draft"
+                            type="object"
+                            invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_journal_entry" type="object"
+                                class="oe_stat_button" icon="fa-book"
+                                invisible="not move_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Journal Entry</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Employee">
+                            <field name="employee_id"
+                                   help="The employee to whom this advance or deduction belongs. The outstanding balance of all posted deductions for this employee appears in the Deduction Balances summary view."/>
+                            <field name="partner_id"
+                                   help="Auto-filled from the employee's private address (res.partner). Used as the partner on the journal entry. If blank, the journal entry will have no partner."/>
+                            <field name="company_id"
+                                   help="Branch company issuing this advance or deduction. Determines which records appear when using 'Fill Deductions from Ledger' on a salary import."/>
+                        </group>
+                        <group string="Charge Details">
+                            <field name="date"
+                                   help="Date the advance was given or the charge was incurred. Used as the journal entry date."/>
+                            <field name="deduction_type"
+                                   help="Type of advance or deduction: &#10;• Advance — salary advance given to employee in cash or bank transfer &#10;• Loan — longer-term loan to be recovered over multiple months &#10;• Fuel — fuel cost charged to the rider &#10;• SIM — SIM card / mobile data charges &#10;• Traffic — traffic fine paid by company on employee's behalf &#10;• Rent — accommodation charges &#10;The type maps to the matching deduction field on the salary import line for auto-filling."/>
+                            <field name="description"
+                                   help="Brief description of this specific charge (e.g. 'July advance', 'SIM charges Aug 2026'). Appears on the journal entry line."/>
+                            <field name="amount"
+                                   help="Total amount of the advance or deduction. Enter as a positive number. For a loan of 3000, enter 3000 here — recovery is tracked below."/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Recovery Balance">
+                            <field name="recovered_amount" readonly="1"
+                                   help="Total recovered so far via salary deductions. Updated automatically each time a salary import runs 'Mark Deductions Recovered'."/>
+                            <field name="outstanding" readonly="1"
+                                   help="Remaining balance still to recover = Amount − Recovered. When this reaches zero the record is fully settled. 'Fill Deductions from Ledger' on salary imports will only pull records where Outstanding &gt; 0."/>
+                        </group>
+                    </group>
+                    <group string="Accounting Configuration">
+                        <group>
+                            <field name="journal_id"
+                                   help="Journal type: General, Cash, or Bank. Used for the double-entry journal entry created when this deduction is posted. &#10;• Advance given in cash → use Cash journal &#10;• Advance via bank transfer → use Bank journal &#10;• Internal charge/deduction → use General journal"/>
+                            <field name="debit_account_id"
+                                   help="Account type: Current Asset (Balance Sheet). Debited when this charge is issued — represents money owed TO the company by the employee. &#10;Examples by type: &#10;• Advance → 'Employee Advances Receivable' (1300) &#10;• Loan → 'Staff Loans Receivable' (1310) &#10;• Fuel charge → 'Fuel Receivable' (1320) &#10;• SIM charge → 'SIM Charges Receivable' (1330) &#10;This balance clears when the amount is deducted from payslip."/>
+                        </group>
+                        <group>
+                            <field name="credit_account_id"
+                                   help="Account type: Asset or Liability. Credited when this charge is issued — represents what you paid out or what the employee now owes against. &#10;Examples: &#10;• Advance paid in cash → 'Cash' (1010) &#10;• Advance via bank → 'Bank Account' (1020) &#10;• Internal deduction → 'Salary Payable' (2100) &#10;Choose the account that 'gave' the money or created the obligation."/>
+                            <field name="move_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Links">
+                        <field name="salary_import_line_id" readonly="1"
+                               help="Filled automatically when 'Mark Deductions Recovered' is run on a salary import. Links this deduction to the salary import line that recovered it, clearing its outstanding balance. Read-only."/>
+                    </group>
+                    <field name="note" placeholder="Optional note..."
+                           help="Free-text internal note for this record. Not printed or posted anywhere."/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- List View -->
+    <record id="view_employee_deduction_list" model="ir.ui.view">
+        <field name="name">way4tech.employee.deduction.list</field>
+        <field name="model">way4tech.employee.deduction</field>
+        <field name="arch" type="xml">
+            <list string="Employee Advances &amp; Deductions"
+                  decoration-warning="state == 'draft'"
+                  decoration-muted="state == 'cancelled'"
+                  decoration-success="state == 'posted' and salary_import_line_id != False"
+                  decoration-info="state == 'posted' and not salary_import_line_id">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="employee_id"/>
+                <field name="deduction_type" widget="badge"/>
+                <field name="description"/>
+                <field name="amount" string="Total Amount"/>
+                <field name="recovered_amount" string="Recovered" sum="Total Recovered"/>
+                <field name="outstanding" string="Outstanding" sum="Total Outstanding"
+                       decoration-warning="outstanding &gt; 0"/>
+                <field name="move_id" optional="show"/>
+                <field name="salary_import_line_id" optional="show" string="Last Recovery"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'draft'"
+                       decoration-success="state == 'posted'"
+                       decoration-danger="state == 'cancelled'"/>
+                <field name="currency_id" invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_employee_deduction_search" model="ir.ui.view">
+        <field name="name">way4tech.employee.deduction.search</field>
+        <field name="model">way4tech.employee.deduction</field>
+        <field name="arch" type="xml">
+            <search string="Employee Deductions">
+                <field name="employee_id"/>
+                <field name="description"/>
+                <field name="deduction_type"/>
+                <filter name="draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="posted" string="Posted" domain="[('state', '=', 'posted')]"/>
+                <filter name="not_recovered" string="Not Yet Recovered"
+                        domain="[('state', '=', 'posted'), ('salary_import_line_id', '=', False)]"/>
+                <separator/>
+                <filter name="type_advance" string="Advance" domain="[('deduction_type', '=', 'advance')]"/>
+                <filter name="type_loan" string="Loan" domain="[('deduction_type', '=', 'loan')]"/>
+                <filter name="type_fuel" string="Fuel" domain="[('deduction_type', '=', 'fuel')]"/>
+                <separator/>
+                <filter name="group_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
+                <filter name="group_type" string="Type" context="{'group_by': 'deduction_type'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_employee_deduction" model="ir.actions.act_window">
+        <field name="name">Employee Advances &amp; Deductions</field>
+        <field name="res_model">way4tech.employee.deduction</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_employee_deduction_search"/>
+        <field name="context">{'search_default_not_recovered': 1}</field>
+    </record>
+
+    <!-- =========================================================
+         Summary View (read-only SQL view)
+         ========================================================= -->
+    <record id="view_employee_deduction_summary_list" model="ir.ui.view">
+        <field name="name">way4tech.employee.deduction.summary.list</field>
+        <field name="model">way4tech.employee.deduction.summary</field>
+        <field name="arch" type="xml">
+            <list string="Outstanding Deduction Balances" create="false" edit="false" delete="false"
+                  decoration-warning="outstanding &gt; 0">
+                <field name="employee_name"/>
+                <field name="employee_id" optional="show"/>
+                <field name="deduction_type" widget="badge"/>
+                <field name="total_amount" string="Total Charged"/>
+                <field name="recovered_amount" string="Recovered"/>
+                <field name="outstanding" string="Outstanding" decoration-warning="outstanding &gt; 0"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_employee_deduction_summary" model="ir.actions.act_window">
+        <field name="name">Deduction Balances (Outstanding)</field>
+        <field name="res_model">way4tech.employee.deduction.summary</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>

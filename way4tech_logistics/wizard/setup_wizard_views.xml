@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Setup Wizard Form View
+         =================================================== -->
+    <record id="view_setup_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.setup.wizard.form</field>
+        <field name="model">way4tech.setup.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Way4Tech Initial Setup Wizard">
+                <sheet>
+
+                    <!-- ═══════════════════════════════════════════════
+                         STEP 1 — Choose Options
+                         ═══════════════════════════════════════════════ -->
+                    <div invisible="state != 'options'">
+
+                        <!-- Title -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <h2 class="mt-0">
+                                    <i class="fa fa-magic me-2"/> Initial Setup: Analytic Accounts
+                                </h2>
+                                <p class="text-muted">
+                                    Choose what to create, then click <strong>Preview</strong> to review
+                                    the list before anything is saved.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Guide box -->
+                        <div class="alert alert-info mb-4" role="alert">
+                            <h5 class="alert-heading">
+                                <i class="fa fa-info-circle me-1"/> What is an Analytic Account?
+                            </h5>
+                            <p>
+                                An <strong>Analytic Account</strong> is a <em>reporting label</em> — not an
+                                accounting (GL) account. It does not affect how transactions are booked.
+                                Instead, it lets you group income and costs by truck, client, or project
+                                so you can answer questions like:
+                            </p>
+                            <ul class="mb-2">
+                                <li>How much profit did <strong>Truck ABC-1234</strong> generate last month?</li>
+                                <li>What is the total cost we bear for staff deployed to <strong>HungerStation</strong>?</li>
+                                <li>How much commission did we earn from <strong>Keeta</strong> year-to-date?</li>
+                            </ul>
+                            <p class="mb-0">
+                                You view this data in
+                                <strong>Accounting → Reporting → Analytic Report</strong>.
+                                Every invoice line, journal entry line, and vendor bill line can carry an
+                                analytic account tag — this wizard helps you create them in one click.
+                            </p>
+                        </div>
+
+                        <!-- Options -->
+                        <group string="What to Create">
+
+                            <group string="Default Account">
+                                <field name="create_default_analytic" widget="boolean_toggle"/>
+                                <field name="default_analytic_name"
+                                       invisible="not create_default_analytic"
+                                       placeholder="e.g. General Operations"/>
+                            </group>
+
+                            <group string="Trucks &amp; Clients">
+                                <field name="create_truck_analytics" widget="boolean_toggle"/>
+                                <field name="create_client_analytics" widget="boolean_toggle"/>
+                            </group>
+
+                        </group>
+
+                        <group string="Advanced">
+                            <field name="analytic_plan_id"
+                                   help="Analytic Plan groups your analytic accounts. Leave blank — the wizard will use the first existing plan or create one called 'Operations'."/>
+                        </group>
+
+                        <div class="alert alert-warning" role="alert" invisible="not create_truck_analytics">
+                            <i class="fa fa-truck me-1"/>
+                            <strong>Truck Analytic Accounts</strong> will be automatically assigned to each
+                            truck after creation, so all future trips and maintenance are tagged.
+                            You can always change them later in the truck record.
+                        </div>
+
+                        <div class="alert alert-warning" role="alert" invisible="not create_default_analytic">
+                            <i class="fa fa-star me-1"/>
+                            <strong>Default Analytic Account</strong> will be set in
+                            <em>Configuration → Payroll &amp; Accounting Setup → Analytics</em> tab
+                            automatically. Any document with no specific analytic will fall back to it.
+                        </div>
+
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════
+                         STEP 2 — Preview & Create
+                         ═══════════════════════════════════════════════ -->
+                    <div invisible="state != 'preview'">
+
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <h2 class="mt-0">
+                                    <i class="fa fa-list-alt me-2"/> Review Before Creating
+                                </h2>
+                                <p class="text-muted">
+                                    Uncheck any items you do <strong>not</strong> want to create,
+                                    then click <strong>Create Selected</strong>.
+                                    Items marked <em>Already Exists</em> will be skipped automatically.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-success" role="alert">
+                            <strong><field name="pending_count" readonly="1"/> item(s)</strong>
+                            will be created.
+                            Items marked "Already Exists" are shown for information only and will be skipped.
+                        </div>
+
+                        <field name="line_ids" nolabel="1">
+                            <list editable="bottom" decoration-muted="status == 'exists'" decoration-success="status == 'created'">
+                                <field name="item_type" readonly="1" string="Type"/>
+                                <field name="name" readonly="1" string="Name"/>
+                                <field name="selected" string="Create"/>
+                                <field name="status" widget="badge"
+                                    decoration-info="status == 'pending'"
+                                    decoration-warning="status == 'exists'"
+                                    decoration-success="status == 'created'"
+                                    readonly="1"
+                                />
+                            </list>
+                        </field>
+
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════
+                         STEP 3 — Done
+                         ═══════════════════════════════════════════════ -->
+                    <div invisible="state != 'done'">
+
+                        <div class="row mb-3">
+                            <div class="col-12 text-center py-3">
+                                <i class="fa fa-check-circle fa-4x text-success mb-3 d-block"/>
+                                <h2 class="mt-0">Setup Complete</h2>
+                            </div>
+                        </div>
+
+                        <group string="Results">
+                            <field name="created_count" readonly="1"/>
+                            <field name="skipped_count" readonly="1"/>
+                            <field name="assigned_truck_count" readonly="1"/>
+                        </group>
+
+                        <div class="alert alert-success" role="alert" invisible="not default_assigned">
+                            <i class="fa fa-check me-1"/>
+                            <strong>Company Default Analytic Account</strong> has been set in
+                            Payroll &amp; Accounting Setup automatically.
+                        </div>
+
+                        <div class="alert alert-info" role="alert">
+                            <h6 class="alert-heading">Next Steps</h6>
+                            <ol class="mb-0">
+                                <li>
+                                    Go to <strong>Configuration → Payroll &amp; Accounting Setup</strong>
+                                    and verify the Default Analytic Account on the Analytics tab.
+                                </li>
+                                <li>
+                                    Open each <strong>Truck</strong> and confirm its Analytic Account is set.
+                                    Trucks created <em>after</em> this wizard will need to be assigned manually.
+                                </li>
+                                <li>
+                                    When creating Truck Trips, Maintenance records, Commission Receipts,
+                                    Manpower Contracts, or Employee Costs — select the relevant analytic
+                                    account on the document to tag it for reporting.
+                                </li>
+                                <li>
+                                    View results in
+                                    <strong>Accounting → Reporting → Analytic Report</strong>,
+                                    filtered by the analytic accounts you just created.
+                                </li>
+                            </ol>
+                        </div>
+
+                        <div class="alert alert-warning" role="alert" invisible="assigned_truck_count != 0 or not create_truck_analytics">
+                            <i class="fa fa-exclamation-triangle me-1"/>
+                            No trucks were found in the system to assign analytic accounts to.
+                            When you add trucks, you can run this wizard again or assign analytic
+                            accounts directly on each truck record.
+                        </div>
+
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════
+                         Hidden state field (used for invisible logic)
+                         ═══════════════════════════════════════════════ -->
+                    <field name="state" invisible="1"/>
+                    <field name="create_truck_analytics" invisible="1"/>
+                    <field name="create_default_analytic" invisible="1"/>
+                    <field name="default_assigned" invisible="1"/>
+                    <field name="create_client_analytics" invisible="1"/>
+
+                </sheet>
+
+                <!-- Footer buttons change per step -->
+                <footer>
+                    <!-- Step 1 -->
+                    <button
+                        name="action_preview"
+                        type="object"
+                        string="Preview"
+                        class="btn-primary"
+                        invisible="state != 'options'"
+                    />
+                    <button
+                        string="Cancel"
+                        class="btn-secondary"
+                        special="cancel"
+                        invisible="state != 'options'"
+                    />
+
+                    <!-- Step 2 -->
+                    <button
+                        name="action_create_selected"
+                        type="object"
+                        string="Create Selected"
+                        class="btn-primary"
+                        invisible="state != 'preview'"
+                        confirm="This will create the selected analytic accounts and assign them. Continue?"
+                    />
+                    <button
+                        name="action_back_to_options"
+                        type="object"
+                        string="Back"
+                        class="btn-secondary"
+                        invisible="state != 'preview'"
+                    />
+
+                    <!-- Step 3 -->
+                    <button
+                        string="Close"
+                        class="btn-primary"
+                        special="cancel"
+                        invisible="state != 'done'"
+                    />
+                </footer>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Action to open wizard
+         =================================================== -->
+    <record id="action_setup_wizard" model="ir.actions.act_window">
+        <field name="name">Analytic Account Setup Wizard</field>
+        <field name="res_model">way4tech.setup.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" eval="False"/>
+    </record>
+
+</odoo>

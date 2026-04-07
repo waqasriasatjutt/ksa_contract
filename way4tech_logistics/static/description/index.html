@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 960px; margin: 0 auto; padding: 0 20px 60px; }
+
+        /* Hero */
+        .hero-banner { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 32px;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.18); display: block; }
+        .hero-banner img { width: 100%; height: auto; display: block; }
+
+        /* Headings */
+        h2 { color: #1f3a5f; border-bottom: 2px solid #2d6a9f; padding-bottom: 6px;
+             margin-top: 42px; font-size: 1.28em; }
+        h3 { color: #2d6a9f; margin-top: 22px; font-size: 1.04em; }
+
+        /* Feature cards */
+        .feature-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
+        .feature-card { flex: 1 1 240px; border: 1px solid #dde5f0; border-radius: 8px;
+                        padding: 18px 16px; background: #f7f9fc; }
+        .feature-card .icon { font-size: 1.7em; margin-bottom: 8px; }
+        .feature-card h3 { margin: 0 0 6px; font-size: 0.97em; color: #1f3a5f; }
+        .feature-card p  { margin: 0; font-size: 0.87em; color: #555; line-height: 1.55; }
+
+        /* Steps */
+        .steps { }
+        .step { display: flex; align-items: flex-start; margin-bottom: 12px; padding: 14px 16px;
+                background: #f7f9fc; border-left: 4px solid #2d6a9f; border-radius: 0 6px 6px 0; }
+        .step-num { min-width: 28px; height: 28px; line-height: 28px; background: #2d6a9f;
+                    color: #fff; border-radius: 50%; text-align: center; font-size: 0.84em;
+                    font-weight: bold; margin-right: 14px; flex-shrink: 0; }
+        .step-body h4 { margin: 0 0 4px; font-size: 0.94em; color: #1f3a5f; }
+        .step-body p  { margin: 0; font-size: 0.86em; color: #555; line-height: 1.55; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.87em; }
+        th { background: #1f3a5f; color: #fff; padding: 8px 12px; text-align: left; }
+        td { padding: 7px 12px; border-bottom: 1px solid #e0e6f0; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: #f4f7fb; }
+        .excel-table th { background: #217346; }
+
+        /* Info / Warn / Critical boxes */
+        .info-box  { border-left: 4px solid #2d6a9f; background: #eef4fb; padding: 12px 16px;
+                     border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 0.89em; color: #2a4a6b; }
+        .warn-box  { border-left: 4px solid #e67e22; background: #fdf3e7; padding: 12px 16px;
+                     border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 0.89em; color: #7a4a10; }
+        .crit-box  { border-left: 4px solid #c0392b; background: #fdecea; padding: 14px 18px;
+                     border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 0.91em; color: #7b1a12; }
+        .ok-box    { border-left: 4px solid #27ae60; background: #eafaf1; padding: 12px 16px;
+                     border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 0.89em; color: #1a6b40; }
+
+        /* Formula / code blocks */
+        .formula { background: #1f3a5f; color: #a8d8ff; font-family: monospace; font-size: 0.9em;
+                   padding: 14px 18px; border-radius: 6px; margin: 10px 0; line-height: 1.85; }
+        code { background: #eef; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; color: #c0392b; }
+
+        /* State flow */
+        .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; }
+        .state { background: #2d6a9f; color: #fff; border-radius: 14px;
+                 padding: 4px 14px; font-size: 0.82em; font-weight: bold; }
+        .state.green { background: #27ae60; }
+        .state.grey  { background: #7f8c8d; }
+        .state.red   { background: #c0392b; }
+        .state.orange { background: #e67e22; }
+        .arrow { color: #2d6a9f; font-size: 1.2em; font-weight: bold; }
+
+        /* Accounting flow diagram */
+        .acct-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 0.88em; }
+        .acct-dr  { background: #d5e8d4; border: 1px solid #82b366; border-radius: 5px;
+                    padding: 4px 10px; color: #1a5626; font-weight: bold; min-width: 200px; }
+        .acct-cr  { background: #dae8fc; border: 1px solid #6c8ebf; border-radius: 5px;
+                    padding: 4px 10px; color: #1a3a5c; font-weight: bold; min-width: 200px; }
+        .acct-sep { color: #888; font-style: italic; }
+
+        ul { margin: 6px 0; padding-left: 22px; }
+        li { margin: 4px 0; font-size: 0.89em; line-height: 1.5; }
+        p  { font-size: 0.91em; line-height: 1.6; }
+        .muted { color: #888; font-size: 0.83em; }
+
+        /* Section number badge */
+        .section-badge { display: inline-block; background: #2d6a9f; color: #fff;
+                         border-radius: 50%; width: 26px; height: 26px; line-height: 26px;
+                         text-align: center; font-weight: bold; font-size: 0.88em;
+                         margin-right: 8px; vertical-align: middle; }
+
+        /* Two-column layout */
+        .two-col { display: flex; gap: 24px; flex-wrap: wrap; }
+        .two-col > div { flex: 1 1 380px; }
+
+        /* Pill tags */
+        .tag { display: inline-block; background: #e8f0fa; border: 1px solid #b8cde8; color: #2d6a9f;
+               border-radius: 10px; padding: 2px 10px; font-size: 0.78em; margin: 2px; }
+
+        /* Report card */
+        .report-card { border: 1px solid #dde5f0; border-radius: 8px; padding: 14px 16px;
+                       margin-bottom: 12px; background: #fff; }
+        .report-card h4 { margin: 0 0 6px; color: #1f3a5f; font-size: 0.95em; }
+        .report-card p  { margin: 0; font-size: 0.85em; color: #555; line-height: 1.5; }
+
+        hr.section { border: none; border-top: 1px solid #e0e6f0; margin: 40px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Hero Banner -->
+    <div class="hero-banner">
+        <img src="banner.svg" alt="Way4Tech Logistics &amp; HR Extensions"/>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2>Overview</h2>
+    <p>
+        <strong>Way4Tech Logistics &amp; HR Extensions</strong> is a complete operational and
+        accounting platform for KSA-based logistics and manpower companies, built on
+        <strong>Odoo 19 Community Edition</strong>.
+        It replaces a patchwork of separate payroll, fleet, HR, and finance tools with one
+        tightly integrated module that handles everything from worker salary computation to
+        truck investor profit-share and manpower contract invoicing — all posting directly
+        into your Odoo chart of accounts.
+    </p>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="icon">&#128230;</div>
+            <h3>Worker Payroll</h3>
+            <p>Excel-based bulk salary import for delivery workers. Auto-computes from platform rules. Posts salary journal entry in one click.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#128666;</div>
+            <h3>Fleet &amp; Trucks</h3>
+            <p>Company and investor trucks. Trip invoicing, maintenance tracking, investor P&amp;L, installment financing — all linked to accounting.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#128101;</div>
+            <h3>Manpower Contracts</h3>
+            <p>Fixed-price and hourly contracts for food delivery and project-based manpower. Timesheet logging, expense tracking, one-click invoice creation.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#128196;</div>
+            <h3>Commission Receipts</h3>
+            <p>KSA 15% VAT-correct commission invoicing. Creates customer invoice and subcontractor vendor bill automatically.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#128202;</div>
+            <h3>Profitability Reports</h3>
+            <p>Truck-wise, customer-wise, and salesperson profitability PDF reports. Maintenance history with repeat-repair alerts.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#9881;</div>
+            <h3>Full Accounting Integration</h3>
+            <p>Every operation posts a real Odoo account.move (journal entry, invoice, or vendor bill) with analytic distribution.</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2>First-Time Setup</h2>
+    <div class="warn-box">
+        Complete these steps <strong>before</strong> using any other feature. All accounting entries
+        rely on the accounts and journals configured here.
+    </div>
+
+    <div class="steps">
+        <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+                <h4>Go to Configuration &#8250; Payroll &amp; Accounting Setup</h4>
+                <p>This is the central configuration screen. One record per company. All GL accounts
+                and journals used by the module are set here. If no record exists, create one for your company.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+                <h4>Click "Auto-Detect Accounts"</h4>
+                <p>The system scans your chart of accounts by keyword (e.g. "salary", "GOSI",
+                "revenue") and prefills all fields it can match. Review and correct any mismatches.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+                <h4>Verify all tabs and save</h4>
+                <p>Check each tab: <strong>Payroll</strong>, <strong>Commission</strong>,
+                <strong>Fleet &amp; Trucks</strong>, <strong>Manpower Contracts</strong>,
+                <strong>Employee Compliance (KSA)</strong>, and <strong>Analytics</strong>.
+                Fill any blanks. Save.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+                <h4>Set up Platform Configurations (if using Salary Import)</h4>
+                <p>Go to Configuration &#8250; Platform Configurations. Create a record per
+                delivery platform (HungerStation, Keeta, Chefz, etc.). Set the fixed salary,
+                minimum working days threshold, per-order rate, and bonus/deduction rules.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+                <h4>Add your trucks (if using Fleet)</h4>
+                <p>Go to Fleet &amp; Trucks &#8250; Trucks. Each truck can be company-owned or
+                investor-owned. Set ownership type, investor (if applicable), profit share %,
+                and PO limit per trip. For financed trucks, fill the installment section.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">1</span> Payroll &amp; Accounting Setup</h2>
+    <p><em>Configuration &#8250; Payroll &amp; Accounting Setup</em></p>
+    <p>One record per company maps every GL account and journal to the module's financial operations.</p>
+
+    <table>
+        <thead><tr><th>Tab</th><th>What it configures</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Payroll</strong></td><td>Payroll journal; salary expense, bonus, petrol; salary payable; performance deductions; employee advances, loans, fuel, SIM, traffic, rent accounts</td></tr>
+            <tr><td><strong>Commission</strong></td><td>Commission income account; sales journal; subcontractor payable (expense) account</td></tr>
+            <tr><td><strong>Fleet &amp; Trucks</strong></td><td>Truck revenue account; truck expense account; investor profit share account; trip sales journal; trip costs payable; truck expense journal; installment payable account</td></tr>
+            <tr><td><strong>Manpower Contracts</strong></td><td>Manpower income account; sales journal; worker wages account; accommodation, utilities, furniture, transport, other expense accounts; project expense journal</td></tr>
+            <tr><td><strong>Employee Compliance (KSA)</strong></td><td>GOSI, Iqama, medical insurance, Saudization, other compliance expense accounts; compliance payable; employee compliance journal</td></tr>
+            <tr><td><strong>Analytics</strong></td><td>Company-wide default analytic account (fallback when none is set on the document)</td></tr>
+        </tbody>
+    </table>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">2</span> Platform Configuration (Salary Formula Engine)</h2>
+    <p><em>Configuration &#8250; Platform Configurations</em></p>
+    <p>Each delivery platform has its own salary rules. The Worker Salary Import reads these rules to auto-compute pay.</p>
+
+    <div class="formula">
+IF working_days &gt;= min_days (default 27):
+    salary = fixed_salary
+    salary += (orders − order_target) × order_adj_rate   <span style="color:#80ff80"># positive = bonus, negative = deduction</span>
+ELSE:
+    salary = orders × per_order_rate
+
+salary += petrol_allowance_per_order × orders
+    </div>
+
+    <table>
+        <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+        <tbody>
+            <tr><td>Minimum Working Days</td><td>Days threshold to qualify for fixed salary (usually 27)</td></tr>
+            <tr><td>Fixed Salary (&#8805; min days)</td><td>Base salary paid when days threshold is met</td></tr>
+            <tr><td>Order Target</td><td>Expected daily/period order count — performance benchmark</td></tr>
+            <tr><td>Per-Order Rate</td><td>Rate applied per order when below minimum days</td></tr>
+            <tr><td>Order Adjustment Rate</td><td>Amount added/deducted per order above/below target</td></tr>
+            <tr><td>Petrol Allowance / Order</td><td>Petrol amount multiplied by orders completed</td></tr>
+        </tbody>
+    </table>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">3</span> Worker Salary Import</h2>
+    <p><em>Payroll &#8250; Salary Imports</em></p>
+
+    <h3>Typical Monthly Workflow</h3>
+    <div class="steps">
+        <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+                <h4>Create a new Salary Import record</h4>
+                <p>Set Reference, Period (start/end), Client, and Platform. Click <strong>Download Template</strong>
+                to get the pre-formatted Excel file with correct column headers.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+                <h4>Fill the Excel template (20 columns)</h4>
+                <p>Each row is one worker. Columns cover: employee name, platform code, valid days, orders completed,
+                bonus, petrol allowance, and all performance and office deductions. Save the file.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+                <h4>Upload Excel &#8250; Import button</h4>
+                <p>Lines are created automatically. Salary is auto-computed from platform rules based on days and orders.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+                <h4>Fill from Ledger (optional)</h4>
+                <p>Pulls outstanding advance / deduction balances per employee from the Employee Deductions ledger
+                and pre-fills the matching deduction columns for automatic recovery this period.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+                <h4>Review lines — fix any errors shown in red</h4>
+                <p>Rows with validation errors (missing employee, zero net) are highlighted in red.
+                Correct in the import lines list.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">6</div>
+            <div class="step-body">
+                <h4>Mark Imported</h4>
+                <p>Locks lines from further editing. Transitions to <strong>Imported</strong> state.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">7</div>
+            <div class="step-body">
+                <h4>Post to Accounting</h4>
+                <p>Creates a single journal entry for the entire batch. One debit line per earnings component
+                (salary expense, bonus, petrol allowance). One credit line per deduction type recovered.
+                Net credit to Salary Payable account. Transitions to <strong>Done</strong> state.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">8</div>
+            <div class="step-body">
+                <h4>Mark Deductions Recovered</h4>
+                <p>Marks all linked employee deduction ledger records as recovered so they no longer
+                appear in future "Fill from Ledger" runs.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow">
+        <span class="state grey">Draft</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state orange">Imported</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state green">Done</span>
+    </div>
+
+    <h3>Salary Import — Accounting Entry</h3>
+    <div class="acct-row">
+        <div class="acct-dr">Dr — Salary Expense Account</div>
+        <div class="acct-sep">per worker fixed salary total</div>
+    </div>
+    <div class="acct-row">
+        <div class="acct-dr">Dr — Bonus Expense Account</div>
+        <div class="acct-sep">total bonuses</div>
+    </div>
+    <div class="acct-row">
+        <div class="acct-dr">Dr — Petrol Allowance Account</div>
+        <div class="acct-sep">total petrol allowances</div>
+    </div>
+    <div class="acct-row">
+        <div class="acct-cr">Cr — Advance Deduction Account</div>
+        <div class="acct-sep">advance recoveries</div>
+    </div>
+    <div class="acct-row">
+        <div class="acct-cr">Cr — Salary Payable Account</div>
+        <div class="acct-sep">net payable to workers</div>
+    </div>
+
+    <h3>Excel Template — Column Reference</h3>
+    <table class="excel-table">
+        <thead><tr><th>Col</th><th>Field</th><th>Col</th><th>Field</th></tr></thead>
+        <tbody>
+            <tr><td>A</td><td>Employee Name</td><td>K</td><td>On-Time Deduction</td></tr>
+            <tr><td>B</td><td>Platform Code</td><td>L</td><td>Food Damage Deduction</td></tr>
+            <tr><td>C</td><td>Valid Days</td><td>M</td><td>Miss Day Penalty</td></tr>
+            <tr><td>D</td><td>Orders Completed</td><td>N</td><td>Order Rejection Deduction</td></tr>
+            <tr><td>E</td><td>Fixed Salary (override)</td><td>O</td><td>Misc Deduction</td></tr>
+            <tr><td>F</td><td>Order Adjustment</td><td>P</td><td>Advance Deduction</td></tr>
+            <tr><td>G</td><td>Bonus</td><td>Q</td><td>Fuel Deduction</td></tr>
+            <tr><td>H</td><td>Petrol Allowance</td><td>R</td><td>SIM Charges</td></tr>
+            <tr><td>I</td><td>(reserved)</td><td>S</td><td>Loan</td></tr>
+            <tr><td>J</td><td>(reserved)</td><td>T</td><td>Traffic Violation / Rent</td></tr>
+        </tbody>
+    </table>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">4</span> Commission Receipts</h2>
+    <p><em>Commission &#8250; Commission Receipts</em></p>
+    <p>Manages commission invoicing between your company and subcontractors, with KSA 15% VAT handling built in.</p>
+
+    <div class="formula">
+Gross Amount (from subcontractor)          =  A
+Company Commission %                       =  r
+Company Commission (ex-VAT)                =  A × r
+VAT on company commission (15%)            =  A × r × 0.15
+Subcontractor Net Share                    =  A − (A × r) − VAT
+    </div>
+
+    <ul>
+        <li><strong>Confirm</strong> — validates the commission receipt, computes amounts</li>
+        <li><strong>Create Invoice</strong> — creates a Customer Invoice (out_invoice) for the full commission + VAT</li>
+        <li><strong>Create Subcontractor Bill</strong> — creates a Vendor Bill (in_invoice) for the subcontractor's net share</li>
+        <li><strong>Settle</strong> — marks as settled after both documents are posted</li>
+    </ul>
+
+    <div class="flow">
+        <span class="state grey">Draft</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state">Confirmed</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state green">Settled</span>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">5</span> Fleet &amp; Trucks</h2>
+
+    <!-- 5a Trucks -->
+    <h3>5a — Trucks  <span class="tag">Fleet &amp; Trucks &#8250; Trucks</span></h3>
+    <div class="two-col">
+        <div>
+            <strong>Ownership &amp; Investment</strong>
+            <ul>
+                <li>Ownership type: <em>Company</em> or <em>Investor</em></li>
+                <li>Investor partner link — profit share % (e.g. 50%)</li>
+                <li>Vehicle category for grouping reports</li>
+            </ul>
+            <strong>Fixed Asset</strong>
+            <ul>
+                <li>Purchase value, Fixed Asset Account</li>
+                <li>Installment financing: financed amount, down payment, monthly installment,
+                    first installment date, paid / total count</li>
+                <li>Outstanding balance and estimated payoff date — computed automatically</li>
+                <li>Pay Installment button records each payment</li>
+            </ul>
+        </div>
+        <div>
+            <strong>Operations</strong>
+            <ul>
+                <li>PO Limit per Trip — trip creation is blocked if the remaining PO balance
+                    would be exceeded</li>
+                <li>Current Client for quick reference</li>
+                <li>Analytic Account for cost-centre reporting</li>
+                <li>Operational Status: Active / Under Maintenance / Inactive</li>
+            </ul>
+            <strong>Smart Buttons</strong>
+            <ul>
+                <li>Trips — count &amp; direct navigation to trip list</li>
+                <li>P&amp;L Records — investor profit &amp; loss records</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 5b Trips -->
+    <h3>5b — Trips  <span class="tag">Fleet &amp; Trucks &#8250; Trips</span></h3>
+    <table>
+        <thead><tr><th>Rental Type</th><th>Revenue Formula</th></tr></thead>
+        <tbody>
+            <tr><td>Daily</td><td>Daily rate × number of days</td></tr>
+            <tr><td>Hourly</td><td>Standard hours × hourly rate + overtime hours × overtime rate</td></tr>
+            <tr><td>Per Trip</td><td>Number of trips × rate per trip</td></tr>
+            <tr><td>Monthly</td><td>Fixed monthly amount</td></tr>
+            <tr><td>Project</td><td>Fixed project amount</td></tr>
+        </tbody>
+    </table>
+    <ul>
+        <li><strong>Gross Profit</strong> = Revenue − (Driver Cost + Fuel + Other Cost)</li>
+        <li><strong>Salesperson</strong> field — used in Salesperson Profitability Report</li>
+        <li><strong>Create Invoice</strong> — Customer Invoice at Truck Revenue Account + VAT</li>
+        <li><strong>Create Cost Entry</strong> — Journal Entry Dr Driver Cost / Cr Trip Costs Payable</li>
+    </ul>
+
+    <div class="flow">
+        <span class="state grey">Draft</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state">Confirmed</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state green">Done</span>
+    </div>
+
+    <!-- 5c Investor P&L -->
+    <h3>5c — Investor P&amp;L  <span class="tag">from Truck &#8250; P&amp;L Records button</span></h3>
+    <div class="formula">
+Gross Profit      = Total Revenue − Total Expenses
+Investor Share    = Gross Profit × investor_profit_share_%
+Company Gross     = Gross Profit − Investor Share
+Indirect Expenses = Yard Rent + Coordinator Salary + Iqama + Other
+Company Net       = Company Gross − Indirect Expenses
+    </div>
+    <ul>
+        <li><strong>Create Investor Bill</strong> — Vendor Bill (in_invoice) for investor's share</li>
+        <li><strong>Mark as Paid</strong> — records payment date on the P&amp;L record</li>
+    </ul>
+
+    <!-- 5d Maintenance -->
+    <h3>5d — Maintenance  <span class="tag">Fleet &amp; Trucks &#8250; Maintenance</span></h3>
+    <p>All maintenance records live in Odoo's standard <code>fleet.vehicle.log.services</code>,
+    extended with Way4Tech fields.</p>
+    <table>
+        <thead><tr><th>Category</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td>Preventive</td><td>Scheduled servicing — oil change, filters, annual check</td></tr>
+            <tr><td>Corrective</td><td>Breakdown or unplanned repair</td></tr>
+            <tr><td>Accident Repair</td><td>Damage from accident</td></tr>
+            <tr><td>Tyres</td><td>Tyre replacement or rotation</td></tr>
+            <tr><td>Other</td><td>Any other maintenance type</td></tr>
+        </tbody>
+    </table>
+    <div class="flow">
+        <span class="state grey">Draft</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state orange">Confirmed</span>
+        <span class="arrow">&nbsp;(truck → Under Maintenance)&nbsp;&#8594;</span>
+        <span class="state green">Done</span>
+        <span class="arrow">&nbsp;(truck → Active)</span>
+    </div>
+    <ul>
+        <li><strong>Confirm</strong> — sets truck operational status to "Under Maintenance"</li>
+        <li><strong>Done</strong> — restores truck operational status to "Active"</li>
+        <li><strong>Create Vendor Bill</strong> — Vendor Bill at Truck Expense Account with analytic distribution</li>
+    </ul>
+
+    <!-- 5e Client POs -->
+    <h3>5e — Client POs  <span class="tag">Fleet &amp; Trucks &#8250; Client POs</span></h3>
+    <p>Tracks purchase order limits per client. The PO Balance decreases as trips are created
+    against it. Trip creation is blocked if the new trip would exceed the PO limit.
+    Use the <strong>Auto-Renew</strong> action to create a renewal PO at the end of a period.</p>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">6</span> Manpower Contracts</h2>
+    <p><em>Manpower &#8250; Manpower Contracts</em></p>
+
+    <div class="two-col">
+        <div>
+            <strong>Contract Types</strong>
+            <ul>
+                <li><em>Food Delivery</em> — manpower supplied to a delivery platform
+                    (riders, supervisors, support staff)</li>
+                <li><em>Project Based</em> — manpower supplied for a specific project or site
+                    (construction, logistics hub, warehousing)</li>
+            </ul>
+            <strong>Billing Types</strong>
+            <ul>
+                <li><em>Fixed Price</em> — invoice a fixed monthly amount regardless of hours</li>
+                <li><em>Hourly Rate</em> — invoice = Total Hours (from Timesheets tab) × Hourly Rate</li>
+            </ul>
+        </div>
+        <div>
+            <strong>Key Fields</strong>
+            <ul>
+                <li><strong>Client</strong> — invoice recipient</li>
+                <li><strong>Salesperson</strong> — assigned sales rep (used in profitability reports)</li>
+                <li><strong>Analytic Account</strong> — tags all invoices and bills for cost-centre reporting</li>
+                <li><strong>Total Invoiced</strong> — sum of posted invoice amounts (ex-VAT)</li>
+                <li><strong>Project Margin</strong> = Total Invoiced − Total Project Expenses</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Tabs</h3>
+    <table>
+        <thead><tr><th>Tab</th><th>Contents</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><strong>Manpower</strong></td>
+                <td>List of assigned employees/workers: name, role, start/end date, daily cost (internal tracking only — not used in invoicing)</td>
+            </tr>
+            <tr>
+                <td><strong>Timesheets</strong></td>
+                <td>Daily hours log per employee. Required for Hourly Rate billing — total hours drive the invoice amount. Informational only for Fixed Price.</td>
+            </tr>
+            <tr>
+                <td><strong>Project Expenses</strong><br/><span class="muted">(Project-Based only)</span></td>
+                <td>Cost lines: wages, accommodation, utilities, furniture &amp; equipment, transport, other. Each line can generate a Vendor Bill. All bills tagged with the contract's analytic account.</td>
+            </tr>
+            <tr>
+                <td><strong>Notes</strong></td>
+                <td>Free-text notes printed at the bottom of the PDF report</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Workflow</h3>
+    <div class="flow">
+        <span class="state grey">Draft</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state green">Active</span>
+        <span class="arrow">&#8594;</span>
+        <span class="state">Completed</span>
+    </div>
+    <div class="flow" style="margin-top:4px">
+        <span style="font-size:0.85em;color:#888">Any state (except Completed) &#8594;</span>
+        <span class="state red">Cancelled</span>
+    </div>
+
+    <ul>
+        <li><strong>Activate</strong> — moves contract from Draft to Active</li>
+        <li><strong>Create Invoice</strong> — creates Customer Invoice + 15% VAT at the configured Manpower Income Account.
+            For Fixed Price: uses the fixed amount. For Hourly: uses total hours × hourly rate.</li>
+        <li><strong>Complete</strong> — closes the contract; no further editing</li>
+        <li><strong>View Invoices</strong> — smart button showing invoice count, navigates to invoice list</li>
+    </ul>
+
+    <h3>Project Expense — Accounting Entry</h3>
+    <p>Each <em>Create Vendor Bill</em> click on an expense line creates a standard in_invoice:</p>
+    <div class="acct-row">
+        <div class="acct-dr">Dr — Expense Account</div>
+        <div class="acct-sep">e.g. Worker Wages, Accommodation, etc.</div>
+    </div>
+    <div class="acct-row">
+        <div class="acct-cr">Cr — Accounts Payable</div>
+        <div class="acct-sep">vendor payable</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">7</span> PDF Reports</h2>
+
+    <div class="report-card">
+        <h4>&#128203; Worker Salary Sheet</h4>
+        <p>Accessed via Print button on any Salary Import record. Full table of all workers with every
+        earnings and deduction column, colour-coded error rows, column totals, and total net payable.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128203; Commission Receipt Statement</h4>
+        <p>Full commission breakdown: gross amount, company commission %, VAT, subcontractor net share.
+        Printed from the Commission Receipt form.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128203; Investor Profit Statement</h4>
+        <p>Revenue, expenses, gross profit, investor share %, investor amount, indirect expenses,
+        company net. Printed from the Investor P&amp;L record.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128202; Truck-wise / Customer-wise Profitability Report</h4>
+        <p><em>Fleet &amp; Trucks &#8250; Profitability Reports (wizard)</em><br/>
+        Select date range, status filter (All / Confirmed / Done / Confirmed &amp; Done),
+        optional truck or client filter, and report type. Outputs: summary table with grand totals
+        + one detailed page per truck/client showing all trips with revenue, cost, profit, margin%.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128202; Investor Aging Report</h4>
+        <p><em>Fleet &amp; Trucks &#8250; Investor Aging Report (wizard)</em><br/>
+        Outstanding investor payable balances broken down by aging buckets. Identify overdue investor profit payments.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128202; Maintenance History Report</h4>
+        <p><em>Fleet &amp; Trucks &#8250; Maintenance History Report (wizard)</em><br/>
+        Select date range, optional truck filter, optional category filter. Summary table across all trucks +
+        per-truck detail (reference, date, category, state, vendor, cost).
+        <strong>Repeat-category alerts</strong>: trucks where the same maintenance category occurs more than once
+        in the period are flagged with a warning badge — helps identify chronic mechanical issues.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128203; Manpower Contract Statement</h4>
+        <p>Printed from the Manpower Contract form. Includes contract details, billing summary,
+        assigned manpower list, full timesheet log with total hours, project expenses (if any), and notes.</p>
+    </div>
+
+    <div class="report-card">
+        <h4>&#128202; Salesperson Profitability Report</h4>
+        <p><em>Manpower &#8250; Salesperson Profitability Report (wizard)</em><br/>
+        Select date range and optionally filter by salesperson. For each salesperson:
+        truck trip revenue/cost/gross profit/margin% <strong>plus</strong> manpower contract invoiced/expenses/margin.
+        Summary table + per-salesperson drill-down with full trip and contract lists.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">8</span> Full Accounting Integration</h2>
+    <p>Every financial operation in this module produces a real <code>account.move</code> document posted to your Odoo GL. No shadow ledgers.</p>
+
+    <table>
+        <thead><tr><th>Operation</th><th>Document Type</th><th>Key Accounts</th></tr></thead>
+        <tbody>
+            <tr><td>Worker Salary Batch (Post)</td><td>Journal Entry</td><td>Dr Salary/Bonus/Petrol Expense → Cr Deductions + Salary Payable</td></tr>
+            <tr><td>Employee Advance / Deduction</td><td>Journal Entry</td><td>Dr/Cr at configured debit/credit accounts</td></tr>
+            <tr><td>KSA Compliance Costs (Post)</td><td>Journal Entry</td><td>Dr GOSI/Iqama/Insurance/Saudization → Cr Compliance Payable</td></tr>
+            <tr><td>Commission — Company Share</td><td>Customer Invoice (out_invoice)</td><td>Commission Income Account</td></tr>
+            <tr><td>Commission — Subcontractor Share</td><td>Vendor Bill (in_invoice)</td><td>Subcontractor Payable Account</td></tr>
+            <tr><td>Truck Trip Revenue</td><td>Customer Invoice (out_invoice)</td><td>Truck Revenue Account + 15% VAT</td></tr>
+            <tr><td>Truck Trip Driver Cost</td><td>Journal Entry</td><td>Dr Truck Expense → Cr Trip Costs Payable</td></tr>
+            <tr><td>Investor Profit Share</td><td>Vendor Bill (in_invoice)</td><td>Investor Profit Share Account</td></tr>
+            <tr><td>Maintenance Service</td><td>Vendor Bill (in_invoice)</td><td>Truck Expense Account</td></tr>
+            <tr><td>Manpower Contract Invoice</td><td>Customer Invoice (out_invoice)</td><td>Manpower Income Account + 15% VAT</td></tr>
+            <tr><td>Manpower Project Expense</td><td>Vendor Bill (in_invoice)</td><td>Per-category expense account</td></tr>
+        </tbody>
+    </table>
+
+    <div class="info-box">
+        <strong>Analytic Distribution:</strong> Applied to every posted journal line.
+        Priority: (1) field on the document → (2) vehicle/contract analytic account → (3) company default in Payroll &amp; Accounting Setup.
+        All revenue and costs flow into Accounting &#8250; Reporting &#8250; Analytic Report for project-level P&amp;L.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2><span class="section-badge">9</span> Security &amp; Access</h2>
+    <table>
+        <thead><tr><th>Role</th><th>Access Level</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><strong>Logistics User</strong></td>
+                <td>Read-only on all records. Can log employee deductions. Can run the Excel import wizard. Cannot post to accounting, create invoices, or change configuration.</td>
+            </tr>
+            <tr>
+                <td><strong>Logistics Manager</strong></td>
+                <td>Full CRUD on all records. Can post salary batches to accounting, create invoices and vendor bills, activate/complete/cancel contracts, confirm/complete maintenance, and edit all configuration.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="warn-box">
+        <strong>Access Control (built-in):</strong> The module includes journal backdating protection and vendor
+        creation restrictions. Managers can override; users are blocked from posting to closed periods.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2>Dependencies &amp; Requirements</h2>
+    <div class="two-col">
+        <div>
+            <strong>Odoo Modules</strong>
+            <ul>
+                <li><code>account</code> — Accounting / chart of accounts</li>
+                <li><code>analytic</code> — Analytic accounts and distribution</li>
+                <li><code>mail</code> — Chatter / activity tracking on all models</li>
+                <li><code>fleet</code> — Base fleet vehicles (trucks inherit from fleet.vehicle)</li>
+                <li><code>hr</code> — HR employees (drivers, assigned workers)</li>
+            </ul>
+        </div>
+        <div>
+            <strong>Python Libraries</strong>
+            <ul>
+                <li><code>openpyxl</code> — Excel template generation and import parsing</li>
+            </ul>
+            <strong>Environment</strong>
+            <ul>
+                <li>Odoo 19 Community Edition</li>
+                <li>KSA timezone and 15% VAT (configurable)</li>
+                <li>Multi-company supported</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <h2>Support</h2>
+    <p>
+        <strong>Author:</strong> Waqas Riasat &nbsp;|&nbsp;
+        <strong>Company:</strong> Way4Tech &nbsp;|&nbsp;
+        <strong>Website:</strong> https://way4tech.com &nbsp;|&nbsp;
+        <strong>Support:</strong> support@way4tech.com
+    </p>
+    <div class="ok-box">
+        For bug reports, feature requests, or customisation inquiries, contact
+        <strong>support@way4tech.com</strong> with your Odoo version and a description of the issue.
+    </div>
+
+</div>
+</body>
+</html>

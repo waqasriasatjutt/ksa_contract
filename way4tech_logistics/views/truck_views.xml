@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Truck / Fleet Vehicle — Form View
+         =================================================== -->
+    <record id="view_way4tech_truck_form" model="ir.ui.view">
+        <field name="name">way4tech.truck.form</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="arch" type="xml">
+            <form string="Vehicle">
+                <header>
+                    <button name="action_set_active" type="object" string="Set Active"
+                            class="btn-primary" invisible="operational_state == 'active'"/>
+                    <button name="action_set_maintenance" type="object" string="Set Maintenance"
+                            class="btn-secondary" invisible="operational_state == 'maintenance'"/>
+                    <button name="action_set_inactive" type="object" string="Set Inactive"
+                            class="btn-secondary" invisible="operational_state == 'inactive'"/>
+                    <!-- Installment payment button — only for installment vehicles -->
+                    <button name="action_pay_installment" type="object"
+                            string="Record Installment Payment"
+                            class="btn-secondary"
+                            invisible="not is_installment or installment_remaining_balance &lt;= 0"
+                            confirm="This will create a draft journal entry for one monthly installment. You must add the bank/cash credit line before posting. Continue?"/>
+                    <field name="operational_state" widget="statusbar"
+                           statusbar_visible="active,maintenance,inactive"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_trips" type="object"
+                                class="oe_stat_button" icon="fa-road">
+                            <field name="trip_count" widget="statinfo" string="Trips"/>
+                        </button>
+                        <button name="%(way4tech_logistics.action_truck_maintenance)d"
+                                type="action" class="oe_stat_button" icon="fa-wrench"
+                                context="{'search_default_vehicle_id': id, 'default_vehicle_id': id}">
+                            <field name="service_count" widget="statinfo" string="Maintenance"/>
+                        </button>
+                        <button name="action_view_payouts" type="object"
+                                class="oe_stat_button" icon="fa-bar-chart">
+                            <field name="payout_count" widget="statinfo" string="P&amp;L Records"/>
+                        </button>
+                        <button name="action_view_installment_schedule" type="object"
+                                class="oe_stat_button" icon="fa-calendar-check-o"
+                                invisible="not is_installment">
+                            <field name="installment_schedule_count" widget="statinfo"
+                                   string="Installments"/>
+                        </button>
+                    </div>
+                    <!-- Installment schedule generation button (only when is_installment) -->
+                    <div class="alert alert-info mb-0"
+                         invisible="not is_installment or installment_schedule_count > 0">
+                        <button name="action_generate_installment_schedule" type="object"
+                                string="Generate Installment Schedule"
+                                class="btn btn-sm btn-primary me-2"/>
+                        Click to auto-generate the full monthly installment payment schedule
+                        from the vehicle's financing details.
+                    </div>
+
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Vehicle Name"/></h1>
+                        <h2><field name="license_plate" placeholder="License Plate"/></h2>
+                    </div>
+
+                    <group>
+                        <group string="Vehicle Info">
+                            <field name="vehicle_category"
+                                   help="Truck: standard cargo truck. &#10;Bus/Minibus: passenger or staff transport. &#10;Flatbed: heavy transport, low-loader. &#10;Other: any other type."/>
+                            <field name="model_id"
+                                   help="Vehicle make and model (e.g. 'Isuzu NPR'). Optional."/>
+                            <field name="model_year"
+                                   help="Year of manufacture. For maintenance planning."/>
+                        </group>
+                        <group string="Ownership">
+                            <field name="ownership_type"
+                                   help="Company Owned: company bears 100% of P&amp;L. &#10;Investor Owned: gross profit split per investor share %."/>
+                            <field name="investor_id"
+                                   invisible="ownership_type == 'own'"
+                                   required="ownership_type == 'investor'"/>
+                            <field name="profit_share_rate"
+                                   invisible="ownership_type == 'own'"
+                                   help="Investor's % share of gross profit. BRD default: 50%."/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Fixed Asset (PPE)">
+                            <field name="purchase_value"
+                                   help="Original purchase price. Used for the fixed asset register. &#10;Saudi accounting: vehicles are PPE — debit a Fixed Asset account when purchased."/>
+                            <field name="asset_account_id"
+                                   domain="[('account_type', '=', 'asset_fixed'), ('company_ids', 'in', [company_id])]"
+                                   help="Balance sheet Fixed Asset account for this vehicle. &#10;Account type: asset_fixed. Example: 150010 – Motor Vehicles (Non-Current Asset). &#10;For reference and reporting only."/>
+                        </group>
+                        <group string="Assignment">
+                            <field name="current_client_id"
+                                   help="Current client this vehicle is deployed to. Informational."/>
+                            <field name="analytic_account_id"
+                                   help="Analytic cost centre for per-vehicle P&amp;L reporting."/>
+                            <field name="po_limit"
+                                   help="Max revenue per single trip. Leave 0 for no limit."/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+
+                    <!-- Installment section — only for installment vehicles -->
+                    <group string="Installment / Financing" invisible="not is_installment">
+                        <group>
+                            <field name="is_installment"/>
+                            <field name="installment_vendor_id"
+                                   invisible="not is_installment"
+                                   help="Bank or dealer providing the financing."/>
+                            <field name="installment_total_price"
+                                   invisible="not is_installment"
+                                   help="Total price including financing charges."/>
+                            <field name="installment_down_payment"
+                                   invisible="not is_installment"
+                                   help="Amount already paid at purchase."/>
+                        </group>
+                        <group>
+                            <field name="installment_monthly_amount"
+                                   invisible="not is_installment"
+                                   help="Fixed monthly installment amount."/>
+                            <field name="installment_start_date"
+                                   invisible="not is_installment"
+                                   help="Date of first installment payment."/>
+                            <field name="installments_paid"
+                                   invisible="not is_installment"
+                                   help="Number of installments paid so far. Incremented automatically when 'Record Installment Payment' is clicked."/>
+                            <field name="installment_total_months"
+                                   invisible="not is_installment"
+                                   readonly="1"/>
+                            <field name="installment_remaining_balance"
+                                   invisible="not is_installment"
+                                   readonly="1" class="o_field_highlight"
+                                   decoration-success="installment_remaining_balance == 0"
+                                   decoration-warning="installment_remaining_balance &gt; 0"/>
+                            <field name="installment_end_date"
+                                   invisible="not is_installment"
+                                   readonly="1"/>
+                        </group>
+                    </group>
+                    <!-- Toggle for installment when it's off -->
+                    <group invisible="is_installment">
+                        <field name="is_installment"
+                               help="Tick if this vehicle was purchased on a financing / installment plan."/>
+                    </group>
+
+                    <group string="Notes">
+                        <field name="description" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Truck List View
+         =================================================== -->
+    <record id="view_way4tech_truck_list" model="ir.ui.view">
+        <field name="name">way4tech.truck.list</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="arch" type="xml">
+            <list string="Vehicles">
+                <field name="name"/>
+                <field name="license_plate"/>
+                <field name="vehicle_category" widget="badge"
+                    decoration-info="vehicle_category == 'truck'"
+                    decoration-warning="vehicle_category == 'bus'"
+                    decoration-primary="vehicle_category == 'flatbed'"
+                />
+                <field name="model_id"/>
+                <field name="ownership_type"/>
+                <field name="investor_id"/>
+                <field name="current_client_id"/>
+                <field name="is_installment" optional="show"/>
+                <field name="operational_state" widget="badge"
+                    decoration-success="operational_state == 'active'"
+                    decoration-warning="operational_state == 'maintenance'"
+                    decoration-muted="operational_state == 'inactive'"
+                />
+            </list>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Truck Search View
+         =================================================== -->
+    <record id="view_way4tech_truck_search" model="ir.ui.view">
+        <field name="name">way4tech.truck.search</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="arch" type="xml">
+            <search string="Search Vehicles">
+                <field name="name"/>
+                <field name="license_plate"/>
+                <field name="investor_id"/>
+                <separator/>
+                <filter string="Active" name="active" domain="[('operational_state','=','active')]"/>
+                <filter string="Under Maintenance" name="maintenance" domain="[('operational_state','=','maintenance')]"/>
+                <separator/>
+                <filter string="Company Owned" name="own" domain="[('ownership_type','=','own')]"/>
+                <filter string="Investor Owned" name="investor" domain="[('ownership_type','=','investor')]"/>
+                <separator/>
+                <filter string="Trucks" name="cat_truck" domain="[('vehicle_category','=','truck')]"/>
+                <filter string="Buses" name="cat_bus" domain="[('vehicle_category','=','bus')]"/>
+                <filter string="Flatbeds" name="cat_flatbed" domain="[('vehicle_category','=','flatbed')]"/>
+                <filter string="On Installment" name="installment" domain="[('is_installment','=',True)]"/>
+                <separator/>
+                <filter string="Category" name="group_category" context="{'group_by': 'vehicle_category'}"/>
+                <filter string="Ownership Type" name="group_ownership" context="{'group_by': 'ownership_type'}"/>
+                <filter string="Current Client" name="group_client" context="{'group_by': 'current_client_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Truck Action
+         =================================================== -->
+    <record id="action_truck" model="ir.actions.act_window">
+        <field name="name">Fleet &amp; Vehicles</field>
+        <field name="res_model">fleet.vehicle</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_way4tech_truck_list"/>
+        <field name="search_view_id" ref="view_way4tech_truck_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add your first Vehicle</p>
+            <p>
+                Manage company-owned, investor-owned, and installment buses.
+                Track trips, maintenance, and monthly profitability per vehicle.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_truck_view_list" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_way4tech_truck_list"/>
+        <field name="act_window_id" ref="action_truck"/>
+    </record>
+    <record id="action_truck_view_form" model="ir.actions.act_window.view">
+        <field name="sequence">2</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_way4tech_truck_form"/>
+        <field name="act_window_id" ref="action_truck"/>
+    </record>
+
+    <!-- ===================================================
+         Fleet Profitability (Investor Payable) — Form View
+         Works for BOTH company-owned and investor-owned vehicles.
+         =================================================== -->
+    <record id="view_way4tech_investor_payable_form" model="ir.ui.view">
+        <field name="name">way4tech.investor.payable.form</field>
+        <field name="model">way4tech.investor.payable</field>
+        <field name="arch" type="xml">
+            <form string="Fleet Profitability">
+                <header>
+                    <button name="action_confirm" type="object" string="Confirm"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <!-- Create Vendor Bill only for investor-owned vehicles -->
+                    <button name="action_create_bill" type="object" string="Create Investor Bill"
+                            class="btn-primary"
+                            invisible="state == 'paid' or bill_id != False"
+                            confirm="Create a vendor bill for the investor's profit share?"/>
+                    <button name="action_mark_paid" type="object" string="Mark as Paid"
+                            class="btn-success" invisible="state == 'paid'"/>
+                    <button name="action_reset_draft" type="object" string="Reset to Draft"
+                            class="btn-secondary"
+                            invisible="state == 'draft' or state == 'paid'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_bill" type="object"
+                                class="oe_stat_button" icon="fa-pencil-square-o"
+                                invisible="not bill_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Investor Bill</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Vehicle &amp; Period">
+                            <field name="truck_id" readonly="state != 'draft'"
+                                   help="Select any active vehicle — company-owned or investor-owned."/>
+                            <field name="investor_id" readonly="1"
+                                   help="Auto-filled from the truck for investor-owned vehicles."/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Period">
+                            <field name="period_start" readonly="state != 'draft'"
+                                   help="Start of the reporting period for this P&amp;L record (e.g. 01/03/2026). &#10;&#10;All trips with dates in [period_start – period_end] are aggregated when you click 'Auto-Compute from Trips &amp; Maintenance'."/>
+                            <field name="period_end" readonly="state != 'draft'"
+                                   help="End of the reporting period (e.g. 31/03/2026). &#10;&#10;Trips and maintenance records up to and including this date are included in the auto-compute."/>
+                            <field name="bill_id" readonly="1"
+                                   help="The vendor bill (in_invoice) created for the investor's profit share when you click 'Create Investor Bill'. &#10;&#10;Only created for investor-owned vehicles. For company-owned vehicles this stays blank. Read-only."/>
+                            <field name="payment_date" readonly="state != 'paid'"
+                                   help="Date the investor was paid their profit share. Set automatically when you click 'Mark as Paid', or enter manually. Used in the Investor Aging Report to filter outstanding vs. paid records."/>
+                        </group>
+                    </group>
+
+                    <div class="mb-3" invisible="state != 'draft'">
+                        <button name="action_compute_from_trips" type="object"
+                                string="Auto-Compute from Trips &amp; Maintenance"
+                                class="btn-secondary"/>
+                        <span class="ms-2 text-muted">
+                            Aggregates all confirmed/done trips and maintenance costs in the period
+                        </span>
+                    </div>
+
+                    <group>
+                        <group string="Revenue &amp; Direct Costs">
+                            <field name="total_revenue" readonly="state != 'draft'"
+                                   help="Total client revenue (sum of trip invoices in the period)."/>
+                            <field name="total_expenses" readonly="state != 'draft'"
+                                   help="Direct costs: driver salary + overtime + fuel + maintenance."/>
+                            <field name="profit_share_rate" readonly="1"
+                                   help="From the vehicle record. 0% for company-owned (company keeps 100%)."/>
+                        </group>
+                        <group string="Profit Split">
+                            <field name="gross_profit" readonly="1" class="o_field_highlight"
+                                   decoration-danger="gross_profit &lt; 0"
+                                   help="Gross Profit = Total Revenue − Total Direct Expenses. &#10;&#10;This is the profit before indirect expenses and before the investor split. A negative value means the vehicle ran at a loss this period. Read-only — calculated automatically."/>
+                            <!-- Investor share — only visible for investor trucks -->
+                            <field name="investor_amount" readonly="1"
+                                   help="Investor's share of gross profit = Gross Profit × Profit Share Rate / 100. &#10;&#10;For company-owned vehicles this is always 0. The vendor bill created for the investor covers this amount. Read-only."/>
+                            <field name="company_gross" readonly="1"
+                                   help="Company's share of gross profit = Gross Profit − Investor Amount. &#10;&#10;For company-owned vehicles this equals the full gross profit (investor share is 0%). Read-only."/>
+                        </group>
+                    </group>
+
+                    <group string="Indirect Expenses (Company Bears)">
+                        <group>
+                            <field name="yard_rent" readonly="state != 'draft'"
+                                   help="Parking / yard rent allocated to this vehicle."/>
+                            <field name="coordinator_salary" readonly="state != 'draft'"
+                                   help="Coordinator/logistics staff salary portion for this vehicle."/>
+                        </group>
+                        <group>
+                            <field name="iqama_cost" readonly="state != 'draft'"
+                                   help="Driver and coordinator iqama/visa renewal cost."/>
+                            <field name="other_operational" readonly="state != 'draft'"/>
+                            <field name="total_indirect" readonly="1"
+                                   help="Sum of all indirect expenses: Yard Rent + Coordinator Salary + Iqama Cost + Other Operational. &#10;&#10;These are overhead costs the company bears regardless of the vehicle's revenue. Read-only."/>
+                            <field name="company_net" readonly="1" class="o_field_highlight"
+                                   decoration-danger="company_net &lt; 0"
+                                   help="Company Net = Company Gross − Indirect Expenses."/>
+                        </group>
+                    </group>
+
+                    <group string="Notes">
+                        <field name="notes" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Fleet Profitability — List View
+         =================================================== -->
+    <record id="view_way4tech_investor_payable_list" model="ir.ui.view">
+        <field name="name">way4tech.investor.payable.list</field>
+        <field name="model">way4tech.investor.payable</field>
+        <field name="arch" type="xml">
+            <list string="Fleet Profitability">
+                <field name="name"/>
+                <field name="truck_id"/>
+                <field name="investor_id"/>
+                <field name="period_start"/>
+                <field name="period_end"/>
+                <field name="total_revenue" sum="Total Revenue"/>
+                <field name="total_expenses" sum="Direct Expenses"/>
+                <field name="gross_profit" sum="Gross Profit"/>
+                <field name="investor_amount" sum="Investor Amount"/>
+                <field name="total_indirect" sum="Indirect Exp" optional="show"/>
+                <field name="company_net" sum="Company Net" optional="show"/>
+                <field name="state" widget="badge"
+                    decoration-info="state == 'draft'"
+                    decoration-warning="state == 'confirmed'"
+                    decoration-success="state == 'paid'"
+                />
+            </list>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Fleet Profitability — Search View
+         =================================================== -->
+    <record id="view_way4tech_investor_payable_search" model="ir.ui.view">
+        <field name="name">way4tech.investor.payable.search</field>
+        <field name="model">way4tech.investor.payable</field>
+        <field name="arch" type="xml">
+            <search string="Search Fleet Profitability">
+                <field name="name"/>
+                <field name="truck_id"/>
+                <field name="investor_id"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Confirmed" name="confirmed" domain="[('state','=','confirmed')]"/>
+                <filter string="Paid" name="paid" domain="[('state','=','paid')]"/>
+                <separator/>
+                <filter string="Investor" name="group_investor" context="{'group_by': 'investor_id'}"/>
+                <filter string="Vehicle" name="group_truck" context="{'group_by': 'truck_id'}"/>
+                <filter string="Period" name="group_period" context="{'group_by': 'period_start:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         Fleet Profitability — Action
+         =================================================== -->
+    <record id="action_investor_payable" model="ir.actions.act_window">
+        <field name="name">Fleet Profitability</field>
+        <field name="res_model">way4tech.investor.payable</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_way4tech_investor_payable_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Profitability Record
+            </p>
+            <p>
+                Track monthly revenue, direct costs, indirect expenses, and net profit
+                per vehicle. Auto-compute from confirmed trips and maintenance records.
+                Generate investor bills for investor-owned vehicles.
+            </p>
+        </field>
+    </record>
+
+</odoo>

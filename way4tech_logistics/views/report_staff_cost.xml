@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_staff_cost" model="ir.actions.report">
+        <field name="name">Office Staff Cost Report</field>
+        <field name="model">way4tech.staff.cost.report.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_staff_cost_template</field>
+        <field name="report_file">way4tech_logistics.report_staff_cost_template</field>
+        <field name="binding_model_id" ref="model_way4tech_staff_cost_report_wizard"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+    </record>
+
+    <template id="report_staff_cost_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="wizard">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h3>Office Staff Cost Report</h3>
+                                <p class="text-muted">
+                                    Period: <strong>
+                                        <t t-esc="wizard.date_from"/> — <t t-esc="wizard.date_to"/>
+                                    </strong>
+                                </p>
+                            </div>
+                            <div class="col-6 text-end">
+                                <p class="text-muted mb-0">
+                                    Company: <t t-esc="wizard.company_id.name"/>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    Generated: <t t-esc="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y')"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <t t-set="result" t-value="wizard.get_data()"/>
+                        <t t-set="rows" t-value="result[0]"/>
+                        <t t-set="grand" t-value="result[1]"/>
+
+                        <table class="table table-sm table-bordered o_main_table" style="font-size:11px;">
+                            <thead>
+                                <tr style="background:#2c7be5;color:white;">
+                                    <th>Employee</th>
+                                    <th class="text-end">Salary</th>
+                                    <th class="text-end">GOSI</th>
+                                    <th class="text-end">Iqama</th>
+                                    <th class="text-end">Insurance</th>
+                                    <th class="text-end">Saudization</th>
+                                    <th class="text-end">Other</th>
+                                    <th class="text-end">Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="rows" t-as="row">
+                                    <tr>
+                                        <td>
+                                            <strong><t t-esc="row['employee']"/></strong>
+                                            <t t-if="row.get('job')">
+                                                <br/><small class="text-muted"><t t-esc="row['job']"/></small>
+                                            </t>
+                                        </td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['salary']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['gosi']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['iqama']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['insurance']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['saudization']"/></td>
+                                        <td class="text-end"><t t-esc="'%.2f' % row['other']"/></td>
+                                        <td class="text-end"><strong><t t-esc="'%.2f' % row['total']"/></strong></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot>
+                                <tr style="font-weight:bold;background:#f8f9fa;">
+                                    <td>Grand Total</td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['salary']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['gosi']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['iqama']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['insurance']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['saudization']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['other']"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % grand['total']"/></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

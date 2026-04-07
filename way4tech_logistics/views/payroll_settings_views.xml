@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_payroll_settings_form" model="ir.ui.view">
+        <field name="name">way4tech.payroll.settings.form</field>
+        <field name="model">way4tech.payroll.settings</field>
+        <field name="arch" type="xml">
+            <form string="Payroll &amp; Accounting Setup">
+                <header>
+                    <button name="action_auto_detect_accounts"
+                            string="Auto-Setup All Accounts"
+                            type="object"
+                            class="btn-secondary"
+                            confirm="This will fill all empty account fields using the Saudi Arabia chart of accounts. Any missing accounts will be CREATED automatically. Continue?"
+                            title="Detects or creates all required accounts using KSA standard codes. Also links journals. Only fills empty fields — never overwrites."/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        <strong>Quick Setup:</strong>
+                        <ol class="mb-0 mt-1">
+                            <li>Click <strong>Auto-Setup All Accounts</strong> — detects accounts from your Saudi Arabia chart of accounts and creates any missing ones (KSA standard codes). Also links journals automatically.</li>
+                            <li>Review the filled fields and adjust if needed.</li>
+                        </ol>
+                    </div>
+
+                    <group>
+                        <field name="company_id" readonly="1"/>
+                    </group>
+
+                    <notebook>
+                        <!-- ── SALARY POSTING ── -->
+                        <page string="Salary Posting">
+                            <group string="Journal">
+                                <field name="payroll_journal_id"
+                                       domain="[('type', '=', 'general'), ('company_id', '=', company_id)]"
+                                       help="General journal used for salary posting journal entries. Usually named 'Payroll Journal' or 'Salary Journal'."/>
+                            </group>
+                            <group string="Accounts">
+                                <field name="salary_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for each employee when salaries are posted. Typically '5100 - Salaries &amp; Wages'."/>
+                                <field name="salary_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Liability account credited for each employee (amount owed). Typically '2100 - Salaries Payable'."/>
+                            </group>
+                            <!-- HIDDEN payroll salary-rule accounts — remove invisible="1" to re-enable -->
+                            <group string="Earnings — Extra Expense Accounts" invisible="1">
+                                <field name="bonus_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Bonus expense. Leave blank to use Salary Expense account."/>
+                                <field name="petrol_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Petrol allowance. Leave blank to use Salary Expense account."/>
+                            </group>
+                            <group string="Deduction Recovery Accounts" invisible="1">
+                                <field name="perf_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="advance_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="loan_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="fuel_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="sim_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="traffic_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="rent_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                            </group>
+                        </page>
+
+                        <!-- ── COMMISSION ── -->
+                        <page string="Commission Receipts">
+                            <group>
+                                <field name="commission_income_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Income / Revenue. Credited on commission customer invoices. &#10;Example: '4200 - Commission Income' or '4100 - Service Revenue'. &#10;This is a Profit &amp; Loss income account that increases when you earn commission."/>
+                                <field name="commission_journal_id"
+                                       domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
+                                       help="Journal type: Sales. Used for commission customer invoices (out_invoice). Usually your main 'Customer Invoices' or 'Sales' journal."/>
+                                <field name="subcontractor_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense. Debited on vendor bills created for the subcontractor's net share of the receipt. &#10;Example: '5200 - Subcontractor Costs' or '5100 - Labour Costs'. &#10;Represents the cost to you of paying the subcontractor their portion."/>
+                            </group>
+                        </page>
+
+                        <!-- ── FLEET / TRUCKS ── -->
+                        <page string="Fleet &amp; Trucks">
+                            <group string="Income Accounts">
+                                <field name="truck_revenue_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Income / Revenue. Credited on customer invoices created for truck trips. &#10;Example: '4300 - Transport Revenue' or '4100 - Fleet Income'. &#10;This is a Profit &amp; Loss income account."/>
+                                <field name="truck_trip_journal_id"
+                                       domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
+                                       help="Journal type: Sales. Used for truck trip customer invoices (out_invoice). Usually your 'Customer Invoices' or 'Sales' journal."/>
+                                <field name="rental_income_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Income / Revenue. Credited on customer invoices for equipment/machinery rentals. &#10;Example: '4310 - Equipment Rental Income' or '4300 - Transport Revenue'. &#10;This is a Profit &amp; Loss income account."/>
+                                <field name="rental_journal_id"
+                                       domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
+                                       help="Journal type: Sales. Used for equipment rental customer invoices (out_invoice). Leave blank to fall back to the Truck Trip journal."/>
+                            </group>
+                            <group string="Expense Accounts">
+                                <field name="truck_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense. Debited on maintenance vendor bills AND on trip operational cost journal entries (fuel, driver, other). &#10;Example: '5300 - Vehicle Maintenance &amp; Fleet Costs'. &#10;This is a Profit &amp; Loss expense account."/>
+                                <field name="truck_costs_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Current Liability. Credited when trip operational costs (fuel, driver, other) are posted as a journal entry via 'Post Trip Costs' button on each trip. &#10;Example: '2150 - Truck Costs Payable' or '2100 - Accrued Expenses'. &#10;Debited when you actually pay the fuel supplier or driver."/>
+                                <field name="truck_expense_journal_id"
+                                       domain="[('type', 'in', ['general', 'purchase']), ('company_id', '=', company_id)]"
+                                       help="Journal type: General or Purchase. Used for trip operational cost journal entries (fuel, driver, other costs). &#10;Leave blank to fall back to the Employee Compliance Journal."/>
+                                <field name="investor_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense or Liability. Used on vendor bills created for investor profit share payments. &#10;Example: '5500 - Investor Profit Share' (Expense) or '2200 - Investor Payable' (Liability). &#10;Choose Expense if you want the profit share to flow through P&amp;L, or Liability if you want a balance sheet clearing account."/>
+                                <field name="installment_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Liability (non-current or current). Debited when an installment payment journal entry is created for a financed vehicle. &#10;Example: '2210 - Installment Payable' or '2220 - Vehicle Financing Liability'. &#10;Credit side is filled by the user on the draft journal entry (Bank/Cash account)."/>
+                            </group>
+                        </page>
+
+                        <!-- ── MANPOWER ── -->
+                        <page string="Manpower Contracts">
+                            <group string="Billing (Customer Invoices)">
+                                <field name="manpower_income_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Income / Revenue. Credited on customer invoices for manpower contracts. &#10;Example: '4400 - Manpower Revenue' or '4100 - Service Income'. &#10;This is a Profit &amp; Loss income account."/>
+                                <field name="manpower_journal_id"
+                                       domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
+                                       help="Journal type: Sales. Used for manpower contract customer invoices (out_invoice). Usually your 'Customer Invoices' or 'Sales' journal."/>
+                            </group>
+                            <group string="Project Expenses — Vendor Bills Journal">
+                                <field name="project_expense_journal_id"
+                                       domain="[('type', '=', 'purchase'), ('company_id', '=', company_id)]"
+                                       help="Purchase journal used when 'Create Vendor Bill' is clicked on a project expense line (wages, accommodation, utilities, furniture). &#10;Leave blank to use the default Purchase journal."/>
+                            </group>
+                            <group string="Project Expense Accounts (Debit on vendor bill)">
+                                <field name="project_wages_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for Worker Wages bills. &#10;Example: 5200 — Project Labour Cost."/>
+                                <field name="project_accommodation_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for Accommodation bills. &#10;Example: 5210 — Accommodation &amp; Housing."/>
+                                <field name="project_utilities_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for Utilities bills. &#10;Example: 5220 — Project Utilities."/>
+                                <field name="project_furniture_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for Furniture &amp; Equipment bills. &#10;Example: 5230 — Project Equipment &amp; Supplies."/>
+                                <field name="project_transport_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for Transport bills. &#10;Example: 5240 — Project Transport."/>
+                                <field name="project_other_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited for Other project expense bills. &#10;Example: 5290 — Other Project Expenses."/>
+                            </group>
+                            <div class="alert alert-info" role="alert">
+                                <strong>How it works:</strong>
+                                On a Manpower Contract (Project type), open the
+                                <em>Project Expenses</em> tab and add each cost line.
+                                Click <em>Create Vendor Bill</em> on any line to post it to
+                                Accounts Payable. All bills are tagged with the contract's
+                                analytic account — view the full project P&amp;L in
+                                <strong>Accounting → Reporting → Analytic Report</strong>.
+                            </div>
+                        </page>
+
+                        <!-- HIDDEN Compliance Costs tab — remove invisible="1" to re-enable -->
+                        <page string="Compliance Costs (KSA)" invisible="1">
+                            <div class="alert alert-info" role="alert">
+                                Configure accounts for KSA statutory costs: GOSI, Iqama, Insurance, Saudization.
+                                Click <strong>Post Expenses</strong> on a confirmed Employee Cost record to create the journal entry.
+                            </div>
+                            <group string="Journal">
+                                <field name="employee_cost_journal_id"
+                                       domain="[('type', 'in', ['general', 'purchase']), ('company_id', '=', company_id)]"
+                                       help="Journal type: General or Purchase. Used for GOSI, Iqama, Insurance, and Saudization journal entries. &#10;Usually a dedicated 'Payroll Costs' or 'General' journal. Does NOT need a Default Account as each line has its own account."/>
+                                <field name="compliance_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Current Liability (Balance Sheet). Credited when compliance costs are posted. Debited when you actually pay GOSI / government authority. &#10;Example: '2300 - GOSI &amp; Compliance Payable' or '2100 - Other Payables'. &#10;This accumulates your outstanding statutory obligations."/>
+                            </group>
+                            <group string="Expense Accounts (Debit)">
+                                <field name="gosi_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense (P&amp;L). Debited for employer GOSI contributions at 11.75% of basic salary. &#10;Example: '5600 - GOSI Employer Contribution'. &#10;GOSI is the General Organization for Social Insurance — mandatory social security in Saudi Arabia."/>
+                                <field name="iqama_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense (P&amp;L). Debited for Iqama (Iqāma) residency permit renewal fees for expatriate employees. &#10;Example: '5610 - Iqama &amp; Residency Costs'. &#10;Usually amortized monthly (annual cost ÷ 12)."/>
+                                <field name="insurance_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense (P&amp;L). Debited for mandatory employee medical insurance premiums. &#10;Example: '5620 - Medical Insurance'. &#10;Mandatory health coverage required by KSA labour law for all employees."/>
+                                <field name="saudization_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense (P&amp;L). Debited for Saudization (Nitaqat) compliance-related fees. &#10;Example: '5630 - Saudization / Nitaqat'. &#10;Costs related to meeting the Ministry of HR's Saudi national employment quota requirements."/>
+                                <field name="other_compliance_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense (P&amp;L). Debited for the 'Other Costs' field on Employee Cost records — any miscellaneous compliance cost that doesn't fit the categories above. &#10;Example: '5640 - Other Staff Compliance Costs'."/>
+                            </group>
+                        </page>
+
+                        <!-- ── ANALYTICS ── -->
+                        <page string="Analytics">
+                            <group>
+                                <field name="default_analytic_account_id"
+                                       help="Analytic / cost centre account used as the company-wide fallback. Applied to payslip lines, freelancer bills, commission invoices, fleet invoices, and compliance journal entries when no specific analytic account is set on the individual document. &#10;Example: 'Operations - Main Branch'. &#10;Individual documents (Salary Import, Commission Receipt, Truck Trip, Manpower Contract) can override this with their own Analytic Account field."/>
+                            </group>
+                            <div class="alert alert-info" role="alert">
+                                Individual records (Salary Import, Commission Receipt, Truck Trip) also have their own
+                                <strong>Analytic Account</strong> field which overrides this default.
+                                Use the default here for your main cost centre or branch.
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_payroll_settings_list" model="ir.ui.view">
+        <field name="name">way4tech.payroll.settings.list</field>
+        <field name="model">way4tech.payroll.settings</field>
+        <field name="arch" type="xml">
+            <list string="Payroll Settings">
+                <field name="company_id"/>
+                <field name="payroll_journal_id"/>
+                <field name="salary_expense_account_id"/>
+                <field name="salary_payable_account_id"/>
+                <field name="commission_income_account_id"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Legacy window action kept for DB compatibility — menu uses server action below -->
+    <record id="action_payroll_settings" model="ir.actions.act_window">
+        <field name="name">Payroll &amp; Accounting Setup</field>
+        <field name="res_model">way4tech.payroll.settings</field>
+        <field name="view_mode">form,list</field>
+    </record>
+
+    <record id="action_payroll_settings_open" model="ir.actions.server">
+        <field name="name">Payroll &amp; Accounting Setup</field>
+        <field name="model_id" ref="model_way4tech_payroll_settings"/>
+        <field name="state">code</field>
+        <field name="code">action = env['way4tech.payroll.settings'].action_open_for_company()</field>
+    </record>
+
+</odoo>
