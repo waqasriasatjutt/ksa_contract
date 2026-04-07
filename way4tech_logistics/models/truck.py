@@ -134,13 +134,16 @@ class Way4TechInvestorPayable(models.Model):
     notes = fields.Text(string='Notes')
 
     @api.depends(
-        'total_revenue', 'total_expenses', 'profit_share_rate',
+        'total_revenue', 'total_expenses', 'profit_share_rate', 'ownership_type',
         'yard_rent', 'coordinator_salary', 'iqama_cost', 'other_operational',
     )
     def _compute_amounts(self):
         for rec in self:
             gross = rec.total_revenue - rec.total_expenses
-            investor = gross * rec.profit_share_rate / 100.0
+            if rec.ownership_type == 'investor':
+                investor = gross * rec.profit_share_rate / 100.0
+            else:
+                investor = 0.0
             company_gross = gross - investor
             indirect = (
                 rec.yard_rent + rec.coordinator_salary
@@ -239,13 +242,6 @@ class Way4TechInvestorPayable(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
-
-    def action_mark_paid(self):
-        self.ensure_one()
-        self.write({
-            'state': 'paid',
-            'payment_date': fields.Date.today(),
-        })
 
     def action_reset_draft(self):
         self.ensure_one()
