@@ -197,14 +197,18 @@ class Way4TechEmployeeCost(models.Model):
             credit_line['analytic_distribution'] = analytic_distribution
         line_ids.append((0, 0, credit_line))
 
-        move = self.env['account.move'].create({
+        move_vals = {
             'move_type': 'entry',
             'journal_id': settings.employee_cost_journal_id.id,
             'date': self.period_end,
             'ref': self.name,
             'company_id': self.company_id.id,
             'line_ids': line_ids,
-        })
+        }
+        _category = self.env.ref('way4tech_logistics.category_gosi_iqama', raise_if_not_found=False)
+        if _category:
+            move_vals['way4tech_category_id'] = _category.id
+        move = self.env['account.move'].create(move_vals)
         move.action_post()
         self.write({'move_id': move.id})
         return {

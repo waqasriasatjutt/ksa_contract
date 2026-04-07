@@ -193,6 +193,9 @@ class ManpowerProjectExpense(models.Model):
         if journal:
             bill_vals['journal_id'] = journal.id
 
+        _category = self.env.ref('way4tech_logistics.category_others', raise_if_not_found=False)
+        if _category:
+            bill_vals['way4tech_category_id'] = _category.id
         bill = self.env['account.move'].create(bill_vals)
         self.write({'bill_id': bill.id, 'state': 'billed'})
 
@@ -207,6 +210,8 @@ class ManpowerProjectExpense(models.Model):
 
     def action_view_bill(self):
         self.ensure_one()
+        if not self.bill_id:
+            raise UserError(_('No vendor bill linked to this expense.'))
         return {
             'type': 'ir.actions.act_window',
             'name': _('Vendor Bill'),

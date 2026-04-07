@@ -196,7 +196,7 @@ class EmployeeDeduction(models.Model):
                       '(set Private Information → Private Address on the employee).') % rec.employee_id.name
                 )
 
-            move = self.env['account.move'].create({
+            move_vals = {
                 'move_type': 'entry',
                 'journal_id': rec.journal_id.id,
                 'date': rec.date,
@@ -218,7 +218,11 @@ class EmployeeDeduction(models.Model):
                         'credit': rec.amount,
                     }),
                 ],
-            })
+            }
+            _category = self.env.ref('way4tech_logistics.category_advance', raise_if_not_found=False)
+            if _category:
+                move_vals['way4tech_category_id'] = _category.id
+            move = self.env['account.move'].create(move_vals)
             move.action_post()
             rec.write({'move_id': move.id, 'state': 'posted'})
 

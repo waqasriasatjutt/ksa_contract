@@ -294,14 +294,18 @@ class SalaryImport(models.Model):
                 debit_vals['analytic_distribution'] = analytic_distribution
             move_lines += [(0, 0, debit_vals), (0, 0, credit_vals)]
 
-        move = self.env['account.move'].create({
+        move_vals = {
             'narration': _('Salary — %s  |  %s to %s') % (
                 self.name, self.period_start, self.period_end),
             'ref': self.name,
             'journal_id': settings.payroll_journal_id.id,
             'date': self.period_end,
             'line_ids': move_lines,
-        })
+        }
+        _category = self.env.ref('way4tech_logistics.category_salary', raise_if_not_found=False)
+        if _category:
+            move_vals['way4tech_category_id'] = _category.id
+        move = self.env['account.move'].create(move_vals)
         move.action_post()
 
         self._mark_deductions_recovered_internal()

@@ -169,10 +169,11 @@ class Way4TechTruckTrip(models.Model):
                 rec.driver_basic + rec.driver_overtime_amount + rec.driver_food_allowance
             )
 
-    @api.depends('fuel_cost', 'driver_cost', 'other_cost', 'revenue', 'third_party_cost')
+    @api.depends('fuel_cost', 'driver_cost', 'other_cost', 'revenue', 'third_party_cost', 'trip_type')
     def _compute_totals(self):
         for rec in self:
-            rec.total_cost = rec.fuel_cost + rec.driver_cost + rec.other_cost + rec.third_party_cost
+            third_party = rec.third_party_cost if rec.trip_type == 'middleman' else 0.0
+            rec.total_cost = rec.fuel_cost + rec.driver_cost + rec.other_cost + third_party
             rec.gross_profit = rec.revenue - rec.total_cost
 
     @api.onchange('rental_type', 'standard_hours', 'hourly_rate',
@@ -325,6 +326,8 @@ class Way4TechTruckTrip(models.Model):
 
     def action_post_trip_costs(self):
         self.ensure_one()
+        if self.state == 'cancelled':
+            raise UserError(_('Cannot post costs for a cancelled trip.'))
         if self.cost_move_id:
             raise UserError(_('Trip costs have already been posted. View or reset the journal entry first.'))
         if not self.total_cost:

@@ -327,7 +327,19 @@ class FleetVehicle(models.Model):
             ))
 
         amount = min(self.installment_monthly_amount, self.installment_remaining_balance)
-        move = self.env['account.move'].create({
+        # Credit side: bank/cash journal default account
+        journal = settings.truck_expense_journal_id or self.env['account.journal'].search(
+            [('type', 'in', ['bank', 'cash']), ('company_id', '=', self.company_id.id)],
+            limit=1,
+        )
+        credit_account = journal.default_account_id if journal else False
+        if not credit_account:
+            raise UserError(_(
+                'No bank/cash account found for the credit side of the installment entry.\n'
+                'Set a Truck Expense Journal in Configuration → Payroll & Accounting Setup → Fleet & Trucks.'
+            ))
+        inst_category = self.env.ref('way4tech_logistics.category_installment', raise_if_not_found=False)
+        move_vals = {
             'move_type': 'entry',
             'ref': 'Installment — %s' % (self.license_plate or self.name),
             'narration': 'Monthly installment payment — %s  (Installment #%d)' % (
@@ -335,13 +347,26 @@ class FleetVehicle(models.Model):
             ),
             'date': fields.Date.today(),
             'company_id': self.company_id.id,
-            'line_ids': [(0, 0, {
-                'name': 'Installment Payable — %s' % self.name,
-                'account_id': settings.installment_payable_account_id.id,
-                'debit': amount,
-                'credit': 0.0,
-            })],
-        })
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Installment Payable — %s' % self.name,
+                    'account_id': settings.installment_payable_account_id.id,
+                    'debit': amount,
+                    'credit': 0.0,
+                }),
+                (0, 0, {
+                    'name': 'Installment Payment — %s' % self.name,
+                    'account_id': credit_account.id,
+                    'debit': 0.0,
+                    'credit': amount,
+                }),
+            ],
+        }
+        if inst_category:
+            move_vals['way4tech_category_id'] = inst_category.id
+        if journal:
+            move_vals['journal_id'] = journal.id
+        move = self.env['account.move'].create(move_vals)
         self.installments_paid += 1
         return {
             'type': 'ir.actions.act_window',

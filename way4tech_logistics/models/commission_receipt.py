@@ -228,6 +228,9 @@ class CommissionReceipt(models.Model):
         if journal:
             invoice_vals['journal_id'] = journal.id
 
+        _category = self.env.ref('way4tech_logistics.category_commission', raise_if_not_found=False)
+        if _category:
+            invoice_vals['way4tech_category_id'] = _category.id
         invoice = self.env['account.move'].create(invoice_vals)
         self.write({
             'invoice_id': invoice.id,
@@ -275,6 +278,9 @@ class CommissionReceipt(models.Model):
             'invoice_line_ids': [(0, 0, bill_line_vals)],
             'narration': self.notes or '',
         }
+        _category = self.env.ref('way4tech_logistics.category_commission', raise_if_not_found=False)
+        if _category:
+            bill_vals['way4tech_category_id'] = _category.id
         bill = self.env['account.move'].create(bill_vals)
         self.write({'subcontractor_bill_id': bill.id})
         return {

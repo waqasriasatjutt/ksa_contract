@@ -236,6 +236,9 @@ class Way4TechManpowerContract(models.Model):
         if settings.manpower_journal_id:
             invoice_vals['journal_id'] = settings.manpower_journal_id.id
 
+        _category = self.env.ref('way4tech_logistics.category_manpower_revenue', raise_if_not_found=False)
+        if _category:
+            invoice_vals['way4tech_category_id'] = _category.id
         invoice = self.env['account.move'].create(invoice_vals)
         self.invoice_ids = [(4, invoice.id)]
         return {

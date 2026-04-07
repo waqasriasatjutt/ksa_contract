@@ -204,6 +204,9 @@ class Way4TechInvestorPayable(models.Model):
         self.ensure_one()
         if self.truck_id.ownership_type != 'investor':
             raise UserError(_('Vendor bills are only created for investor-owned vehicles. This is a company-owned vehicle.'))
+        if self.investor_amount <= 0:
+            raise UserError(_('Cannot create vendor bill: investor amount is zero or negative (%.2f). '
+                              'Only positive amounts can be billed.') % self.investor_amount)
         if self.state == 'draft':
             self.action_confirm()
         if not self.investor_id:
@@ -276,6 +279,7 @@ class Way4TechInvestorPayable(models.Model):
 
         trucks = self.env['fleet.vehicle'].search([
             ('operational_state', '!=', 'inactive'),
+            ('ownership_type', '=', 'investor'),
         ])
         for truck in trucks:
             existing = self.search([

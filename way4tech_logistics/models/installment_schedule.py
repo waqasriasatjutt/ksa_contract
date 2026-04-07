@@ -82,20 +82,38 @@ class Way4TechInstallmentSchedule(models.Model):
             [('type', 'in', ['bank', 'cash']), ('company_id', '=', self.company_id.id)],
             limit=1,
         )
-        move = self.env['account.move'].create({
+        credit_account = journal.default_account_id if journal else False
+        if not credit_account:
+            raise UserError(_(
+                'No bank/cash account found for the credit side of the installment entry.\n'
+                'Set a Truck Expense Journal in Configuration → Payroll & Accounting Setup → Fleet & Trucks.'
+            ))
+        inst_category = self.env.ref('way4tech_logistics.category_installment', raise_if_not_found=False)
+        move_vals = {
             'move_type': 'entry',
             'date': fields.Date.today(),
             'ref': f'Installment #{self.installment_number} — {self.vehicle_id.display_name or self.vehicle_id.license_plate}',
             'company_id': self.company_id.id,
-            'line_ids': [(0, 0, {
-                'name': f'Installment Payment #{self.installment_number} — {self.vehicle_id.display_name}',
-                'account_id': settings.installment_payable_account_id.id,
-                'debit': self.amount,
-                'credit': 0.0,
-            })],
-        })
+            'line_ids': [
+                (0, 0, {
+                    'name': f'Installment Payment #{self.installment_number} — {self.vehicle_id.display_name}',
+                    'account_id': settings.installment_payable_account_id.id,
+                    'debit': self.amount,
+                    'credit': 0.0,
+                }),
+                (0, 0, {
+                    'name': f'Installment Payment (Bank) #{self.installment_number} — {self.vehicle_id.display_name}',
+                    'account_id': credit_account.id,
+                    'debit': 0.0,
+                    'credit': self.amount,
+                }),
+            ],
+        }
+        if inst_category:
+            move_vals['way4tech_category_id'] = inst_category.id
         if journal:
-            move.write({'journal_id': journal.id})
+            move_vals['journal_id'] = journal.id
+        move = self.env['account.move'].create(move_vals)
         self.write({'move_id': move.id, 'paid_date': fields.Date.today()})
         self.vehicle_id.installments_paid = (self.vehicle_id.installments_paid or 0) + 1
         return {

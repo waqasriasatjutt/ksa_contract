@@ -165,6 +165,9 @@ class FleetVehicleLogServices(models.Model):
             'company_id': self.company_id.id,
             'invoice_line_ids': [(0, 0, bill_line_vals)],
         }
+        _category = self.env.ref('way4tech_logistics.category_maintenance', raise_if_not_found=False)
+        if _category:
+            bill_vals['way4tech_category_id'] = _category.id
         bill = self.env['account.move'].create(bill_vals)
         self.way4tech_bill_id = bill.id
 

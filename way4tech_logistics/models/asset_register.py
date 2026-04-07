@@ -390,14 +390,18 @@ class Way4TechAssetDepreciationLine(models.Model):
             if analytic_dist:
                 debit_vals['analytic_distribution'] = analytic_dist
 
-            move = self.env['account.move'].sudo().create({
+            move_vals = {
                 'move_type': 'entry',
                 'date': line.date,
                 'ref': f'Depreciation: {asset.name} | Period {line.sequence} | {line.date}',
                 'journal_id': asset.journal_id.id,
                 'company_id': asset.company_id.id,
                 'line_ids': [(0, 0, debit_vals), (0, 0, credit_vals)],
-            })
+            }
+            _category = self.env.ref('way4tech_logistics.category_depreciation', raise_if_not_found=False)
+            if _category:
+                move_vals['way4tech_category_id'] = _category.id
+            move = self.env['account.move'].sudo().create(move_vals)
             move.action_post()
             line.write({'state': 'posted', 'move_id': move.id})
 

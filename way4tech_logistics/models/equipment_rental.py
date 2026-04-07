@@ -249,6 +249,9 @@ class Way4TechEquipmentRental(models.Model):
         if rental_journal:
             invoice_vals['journal_id'] = rental_journal.id
 
+        _category = self.env.ref('way4tech_logistics.category_others', raise_if_not_found=False)
+        if _category:
+            invoice_vals['way4tech_category_id'] = _category.id
         invoice = self.env['account.move'].create(invoice_vals)
         self.write({'invoice_id': invoice.id})
         return {
