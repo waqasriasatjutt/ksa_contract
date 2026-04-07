@@ -221,6 +221,7 @@
         <field name="name">Fleet &amp; Vehicles</field>
         <field name="res_model">fleet.vehicle</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_way4tech_truck_list"/>
         <field name="search_view_id" ref="view_way4tech_truck_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Add your first Vehicle</p>
@@ -229,6 +230,19 @@
                 Track trips, maintenance, and monthly profitability per vehicle.
             </p>
         </field>
+    </record>
+
+    <record id="action_truck_view_list" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_way4tech_truck_list"/>
+        <field name="act_window_id" ref="action_truck"/>
+    </record>
+    <record id="action_truck_view_form" model="ir.actions.act_window.view">
+        <field name="sequence">2</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_way4tech_truck_form"/>
+        <field name="act_window_id" ref="action_truck"/>
     </record>
 
     <!-- ===================================================

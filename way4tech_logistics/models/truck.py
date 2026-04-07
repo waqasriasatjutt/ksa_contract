@@ -214,6 +214,7 @@ class Way4TechInvestorPayable(models.Model):
         if analytic:
             bill_line_vals['analytic_distribution'] = {str(analytic.id): 100}
 
+        inv_category = self.env.ref('way4tech_logistics.category_commission', raise_if_not_found=False)
         bill_vals = {
             'move_type': 'in_invoice',
             'partner_id': self.investor_id.id,
@@ -221,6 +222,8 @@ class Way4TechInvestorPayable(models.Model):
             'company_id': self.company_id.id,
             'invoice_line_ids': [(0, 0, bill_line_vals)],
         }
+        if inv_category:
+            bill_vals['way4tech_category_id'] = inv_category.id
         bill = self.env['account.move'].create(bill_vals)
         self.write({'bill_id': bill.id})
         return {
