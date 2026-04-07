@@ -327,16 +327,17 @@ class FleetVehicle(models.Model):
             ))
 
         amount = min(self.installment_monthly_amount, self.installment_remaining_balance)
-        # Credit side: bank/cash journal default account
-        journal = settings.truck_expense_journal_id or self.env['account.journal'].search(
+        journal = settings.truck_expense_journal_id
+        # Credit side: find bank/cash journal for the payment account
+        bank_journal = self.env['account.journal'].search(
             [('type', 'in', ['bank', 'cash']), ('company_id', '=', self.company_id.id)],
             limit=1,
         )
-        credit_account = journal.default_account_id if journal else False
+        credit_account = bank_journal.default_account_id if bank_journal else False
         if not credit_account:
             raise UserError(_(
-                'No bank/cash account found for the credit side of the installment entry.\n'
-                'Set a Truck Expense Journal in Configuration → Payroll & Accounting Setup → Fleet & Trucks.'
+                'No bank or cash journal found in your company.\n'
+                'Please create a Bank or Cash journal in Accounting → Configuration → Journals.'
             ))
         inst_category = self.env.ref('way4tech_logistics.category_installment', raise_if_not_found=False)
         move_vals = {
