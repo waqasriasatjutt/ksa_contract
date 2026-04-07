@@ -20,6 +20,11 @@ class Way4TechInvestorPayable(models.Model):
         required=True,
         tracking=True,
     )
+    ownership_type = fields.Selection(
+        related='truck_id.ownership_type',
+        store=True,
+        readonly=True,
+    )
     investor_id = fields.Many2one(
         comodel_name='res.partner',
         string='Investor',

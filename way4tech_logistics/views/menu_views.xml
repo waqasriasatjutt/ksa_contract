@@ -89,7 +89,7 @@
 
     <menuitem
         id="menu_investor_payables"
-        name="Investor Payables"
+        name="Fleet Profitability &amp; Investor Payable"
         parent="menu_way4tech_fleet"
         action="way4tech_logistics.action_investor_payable"
         sequence="40"

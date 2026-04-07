@@ -260,7 +260,7 @@
                     <!-- Create Vendor Bill only for investor-owned vehicles -->
                     <button name="action_create_bill" type="object" string="Create Investor Bill"
                             class="btn-primary"
-                            invisible="state == 'paid' or bill_id != False"
+                            invisible="state == 'paid' or bill_id != False or ownership_type != 'investor'"
                             confirm="Create a vendor bill for the investor's profit share?"/>
                     <button name="action_mark_paid" type="object" string="Mark as Paid"
                             class="btn-success" invisible="state == 'paid'"/>
@@ -283,10 +283,12 @@
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
                     <group>
+                        <field name="ownership_type" invisible="1"/>
                         <group string="Vehicle &amp; Period">
                             <field name="truck_id" readonly="state != 'draft'"
                                    help="Select any active vehicle — company-owned or investor-owned."/>
                             <field name="investor_id" readonly="1"
+                                   invisible="ownership_type != 'investor'"
                                    help="Auto-filled from the truck for investor-owned vehicles."/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="currency_id" invisible="1"/>
@@ -319,6 +321,7 @@
                             <field name="total_expenses" readonly="state != 'draft'"
                                    help="Direct costs: driver salary + overtime + fuel + maintenance."/>
                             <field name="profit_share_rate" readonly="1"
+                                   invisible="ownership_type != 'investor'"
                                    help="From the vehicle record. 0% for company-owned (company keeps 100%)."/>
                         </group>
                         <group string="Profit Split">
@@ -327,7 +330,8 @@
                                    help="Gross Profit = Total Revenue − Total Direct Expenses. &#10;&#10;This is the profit before indirect expenses and before the investor split. A negative value means the vehicle ran at a loss this period. Read-only — calculated automatically."/>
                             <!-- Investor share — only visible for investor trucks -->
                             <field name="investor_amount" readonly="1"
-                                   help="Investor's share of gross profit = Gross Profit × Profit Share Rate / 100. &#10;&#10;For company-owned vehicles this is always 0. The vendor bill created for the investor covers this amount. Read-only."/>
+                                   invisible="ownership_type != 'investor'"
+                                   help="Investor's share of gross profit = Gross Profit × Profit Share Rate / 100. &#10;&#10;The vendor bill created for the investor covers this amount. Read-only."/>
                             <field name="company_gross" readonly="1"
                                    help="Company's share of gross profit = Gross Profit − Investor Amount. &#10;&#10;For company-owned vehicles this equals the full gross profit (investor share is 0%). Read-only."/>
                         </group>
@@ -377,7 +381,7 @@
                 <field name="total_revenue" sum="Total Revenue"/>
                 <field name="total_expenses" sum="Direct Expenses"/>
                 <field name="gross_profit" sum="Gross Profit"/>
-                <field name="investor_amount" sum="Investor Amount"/>
+                <field name="investor_amount" sum="Investor Amount" optional="show"/>
                 <field name="total_indirect" sum="Indirect Exp" optional="show"/>
                 <field name="company_net" sum="Company Net" optional="show"/>
                 <field name="state" widget="badge"
