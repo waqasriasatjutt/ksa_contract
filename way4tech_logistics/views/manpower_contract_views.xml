@@ -74,6 +74,9 @@
                         <group string="Contract Details">
                             <field name="client_id" readonly="state != 'draft'"
                                    help="The client company or individual who has contracted your manpower services. Used as the customer on all invoices created from this contract."/>
+                            <field name="po_id"
+                                   domain="[('client_id', '=', client_id), ('state', '!=', 'closed')]"
+                                   help="Link to a Client PO. Invoices from this contract count against the PO balance."/>
                             <field name="salesperson_id"
                                    help="Salesperson responsible for this contract. Used in the Salesperson Profitability Report."/>
                             <field name="contract_type" readonly="state != 'draft'"

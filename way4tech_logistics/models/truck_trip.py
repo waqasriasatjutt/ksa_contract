@@ -233,8 +233,6 @@ class Way4TechTruckTrip(models.Model):
         self.ensure_one()
         self._check_po_limit()
         self.state = 'confirmed'
-        if self.po_id:
-            self.po_id._compute_balance()
 
     def action_done(self):
         self.ensure_one()
@@ -243,8 +241,6 @@ class Way4TechTruckTrip(models.Model):
     def action_cancel(self):
         self.ensure_one()
         self.state = 'cancelled'
-        if self.po_id:
-            self.po_id._compute_balance()
 
     def action_reset_draft(self):
         self.ensure_one()
