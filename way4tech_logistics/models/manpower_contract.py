@@ -157,14 +157,12 @@ class Way4TechManpowerContract(models.Model):
             rec.invoice_count = len(rec.invoice_ids)
             rec.total_invoiced = sum(rec.invoice_ids.mapped('amount_untaxed'))
 
-    @api.depends('timesheet_ids.hours', 'timesheet_ids.employee_cost',
-                 'invoice_ids', 'invoice_ids.amount_untaxed')
+    @api.depends('timesheet_ids.hours')
     def _compute_totals(self):
         for rec in self:
             rec.total_hours = sum(rec.timesheet_ids.mapped('hours'))
-            rec.total_employee_cost = sum(rec.timesheet_ids.mapped('employee_cost'))
-            invoiced = sum(rec.invoice_ids.mapped('amount_untaxed'))
-            rec.billing_margin = invoiced - rec.total_employee_cost
+            rec.total_employee_cost = 0.0
+            rec.billing_margin = 0.0
 
     @api.depends('project_expense_ids.amount', 'total_invoiced')
     def _compute_project_margin(self):

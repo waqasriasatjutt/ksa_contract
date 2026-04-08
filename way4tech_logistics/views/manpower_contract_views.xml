@@ -104,14 +104,6 @@
                                    help="Sum of all hours logged in the Timesheets tab. Used for Hourly Rate billing: invoice amount = total_hours × hourly_rate. Read-only."/>
                             <field name="total_invoiced" readonly="1"
                                    help="Sum of untaxed amounts across all invoices linked to this contract (ex-VAT). Read-only — updated automatically as invoices are created."/>
-                            <!-- Employee cost and margin — only for hourly contracts -->
-                            <field name="total_employee_cost" readonly="1"
-                                   invisible="billing_type != 'hourly'"
-                                   help="Total employee salary cost from timesheets (hours × employee rate). The same timesheet data drives the client invoice and this salary cost."/>
-                            <field name="billing_margin" readonly="1"
-                                   invisible="billing_type != 'hourly'"
-                                   class="o_field_highlight"
-                                   help="Billing Margin = Total Invoiced − Total Employee Cost. Shows how much the company earns above the direct labour cost on hourly contracts."/>
                         </group>
                         <group string="Project Profitability" invisible="contract_type != 'project'">
                             <field name="total_project_expenses" readonly="1"
@@ -142,10 +134,8 @@
                         <page string="Timesheets" name="timesheets">
                             <div class="alert alert-info" role="alert"
                                  invisible="billing_type != 'hourly'">
-                                <strong>Tip:</strong> For hourly contracts, the same hours logged here
-                                drive both the <strong>client invoice</strong> (hours × client rate set above)
-                                and the <strong>employee salary cost</strong> (hours × employee rate per line).
-                                Fill the <em>Employee Rate/Hour</em> column to see the billing margin.
+                                <strong>Tip:</strong> For hourly contracts, the hours logged here
+                                drive the <strong>client invoice</strong> (total hours × hourly rate set above).
                             </div>
                             <field name="timesheet_ids"
                                    readonly="state in ('completed', 'cancelled')"
@@ -161,13 +151,6 @@
                                     <field name="hours" string="Hours"
                                            help="Number of hours worked. Summed into Total Hours on the contract header, which drives Hourly Rate invoicing."
                                            sum="Total Hours"/>
-                                    <field name="employee_hourly_rate"
-                                           optional="show"
-                                           help="Employee's hourly salary rate. The same hours that drive the client invoice also compute this salary cost."/>
-                                    <field name="employee_cost"
-                                           optional="show"
-                                           sum="Total Employee Cost"
-                                           help="Hours × Employee Rate. Direct labour cost for this line."/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
                             </field>
