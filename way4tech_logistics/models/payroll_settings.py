@@ -208,6 +208,23 @@ class PayrollSettings(models.Model):
              'Falls back to Truck Trip Sales Journal if not set.',
     )
 
+    rental_expense_account_id = fields.Many2one(
+        'account.account',
+        string='Equipment Rental Expense Account',
+        check_company=True,
+        help='Expense account debited on vendor bills for equipment rented FROM vendors.\n'
+             'Example: 600020 – Equipment Rental Expense.\n'
+             'Falls back to Truck Expense Account if not set.',
+    )
+    rental_expense_journal_id = fields.Many2one(
+        'account.journal',
+        string='Equipment Rental Purchase Journal',
+        check_company=True,
+        domain=[('type', '=', 'purchase')],
+        help='Purchase journal for vendor bills of rented equipment.\n'
+             'Falls back to Truck Expense Journal if not set.',
+    )
+
     # ── Manpower ──────────────────────────────────────────────────────────────
     manpower_income_account_id = fields.Many2one(
         'account.account',

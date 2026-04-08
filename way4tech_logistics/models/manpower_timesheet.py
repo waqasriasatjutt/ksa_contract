@@ -54,12 +54,13 @@ class Way4TechManpowerTimesheet(models.Model):
 
     @api.onchange('employee_id')
     def _onchange_employee_id(self):
-        """Auto-fill employee hourly rate from hr.employee if available."""
+        """Auto-fill employee hourly rate from hr.contract if available."""
         if self.employee_id and not self.employee_hourly_rate:
-            emp = self.employee_id
-            # Try to get hourly rate from employee's contract (hr.contract)
+            # hr_contract may not be installed — check safely
+            if 'hr.contract' not in self.env:
+                return
             contract = self.env['hr.contract'].search([
-                ('employee_id', '=', emp.id),
+                ('employee_id', '=', self.employee_id.id),
                 ('state', '=', 'open'),
             ], limit=1)
             if contract and contract.wage:

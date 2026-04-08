@@ -93,6 +93,12 @@
                                 <field name="rental_journal_id"
                                        domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
                                        help="Journal type: Sales. Used for equipment rental customer invoices (out_invoice). Leave blank to fall back to the Truck Trip journal."/>
+                                <field name="rental_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Account type: Expense. Debited on vendor bills for equipment rented FROM vendors (generators, cranes, etc.). Falls back to Truck Expense Account."/>
+                                <field name="rental_expense_journal_id"
+                                       domain="[('type', '=', 'purchase'), ('company_id', '=', company_id)]"
+                                       help="Journal type: Purchase. For inbound equipment rental vendor bills. Falls back to Truck Expense Journal."/>
                             </group>
                             <group string="Expense Accounts">
                                 <field name="truck_expense_account_id"

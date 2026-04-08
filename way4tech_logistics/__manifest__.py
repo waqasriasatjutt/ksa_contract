@@ -254,6 +254,7 @@ DEPENDENCIES
         'views/cashflow_alert_views.xml',
         'views/account_move_category_views.xml',
         'views/equipment_rental_views.xml',
+        'views/equipment_rental_inbound_views.xml',
         # ── Reports ───────────────────────────────────────────────────────────
         'views/report_commission_receipt.xml',
         'views/report_investor_payable.xml',

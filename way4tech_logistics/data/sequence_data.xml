@@ -92,4 +92,14 @@
         <field name="company_id" ref="base.main_company"/>
     </record>
 
+    <record id="seq_equipment_rental_inbound" model="ir.sequence">
+        <field name="name">Inbound Equipment Rental</field>
+        <field name="code">way4tech.equipment.rental.inbound</field>
+        <field name="prefix">WAY4TECH/RENT-IN/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+        <field name="company_id" ref="base.main_company"/>
+    </record>
+
 </odoo>

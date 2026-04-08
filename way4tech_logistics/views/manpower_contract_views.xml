@@ -100,10 +100,11 @@
                     <group>
                         <group string="Billing Summary">
                             <field name="total_hours" readonly="1"
+                                   invisible="billing_type != 'hourly'"
                                    help="Sum of all hours logged in the Timesheets tab. Used for Hourly Rate billing: invoice amount = total_hours × hourly_rate. Read-only."/>
                             <field name="total_invoiced" readonly="1"
                                    help="Sum of untaxed amounts across all invoices linked to this contract (ex-VAT). Read-only — updated automatically as invoices are created."/>
-                            <!-- Employee cost and margin — same timesheets drive both invoice and salary -->
+                            <!-- Employee cost and margin — only for hourly contracts -->
                             <field name="total_employee_cost" readonly="1"
                                    invisible="billing_type != 'hourly'"
                                    help="Total employee salary cost from timesheets (hours × employee rate). The same timesheet data drives the client invoice and this salary cost."/>
