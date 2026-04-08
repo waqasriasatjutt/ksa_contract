@@ -226,7 +226,12 @@ class Way4TechEquipmentRentalInbound(models.Model):
             bill_line['analytic_distribution'] = {str(analytic.id): 100}
 
         _category = self.env.ref('way4tech_logistics.category_rent', raise_if_not_found=False)
-        journal = settings.rental_expense_journal_id or settings.truck_expense_journal_id
+        journal = settings.rental_expense_journal_id
+        if not journal or journal.type != 'purchase':
+            journal = self.env['account.journal'].search(
+                [('type', '=', 'purchase'), ('company_id', '=', self.company_id.id)],
+                limit=1,
+            )
 
         bill_vals = {
             'move_type': 'in_invoice',
