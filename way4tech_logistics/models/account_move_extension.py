@@ -34,6 +34,14 @@ class AccountMoveWay4Tech(models.Model):
              'Managed by Admin in Configuration → Entry Categories.',
     )
 
+    # ── Client PO Link ────────────────────────────────────────────────────────
+    way4tech_po_id = fields.Many2one(
+        'way4tech.client.po',
+        string='Client PO',
+        tracking=True,
+        help='Link this invoice to a Client PO for balance tracking.',
+    )
+
     # ── Approval Workflow ─────────────────────────────────────────────────────
     way4tech_approval_state = fields.Selection([
         ('na', 'N/A'),

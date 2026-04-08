@@ -26,7 +26,7 @@ class Way4TechClientPO(models.Model):
         string='Consumed Amount',
         compute='_compute_balance', store=True,
         currency_field='currency_id',
-        help="Sum of revenue on all confirmed/done trips linked to this PO.",
+        help="Sum of untaxed amounts from all posted customer invoices linked to this PO.",
     )
     remaining_balance = fields.Monetary(
         string='Remaining Balance',
@@ -47,6 +47,17 @@ class Way4TechClientPO(models.Model):
         string='Status', default='open', tracking=True,
         compute='_compute_balance', store=True,
     )
+
+    # ── Links ─────────────────────────────────────────────────────────────────
+    invoice_ids = fields.One2many(
+        'account.move', 'way4tech_po_id', string='Invoices',
+        domain=[('move_type', '=', 'out_invoice')],
+    )
+    invoice_count = fields.Integer(
+        string='Invoices',
+        compute='_compute_balance', store=True,
+    )
+    # Keep trip link for backward compat + easy trip viewing
     trip_ids = fields.One2many(
         'way4tech.truck.trip', 'po_id', string='Trips',
     )
@@ -54,6 +65,7 @@ class Way4TechClientPO(models.Model):
         string='Trips',
         compute='_compute_balance', store=True,
     )
+
     company_id = fields.Many2one(
         'res.company', string='Company',
         default=lambda self: self.env.company, required=True,
@@ -64,29 +76,40 @@ class Way4TechClientPO(models.Model):
     )
     notes = fields.Text(string='Internal Notes')
 
-    @api.depends('trip_ids.revenue', 'trip_ids.state', 'trip_ids.invoice_id', 'trip_ids.invoice_id.state', 'total_amount')
+    # ── Balance Computation ───────────────────────────────────────────────────
+
+    @api.depends(
+        'invoice_ids', 'invoice_ids.state', 'invoice_ids.amount_untaxed',
+        'trip_ids', 'trip_ids.state',
+        'total_amount',
+    )
     def _compute_balance(self):
         for rec in self:
-            active = rec.trip_ids.filtered(lambda t: t.state in ('confirmed', 'done'))
-            # Use actual posted invoice amounts where available, fall back to trip revenue
-            consumed = 0.0
-            for trip in active:
-                if trip.invoice_id and trip.invoice_id.state == 'posted':
-                    consumed += trip.invoice_id.amount_untaxed
-                else:
-                    consumed += trip.revenue
+            # Consumed = sum of posted customer invoices linked to this PO
+            posted_invoices = rec.invoice_ids.filtered(
+                lambda m: m.state == 'posted' and m.move_type == 'out_invoice'
+            )
+            consumed = sum(posted_invoices.mapped('amount_untaxed'))
+
             remaining = rec.total_amount - consumed
             pct = (consumed / rec.total_amount * 100) if rec.total_amount else 0.0
+
             rec.consumed_amount = consumed
             rec.remaining_balance = max(remaining, 0.0)
             rec.utilization_pct = pct
-            rec.trip_count = len(active)
+            rec.invoice_count = len(posted_invoices)
+            rec.trip_count = len(rec.trip_ids.filtered(
+                lambda t: t.state in ('confirmed', 'done')
+            ))
+
             if pct >= 100:
                 rec.state = 'closed'
             elif pct >= 80:
                 rec.state = 'near_limit'
             else:
                 rec.state = 'open'
+
+    # ── Notifications ─────────────────────────────────────────────────────────
 
     def write(self, vals):
         old_states = {rec.id: rec.state for rec in self}
@@ -100,7 +123,6 @@ class Way4TechClientPO(models.Model):
         return result
 
     def _notify_near_limit(self):
-        """Post chatter message + notify logistics managers when PO reaches 80%."""
         group = self.env.ref('way4tech_logistics.group_logistics_manager', raise_if_not_found=False)
         partner_ids = group.users.mapped('partner_id').ids if group else []
         self.message_post(
@@ -108,8 +130,7 @@ class Way4TechClientPO(models.Model):
                 '<b>PO Near Limit Alert</b><br/>'
                 'PO <b>%(name)s</b> for client <b>%(client)s</b> has reached '
                 '<b>%(pct).1f%%</b> utilization (%(consumed)s / %(total)s SAR).<br/>'
-                'Remaining balance: <b>%(remaining)s SAR</b>. '
-                'Please review before confirming further trips.'
+                'Remaining balance: <b>%(remaining)s SAR</b>.'
             ) % {
                 'name': self.name,
                 'client': self.client_id.name or '',
@@ -123,12 +144,11 @@ class Way4TechClientPO(models.Model):
         )
 
     def _notify_closed(self):
-        """Post chatter message when PO reaches 100% and auto-closes."""
         self.message_post(
             body=_(
                 '<b>PO Closed — 100%% Consumed</b><br/>'
                 'PO <b>%(name)s</b> for client <b>%(client)s</b> has been fully consumed '
-                '(%(consumed)s / %(total)s SAR). No further trips can be linked to this PO.'
+                '(%(consumed)s / %(total)s SAR).'
             ) % {
                 'name': self.name,
                 'client': self.client_id.name or '',
@@ -137,6 +157,18 @@ class Way4TechClientPO(models.Model):
             },
             subtype_xmlid='mail.mt_note',
         )
+
+    # ── Actions ───────────────────────────────────────────────────────────────
+
+    def action_view_invoices(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Invoices — %s') % self.name,
+            'res_model': 'account.move',
+            'view_mode': 'list,form',
+            'domain': [('way4tech_po_id', '=', self.id), ('move_type', '=', 'out_invoice')],
+        }
 
     def action_view_trips(self):
         self.ensure_one()
@@ -153,7 +185,6 @@ class Way4TechClientPO(models.Model):
         }
 
     def action_renew_po(self):
-        """Open a blank new PO pre-filled with the same client for renewal."""
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
@@ -163,7 +194,6 @@ class Way4TechClientPO(models.Model):
             'target': 'new',
             'context': {
                 'default_client_id': self.client_id.id,
-                'default_company_id': self.company_id.id,
                 'default_description': _('Renewal of %s') % self.name,
             },
         }

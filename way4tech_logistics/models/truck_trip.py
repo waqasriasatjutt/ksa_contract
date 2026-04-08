@@ -298,10 +298,10 @@ class Way4TechTruckTrip(models.Model):
         if settings.truck_trip_journal_id:
             invoice_vals['journal_id'] = settings.truck_trip_journal_id.id
 
+        if self.po_id:
+            invoice_vals['way4tech_po_id'] = self.po_id.id
         invoice = self.env['account.move'].create(invoice_vals)
         self.write({'invoice_id': invoice.id})
-        if self.po_id:
-            self.po_id._compute_balance()
         return {
             'type': 'ir.actions.act_window',
             'name': _('Customer Invoice'),

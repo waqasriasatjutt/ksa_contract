@@ -44,6 +44,12 @@ class Way4TechManpowerContract(models.Model):
     )
     start_date = fields.Date(string='Start Date', required=True)
     end_date = fields.Date(string='End Date')
+    po_id = fields.Many2one(
+        'way4tech.client.po', string='Client PO',
+        tracking=True,
+        help='Link to a Client PO for balance tracking. '
+             'Invoices created from this contract will count against the PO balance.',
+    )
     analytic_account_id = fields.Many2one(
         comodel_name='account.analytic.account',
         string='Analytic Account',
@@ -237,6 +243,8 @@ class Way4TechManpowerContract(models.Model):
         _category = self.env.ref('way4tech_logistics.category_manpower_revenue', raise_if_not_found=False)
         if _category:
             invoice_vals['way4tech_category_id'] = _category.id
+        if self.po_id:
+            invoice_vals['way4tech_po_id'] = self.po_id.id
         invoice = self.env['account.move'].create(invoice_vals)
         self.invoice_ids = [(4, invoice.id)]
         return {

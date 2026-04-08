@@ -44,6 +44,10 @@
                        options="{'no_create': true}"
                        widget="many2one"
                        required="0"/>
+                <field name="way4tech_po_id"
+                       string="Client PO"
+                       invisible="move_type != 'out_invoice'"
+                       options="{'no_create': true}"/>
             </xpath>
 
             <!-- Previous expense info box (shown when a vendor/partner is set) -->
