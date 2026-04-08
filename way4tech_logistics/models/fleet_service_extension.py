@@ -101,11 +101,21 @@ class FleetVehicleLogServices(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # Auto-assign service_type_id if not set (required by fleet module)
+        default_service_type = None
         for vals in vals_list:
             if vals.get('way4tech_ref', _('New')) == _('New'):
                 vals['way4tech_ref'] = self.env['ir.sequence'].next_by_code(
                     'way4tech.truck.maintenance'
                 ) or _('New')
+            if not vals.get('service_type_id'):
+                if default_service_type is None:
+                    default_service_type = self.env['fleet.service.type'].search([], limit=1)
+                    if not default_service_type:
+                        default_service_type = self.env['fleet.service.type'].create({
+                            'name': 'General Maintenance',
+                        })
+                vals['service_type_id'] = default_service_type.id
         return super().create(vals_list)
 
     # ── Workflow ──────────────────────────────────────────────────────────────

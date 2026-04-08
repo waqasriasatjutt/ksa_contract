@@ -67,6 +67,8 @@
                                    help="The truck that needs or received maintenance. When confirmed, this truck's status is set to 'Under Maintenance'. When done, it is restored to 'Active'."/>
                             <field name="date"
                                    help="Date the maintenance was performed or scheduled. Used as the vendor bill date when creating the bill."/>
+                            <field name="service_type_id"
+                                   help="Odoo service type (e.g. Oil Change, Tyre, Brake). Required by the Fleet module."/>
                             <field name="way4tech_maint_type"
                                    help="Category of maintenance work: &#10;• Repair — unplanned breakdown or damage repair &#10;• Preventive — scheduled servicing (oil change, tyre rotation, etc.) &#10;• Tyres — tyre replacement &#10;• Other — any other maintenance type &#10;Used for filtering and reporting."/>
                         </group>

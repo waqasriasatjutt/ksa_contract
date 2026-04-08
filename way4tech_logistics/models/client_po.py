@@ -57,13 +57,26 @@ class Way4TechClientPO(models.Model):
         string='Invoices',
         compute='_compute_balance', store=True,
     )
-    # Keep trip link for backward compat + easy trip viewing
     trip_ids = fields.One2many(
         'way4tech.truck.trip', 'po_id', string='Trips',
     )
     trip_count = fields.Integer(
         string='Trips',
         compute='_compute_balance', store=True,
+    )
+    contract_ids = fields.One2many(
+        'way4tech.manpower.contract', 'po_id', string='Manpower Contracts',
+    )
+    contract_count = fields.Integer(
+        string='Contracts',
+        compute='_compute_counts', store=True,
+    )
+    rental_ids = fields.One2many(
+        'way4tech.equipment.rental', 'po_id', string='Equipment Rentals',
+    )
+    rental_count = fields.Integer(
+        string='Rentals',
+        compute='_compute_counts', store=True,
     )
 
     company_id = fields.Many2one(
@@ -108,6 +121,12 @@ class Way4TechClientPO(models.Model):
                 rec.state = 'near_limit'
             else:
                 rec.state = 'open'
+
+    @api.depends('contract_ids', 'rental_ids')
+    def _compute_counts(self):
+        for rec in self:
+            rec.contract_count = len(rec.contract_ids)
+            rec.rental_count = len(rec.rental_ids)
 
     # ── Notifications ─────────────────────────────────────────────────────────
 
@@ -176,6 +195,34 @@ class Way4TechClientPO(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Trips — %s') % self.name,
             'res_model': 'way4tech.truck.trip',
+            'view_mode': 'list,form',
+            'domain': [('po_id', '=', self.id)],
+            'context': {
+                'default_po_id': self.id,
+                'default_client_id': self.client_id.id,
+            },
+        }
+
+    def action_view_contracts(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Manpower Contracts — %s') % self.name,
+            'res_model': 'way4tech.manpower.contract',
+            'view_mode': 'list,form',
+            'domain': [('po_id', '=', self.id)],
+            'context': {
+                'default_po_id': self.id,
+                'default_client_id': self.client_id.id,
+            },
+        }
+
+    def action_view_rentals(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Equipment Rentals — %s') % self.name,
+            'res_model': 'way4tech.equipment.rental',
             'view_mode': 'list,form',
             'domain': [('po_id', '=', self.id)],
             'context': {

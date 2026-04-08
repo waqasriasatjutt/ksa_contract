@@ -206,6 +206,19 @@ class Way4TechManpowerContract(models.Model):
         if not amount:
             raise UserError(_('Invoice amount is zero. Please check the fixed amount or timesheet hours.'))
 
+        # PO balance check
+        if self.po_id:
+            if self.po_id.state == 'closed':
+                raise UserError(_(
+                    'Client PO "%s" is fully consumed (closed).\n'
+                    'Increase the PO total amount or create a new PO.'
+                ) % self.po_id.name)
+            if amount > self.po_id.remaining_balance:
+                raise UserError(_(
+                    'Invoice amount (%.2f) exceeds remaining PO balance (%.2f) on PO "%s".\n'
+                    'Increase the PO total amount or reduce the invoice amount.'
+                ) % (amount, self.po_id.remaining_balance, self.po_id.name))
+
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
         analytic = self.analytic_account_id or settings.default_analytic_account_id
 
