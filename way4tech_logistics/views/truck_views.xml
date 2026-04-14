@@ -46,6 +46,15 @@
                             <field name="installment_schedule_count" widget="statinfo"
                                    string="Installments"/>
                         </button>
+                        <button name="action_view_driver_assignments" type="object"
+                                class="oe_stat_button" icon="fa-user">
+                            <field name="driver_assignment_count" widget="statinfo"
+                                   string="Drivers"/>
+                        </button>
+                    </div>
+                    <div class="alert alert-warning mb-0" invisible="not has_expiry_warning">
+                        <strong>⚠ Fleet document expiry:</strong>
+                        <field name="expiry_warning" readonly="1" nolabel="1"/>
                     </div>
                     <!-- Installment schedule generation button (only when is_installment) -->
                     <div class="alert alert-info mb-0"
@@ -60,26 +69,47 @@
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Vehicle Name"/></h1>
                         <h2><field name="license_plate" placeholder="License Plate"/></h2>
+                        <h3 class="text-muted"><field name="way4tech_sequence" readonly="1"/></h3>
                     </div>
 
                     <group>
                         <group string="Vehicle Info">
                             <field name="vehicle_category"
-                                   help="Truck: standard cargo truck. &#10;Bus/Minibus: passenger or staff transport. &#10;Flatbed: heavy transport, low-loader. &#10;Other: any other type."/>
+                                   help="Car / Bike / Truck / Bus / Flatbed / Other. Editable selection."/>
                             <field name="model_id"
                                    help="Vehicle make and model (e.g. 'Isuzu NPR'). Optional."/>
                             <field name="model_year"
                                    help="Year of manufacture. For maintenance planning."/>
+                            <field name="chassis_number"/>
+                            <field name="plate_type"/>
                         </group>
+                        <group string="Document Expiry (Saudi)">
+                            <field name="registration_expiry_date"/>
+                            <field name="inspection_expiry_date"/>
+                            <field name="insurance_expiry_date"/>
+                            <field name="operation_card_expiry_date"
+                                   invisible="plate_type != 'public'"
+                                   required="plate_type == 'public'"/>
+                            <field name="has_expiry_warning" invisible="1"/>
+                        </group>
+                    </group>
+                    <group>
                         <group string="Ownership">
                             <field name="ownership_type"
-                                   help="Company Owned: company bears 100% of P&amp;L. &#10;Investor Owned: gross profit split per investor share %."/>
+                                   help="Own / Investor / Sponsored / Sold."/>
                             <field name="investor_id"
                                    invisible="ownership_type == 'own'"
                                    required="ownership_type == 'investor'"/>
                             <field name="profit_share_rate"
-                                   invisible="ownership_type == 'own'"
+                                   invisible="ownership_type not in ('investor',)"
                                    help="Investor's % share of gross profit. BRD default: 50%."/>
+                        </group>
+                        <group string="Current Driver">
+                            <field name="current_driver_name" readonly="1"/>
+                            <field name="current_driver_iqama" readonly="1"/>
+                            <field name="current_driver_handover_date" readonly="1"/>
+                            <button name="action_view_driver_assignments" type="object"
+                                    string="Manage Driver Assignments" class="btn-link"/>
                         </group>
                     </group>
 
@@ -162,9 +192,12 @@
         <field name="name">way4tech.truck.list</field>
         <field name="model">fleet.vehicle</field>
         <field name="arch" type="xml">
-            <list string="Vehicles">
+            <list string="Vehicles" decoration-danger="has_expiry_warning">
+                <field name="way4tech_sequence" optional="show"/>
                 <field name="name"/>
                 <field name="license_plate"/>
+                <field name="chassis_number" optional="show"/>
+                <field name="plate_type" optional="show"/>
                 <field name="vehicle_category" widget="badge"
                     decoration-info="vehicle_category == 'truck'"
                     decoration-warning="vehicle_category == 'bus'"
@@ -173,8 +206,16 @@
                 <field name="model_id"/>
                 <field name="ownership_type"/>
                 <field name="investor_id"/>
-                <field name="current_client_id"/>
-                <field name="is_installment" optional="show"/>
+                <field name="current_driver_name" optional="show"/>
+                <field name="current_driver_iqama" optional="hide"/>
+                <field name="registration_expiry_date" optional="hide"/>
+                <field name="inspection_expiry_date" optional="hide"/>
+                <field name="insurance_expiry_date" optional="show"/>
+                <field name="operation_card_expiry_date" optional="hide"/>
+                <field name="has_expiry_warning" invisible="1"/>
+                <field name="expiry_warning" optional="show"/>
+                <field name="current_client_id" optional="hide"/>
+                <field name="is_installment" optional="hide"/>
                 <field name="operational_state" widget="badge"
                     decoration-success="operational_state == 'active'"
                     decoration-warning="operational_state == 'maintenance'"
@@ -194,21 +235,35 @@
             <search string="Search Vehicles">
                 <field name="name"/>
                 <field name="license_plate"/>
+                <field name="chassis_number"/>
+                <field name="way4tech_sequence"/>
                 <field name="investor_id"/>
+                <field name="current_driver_name" string="Driver"/>
+                <field name="current_driver_iqama" string="Driver Iqama"/>
                 <separator/>
                 <filter string="Active" name="active" domain="[('operational_state','=','active')]"/>
                 <filter string="Under Maintenance" name="maintenance" domain="[('operational_state','=','maintenance')]"/>
                 <separator/>
                 <filter string="Company Owned" name="own" domain="[('ownership_type','=','own')]"/>
                 <filter string="Investor Owned" name="investor" domain="[('ownership_type','=','investor')]"/>
+                <filter string="Sponsored" name="sponsored" domain="[('ownership_type','=','sponsored')]"/>
+                <filter string="Sold" name="sold" domain="[('ownership_type','=','sold')]"/>
                 <separator/>
+                <filter string="Cars" name="cat_car" domain="[('vehicle_category','=','car')]"/>
+                <filter string="Bikes" name="cat_bike" domain="[('vehicle_category','=','bike')]"/>
                 <filter string="Trucks" name="cat_truck" domain="[('vehicle_category','=','truck')]"/>
                 <filter string="Buses" name="cat_bus" domain="[('vehicle_category','=','bus')]"/>
                 <filter string="Flatbeds" name="cat_flatbed" domain="[('vehicle_category','=','flatbed')]"/>
+                <separator/>
+                <filter string="Public Plate" name="public_plate" domain="[('plate_type','=','public')]"/>
+                <filter string="Private Plate" name="private_plate" domain="[('plate_type','=','private')]"/>
                 <filter string="On Installment" name="installment" domain="[('is_installment','=',True)]"/>
+                <separator/>
+                <filter string="⚠ Expiring Soon / Expired" name="expiring" domain="[('has_expiry_warning','=',True)]"/>
                 <separator/>
                 <filter string="Category" name="group_category" context="{'group_by': 'vehicle_category'}"/>
                 <filter string="Ownership Type" name="group_ownership" context="{'group_by': 'ownership_type'}"/>
+                <filter string="Plate Type" name="group_plate" context="{'group_by': 'plate_type'}"/>
                 <filter string="Current Client" name="group_client" context="{'group_by': 'current_client_id'}"/>
             </search>
         </field>

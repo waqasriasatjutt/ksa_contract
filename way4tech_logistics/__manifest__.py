@@ -241,6 +241,7 @@ DEPENDENCIES
         'views/commission_receipt_views.xml',
         'views/client_po_views.xml',
         'views/truck_views.xml',
+        'views/vehicle_driver_assignment_views.xml',
         'views/truck_trip_views.xml',
         'views/truck_maintenance_views.xml',
         'views/employee_cost_views.xml',

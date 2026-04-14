@@ -1,5 +1,13 @@
+import logging
+from dateutil.relativedelta import relativedelta
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
+
+# Notify this many days before an expiry date
+EXPIRY_WARNING_DAYS = 60
 
 
 class FleetVehicle(models.Model):
@@ -13,9 +21,35 @@ class FleetVehicle(models.Model):
     """
     _inherit = 'fleet.vehicle'
 
+    # ── Vehicle Identification ────────────────────────────────────────────────
+    way4tech_sequence = fields.Char(
+        string='Fleet Sequence #',
+        copy=False,
+        readonly=True,
+        default=lambda self: _('New'),
+        help='Auto-generated fleet sequence number.',
+    )
+    chassis_number = fields.Char(
+        string='Chassis #',
+        tracking=True,
+        help='VIN / chassis number (metal plate).',
+    )
+    plate_type = fields.Selection(
+        selection=[
+            ('private', 'Private'),
+            ('public', 'Public'),
+        ],
+        string='Plate Type',
+        default='private',
+        tracking=True,
+        help='Saudi plate classification. Public plates require an operation card.',
+    )
+
     # ── Vehicle Classification ────────────────────────────────────────────────
     vehicle_category = fields.Selection(
         selection=[
+            ('car', 'Car'),
+            ('bike', 'Bike / Motorcycle'),
             ('truck', 'Truck'),
             ('bus', 'Bus / Minibus'),
             ('flatbed', 'Flatbed / Low-Loader'),
@@ -32,13 +66,17 @@ class FleetVehicle(models.Model):
         selection=[
             ('own', 'Company Owned'),
             ('investor', 'Investor Owned'),
+            ('sponsored', 'Sponsored'),
+            ('sold', 'Sold'),
         ],
         string='Ownership Type',
         required=True,
         default='own',
         tracking=True,
         help='Company Owned: no investor profit share.\n'
-             'Investor Owned: monthly profit share calculated and paid to investor.',
+             'Investor Owned: monthly profit share calculated and paid to investor.\n'
+             'Sponsored: vehicle covered by a sponsor, no profit share.\n'
+             'Sold: vehicle no longer in active fleet (kept for history).',
     )
     investor_id = fields.Many2one(
         comodel_name='res.partner',
@@ -178,9 +216,71 @@ class FleetVehicle(models.Model):
         string='Schedule Lines', compute='_compute_way4tech_counts',
     )
 
+    # ── Expiry Dates (Saudi compliance) ──────────────────────────────────────
+    registration_expiry_date = fields.Date(
+        string='Registration Card Expiry',
+        tracking=True,
+        help='Istimara (vehicle registration card) expiry date.',
+    )
+    inspection_expiry_date = fields.Date(
+        string='Periodic Inspection Expiry',
+        tracking=True,
+        help='Fahes / periodic technical inspection expiry date.',
+    )
+    insurance_expiry_date = fields.Date(
+        string='Insurance Expiry',
+        tracking=True,
+        help='Motor insurance expiry date.',
+    )
+    operation_card_expiry_date = fields.Date(
+        string='Operation Card Expiry',
+        tracking=True,
+        help='Bitaqat tashgheel (operation card) expiry — public plates only.',
+    )
+    expiry_warning = fields.Char(
+        string='Expiry Warning',
+        compute='_compute_expiry_warning',
+        help='Summary of expiring documents within the next %s days.' % EXPIRY_WARNING_DAYS,
+    )
+    has_expiry_warning = fields.Boolean(
+        compute='_compute_expiry_warning',
+        store=True,
+        index=True,
+    )
+
+    # ── Driver Assignment ─────────────────────────────────────────────────────
+    driver_assignment_ids = fields.One2many(
+        'way4tech.vehicle.driver.assignment', 'vehicle_id',
+        string='Driver Assignments',
+    )
+    current_driver_assignment_id = fields.Many2one(
+        'way4tech.vehicle.driver.assignment',
+        string='Current Driver',
+        compute='_compute_current_driver',
+        store=True,
+    )
+    current_driver_name = fields.Char(
+        string='Driver',
+        compute='_compute_current_driver',
+        store=True,
+    )
+    current_driver_iqama = fields.Char(
+        string='Driver Iqama #',
+        compute='_compute_current_driver',
+        store=True,
+    )
+    current_driver_handover_date = fields.Date(
+        string='Handover Date',
+        compute='_compute_current_driver',
+        store=True,
+    )
+
     # ── Smart button counts ───────────────────────────────────────────────────
     trip_count = fields.Integer(string='Trips', compute='_compute_way4tech_counts')
     payout_count = fields.Integer(string='P&L Records', compute='_compute_way4tech_counts')
+    driver_assignment_count = fields.Integer(
+        string='Driver Assignments', compute='_compute_way4tech_counts',
+    )
 
     # ── Computed: installment info ────────────────────────────────────────────
     @api.depends(
@@ -220,6 +320,51 @@ class FleetVehicle(models.Model):
             rec.installment_schedule_count = self.env['way4tech.installment.schedule'].search_count(
                 [('vehicle_id', '=', rec.id)]
             )
+            rec.driver_assignment_count = self.env['way4tech.vehicle.driver.assignment'].search_count(
+                [('vehicle_id', '=', rec.id)]
+            )
+
+    # ── Expiry warning ───────────────────────────────────────────────────────
+    @api.depends('registration_expiry_date', 'inspection_expiry_date',
+                 'insurance_expiry_date', 'operation_card_expiry_date', 'plate_type')
+    def _compute_expiry_warning(self):
+        today = fields.Date.context_today(self)
+        threshold = today + relativedelta(days=EXPIRY_WARNING_DAYS)
+        for rec in self:
+            warnings = []
+            checks = [
+                ('Registration', rec.registration_expiry_date),
+                ('Inspection', rec.inspection_expiry_date),
+                ('Insurance', rec.insurance_expiry_date),
+            ]
+            if rec.plate_type == 'public':
+                checks.append(('Operation Card', rec.operation_card_expiry_date))
+            for label, date in checks:
+                if not date:
+                    continue
+                if date < today:
+                    warnings.append('%s EXPIRED (%s)' % (label, date))
+                elif date <= threshold:
+                    days = (date - today).days
+                    warnings.append('%s in %d days' % (label, days))
+            rec.expiry_warning = ' | '.join(warnings)
+            rec.has_expiry_warning = bool(warnings)
+
+    # ── Current driver ───────────────────────────────────────────────────────
+    @api.depends('driver_assignment_ids', 'driver_assignment_ids.return_date',
+                 'driver_assignment_ids.state')
+    def _compute_current_driver(self):
+        for rec in self:
+            current = rec.driver_assignment_ids.filtered(lambda a: a.state == 'current')[:1]
+            rec.current_driver_assignment_id = current.id if current else False
+            if current:
+                rec.current_driver_name = current.employee_id.name or current.driver_name or ''
+                rec.current_driver_iqama = current.driver_iqama or ''
+                rec.current_driver_handover_date = current.handover_date
+            else:
+                rec.current_driver_name = False
+                rec.current_driver_iqama = False
+                rec.current_driver_handover_date = False
 
     # ── Actions ──────────────────────────────────────────────────────────────
     def action_set_active(self):
@@ -361,3 +506,114 @@ class FleetVehicle(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def action_view_driver_assignments(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Driver Assignments'),
+            'res_model': 'way4tech.vehicle.driver.assignment',
+            'view_mode': 'list,form',
+            'domain': [('vehicle_id', '=', self.id)],
+            'context': {'default_vehicle_id': self.id},
+        }
+
+    # ── Sequence generation ─────────────────────────────────────────────────
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('way4tech_sequence') or vals.get('way4tech_sequence') == _('New'):
+                vals['way4tech_sequence'] = self.env['ir.sequence'].next_by_code(
+                    'way4tech.fleet.vehicle') or _('New')
+        return super().create(vals_list)
+
+    # ── Expiry cron ─────────────────────────────────────────────────────────
+    @api.model
+    def _cron_fleet_expiry_notifications(self):
+        """Daily: email logistics managers about vehicles with documents expiring
+        within EXPIRY_WARNING_DAYS (default 60) or already expired."""
+        today = fields.Date.context_today(self)
+        threshold = today + relativedelta(days=EXPIRY_WARNING_DAYS)
+
+        # Find vehicles with any expiry date inside the warning window
+        domain_any = ['|', '|', '|',
+                      '&', ('registration_expiry_date', '!=', False),
+                            ('registration_expiry_date', '<=', threshold),
+                      '&', ('inspection_expiry_date', '!=', False),
+                            ('inspection_expiry_date', '<=', threshold),
+                      '&', ('insurance_expiry_date', '!=', False),
+                            ('insurance_expiry_date', '<=', threshold),
+                      '&', ('operation_card_expiry_date', '!=', False),
+                            ('operation_card_expiry_date', '<=', threshold)]
+        vehicles = self.search(domain_any)
+        if not vehicles:
+            _logger.info('Fleet expiry cron: no vehicles with documents expiring within %d days', EXPIRY_WARNING_DAYS)
+            return True
+
+        # Build one HTML report with vehicles grouped by urgency
+        lines_expired = []
+        lines_warning = []
+        for v in vehicles:
+            checks = [
+                ('Registration', v.registration_expiry_date),
+                ('Inspection', v.inspection_expiry_date),
+                ('Insurance', v.insurance_expiry_date),
+            ]
+            if v.plate_type == 'public':
+                checks.append(('Operation Card', v.operation_card_expiry_date))
+            for label, date in checks:
+                if not date or date > threshold:
+                    continue
+                days = (date - today).days
+                row = '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+                    v.license_plate or v.name or '',
+                    v.current_driver_name or '',
+                    label,
+                    date,
+                    '%d days' % days if days >= 0 else 'EXPIRED %d days ago' % (-days),
+                )
+                if days < 0:
+                    lines_expired.append(row)
+                else:
+                    lines_warning.append(row)
+
+        if not lines_expired and not lines_warning:
+            return True
+
+        def _table(title, rows):
+            if not rows:
+                return ''
+            return (
+                '<h3>%s</h3>'
+                '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse">'
+                '<tr style="background:#eee"><th>Plate</th><th>Driver</th><th>Document</th>'
+                '<th>Expiry Date</th><th>Status</th></tr>'
+                '%s</table>'
+            ) % (title, ''.join(rows))
+
+        body = (
+            '<p>Daily fleet compliance report — documents expiring within %d days.</p>'
+            '%s%s'
+            '<p style="color:#888">Auto-generated by way4tech_logistics.</p>'
+        ) % (EXPIRY_WARNING_DAYS,
+             _table('EXPIRED — urgent', lines_expired),
+             _table('Expiring Soon', lines_warning))
+
+        # Post to the logistics_manager group channel if it exists, otherwise log
+        group = self.env.ref('way4tech_logistics.group_logistics_manager', raise_if_not_found=False)
+        try:
+            if group:
+                users = self.env['res.users'].search([('groups_id', 'in', group.id)])
+                partner_ids = users.mapped('partner_id').ids
+                if partner_ids:
+                    self.env['mail.thread'].message_notify(
+                        partner_ids=partner_ids,
+                        subject=_('Fleet Compliance: %d document(s) expiring') % (
+                            len(lines_expired) + len(lines_warning)),
+                        body=body,
+                    )
+        except Exception as e:
+            _logger.warning('Fleet expiry cron notify failed: %s', e)
+        _logger.info('Fleet expiry cron: %d expired, %d warning rows',
+                     len(lines_expired), len(lines_warning))
+        return True

@@ -11,6 +11,7 @@ from . import manpower_contract
 from . import manpower_timesheet
 from . import manpower_project_expense
 from . import fleet_vehicle_extension
+from . import vehicle_driver_assignment
 from . import access_control
 from . import fleet_service_extension
 from . import partner_extension

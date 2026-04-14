@@ -42,6 +42,19 @@
         <field name="nextcall">2026-04-07 08:00:00</field>
     </record>
 
+    <!-- Daily cron: fleet document expiry notifications (2 months warning). -->
+    <record id="cron_fleet_expiry_notifications" model="ir.cron">
+        <field name="name">Way4Tech: Daily Fleet Expiry Notifications</field>
+        <field name="model_id" ref="model_fleet_vehicle"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_fleet_expiry_notifications()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active">True</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="nextcall">2026-04-15 07:00:00</field>
+    </record>
+
     <!-- Monthly cron: auto-post due asset depreciation lines. -->
     <record id="cron_asset_depreciation" model="ir.cron">
         <field name="name">Way4Tech: Monthly Asset Depreciation Posting</field>
