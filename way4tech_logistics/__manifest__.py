@@ -248,6 +248,7 @@ DEPENDENCIES
         'views/manpower_contract_views.xml',
         'views/manpower_project_expense_views.xml',
         'views/employee_ledger_views.xml',
+        'views/partner_employee_views.xml',
         # ── New BRD v2 views ──────────────────────────────────────────────────
         'views/entry_category_views.xml',
         'views/asset_register_views.xml',

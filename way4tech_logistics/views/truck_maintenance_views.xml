@@ -81,6 +81,10 @@
                                    help="Brief description of the work performed, e.g. 'Engine oil change + filter replacement' or 'Right front tyre replaced'. Appears on the vendor bill line description."/>
                             <field name="way4tech_bill_id" readonly="1"
                                    help="The vendor bill (in_invoice) created when you click 'Create Vendor Bill'. Read-only — generated automatically. The expense account is set in Payroll Settings → Fleet &amp; Trucks."/>
+                            <field name="way4tech_scan_copy" filename="way4tech_scan_copy_filename"
+                                   widget="binary" string="Bill Scan (PDF/Image)"
+                                   help="Upload a PDF or image of the actual vendor bill."/>
+                            <field name="way4tech_scan_copy_filename" invisible="1"/>
                             <field name="way4tech_analytic_account_id"
                                    help="Analytic Account — tags this maintenance cost to a cost centre so you can see exactly how much was spent maintaining each truck in Accounting → Reporting → Analytic Report. &#10;&#10;What is an analytic account? It is a reporting label — not an accounting account. It does not affect which GL account is debited (that is set in Payroll &amp; Accounting Setup). It lets you group costs by truck, client, or project in management reports. &#10;&#10;Leave blank to use the truck's default analytic account automatically. &#10;Priority: (1) this field → (2) truck's analytic account → (3) system default in Payroll &amp; Accounting Setup."/>
                             <field name="company_id" groups="base.group_multi_company"/>

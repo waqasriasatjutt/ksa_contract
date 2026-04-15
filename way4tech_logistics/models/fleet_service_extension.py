@@ -59,6 +59,14 @@ class FleetVehicleLogServices(models.Model):
         help='Vendor bill (in_invoice) created when you click "Create Vendor Bill". '
              'Read-only — generated automatically.',
     )
+    way4tech_scan_copy = fields.Binary(
+        string='Bill Scan Copy',
+        attachment=True,
+        help='Upload a PDF or image of the actual vendor bill / invoice / receipt.',
+    )
+    way4tech_scan_copy_filename = fields.Char(
+        string='Scan Filename',
+    )
     way4tech_analytic_account_id = fields.Many2one(
         comodel_name='account.analytic.account',
         string='Analytic Account',

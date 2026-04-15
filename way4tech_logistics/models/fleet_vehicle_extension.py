@@ -10,6 +10,31 @@ _logger = logging.getLogger(__name__)
 EXPIRY_WARNING_DAYS = 60
 
 
+class FleetVehicleModel(models.Model):
+    """Extend fleet.vehicle.model to add more vehicle types (KSA fleet ops).
+    Odoo core only ships Car / Bike — we add Truck / Bus / Flatbed / Trailer / Heavy."""
+    _inherit = 'fleet.vehicle.model'
+
+    vehicle_type = fields.Selection(
+        selection_add=[
+            ('truck', 'Truck'),
+            ('bus', 'Bus / Minibus'),
+            ('flatbed', 'Flatbed / Low-Loader'),
+            ('trailer', 'Trailer'),
+            ('heavy', 'Heavy Equipment'),
+            ('other', 'Other'),
+        ],
+        ondelete={
+            'truck': 'set default',
+            'bus': 'set default',
+            'flatbed': 'set default',
+            'trailer': 'set default',
+            'heavy': 'set default',
+            'other': 'set default',
+        },
+    )
+
+
 class FleetVehicle(models.Model):
     """
     Extend fleet.vehicle with KSA logistics-specific fields:

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         res.partner — add CR# / Iqama# conditional fields
+         =================================================== -->
+    <record id="view_partner_form_way4tech" model="ir.ui.view">
+        <field name="name">res.partner.form.way4tech</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- Add a new notebook page for KSA information -->
+            <xpath expr="//notebook" position="inside">
+                <page string="KSA Info" name="way4tech_ksa_info">
+                    <group>
+                        <group string="Identification">
+                            <field name="way4tech_cr_number"
+                                   string="CR #"
+                                   invisible="not is_company"
+                                   help="Commercial Registration number (KSA companies only)."/>
+                            <field name="way4tech_iqama_number"
+                                   string="Iqama #"
+                                   invisible="is_company"
+                                   help="KSA residency permit number (individuals only)."/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ===================================================
+         hr.employee — add Iqama# field
+         =================================================== -->
+    <record id="view_employee_form_way4tech" model="ir.ui.view">
+        <field name="name">hr.employee.form.way4tech</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='identification_id']" position="after">
+                <field name="way4tech_iqama_number" string="Iqama #"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -60,21 +60,33 @@ class Way4TechEquipmentRental(models.Model):
     # ── Rate & Revenue ────────────────────────────────────────────────────────
     rate_type = fields.Selection(
         selection=[
+            ('hourly', 'Hourly Rate'),
             ('daily', 'Daily Rate'),
             ('weekly', 'Weekly Rate'),
             ('monthly', 'Monthly Rate'),
+            ('basic_hourly', 'Basic + Hourly'),
             ('fixed', 'Fixed / Lump Sum'),
         ],
         string='Rate Type', default='daily', required=True,
-        help='Daily/Weekly/Monthly: duration is computed from the dates, '
-             'revenue = duration × rate.\n'
-             'Fixed: enter the total rental price directly in the Revenue field.',
+        help='Hourly / Daily / Weekly / Monthly: duration × rate.\n'
+             'Basic + Hourly: basic_amount + (hours × rate).\n'
+             'Fixed: enter total rental price directly in the Revenue field.',
     )
     rate_amount = fields.Monetary(
         string='Rate / Period',
         currency_field='currency_id',
-        help='Rate per day / week / month.\n'
+        help='Rate per hour / day / week / month.\n'
              'For Fixed type: this is the total agreed rental price.',
+    )
+    basic_amount = fields.Monetary(
+        string='Basic Amount',
+        currency_field='currency_id',
+        help='Flat basic amount added on top of the hourly calculation (Basic + Hourly).',
+    )
+    hours_used = fields.Float(
+        string='Hours',
+        digits=(10, 2),
+        help='Number of hours used — applies to Hourly and Basic + Hourly rate types.',
     )
     rental_duration = fields.Float(
         string='Duration',
@@ -124,10 +136,16 @@ class Way4TechEquipmentRental(models.Model):
 
     # ── Compute Methods ───────────────────────────────────────────────────────
 
-    @api.depends('rental_start', 'rental_end', 'rate_type')
+    @api.depends('rental_start', 'rental_end', 'rate_type', 'hours_used')
     def _compute_duration(self):
         for rec in self:
-            if rec.rate_type == 'fixed' or not rec.rental_start or not rec.rental_end:
+            if rec.rate_type in ('fixed',):
+                rec.rental_duration = 1.0
+                continue
+            if rec.rate_type in ('hourly', 'basic_hourly'):
+                rec.rental_duration = rec.hours_used or 0.0
+                continue
+            if not rec.rental_start or not rec.rental_end:
                 rec.rental_duration = 1.0
                 continue
             delta = (rec.rental_end - rec.rental_start).days + 1
@@ -141,10 +159,13 @@ class Way4TechEquipmentRental(models.Model):
             else:  # monthly
                 rec.rental_duration = round(delta / 30.0, 2)
 
-    @api.depends('rental_duration', 'rate_amount', 'rate_type')
+    @api.depends('rental_duration', 'rate_amount', 'rate_type', 'basic_amount')
     def _compute_revenue(self):
         for rec in self:
-            rec.revenue = rec.rental_duration * rec.rate_amount
+            if rec.rate_type == 'basic_hourly':
+                rec.revenue = rec.basic_amount + (rec.rental_duration * rec.rate_amount)
+            else:
+                rec.revenue = rec.rental_duration * rec.rate_amount
 
     @api.onchange('asset_register_id')
     def _onchange_asset_register_id(self):

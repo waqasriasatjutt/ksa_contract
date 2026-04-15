@@ -1,5 +1,30 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
+
+
+class Way4TechTripProjectAllocation(models.Model):
+    _name = 'way4tech.trip.project.allocation'
+    _description = 'Trip Project Allocation (multi-project split)'
+    _order = 'date_from'
+
+    trip_id = fields.Many2one(
+        'way4tech.truck.trip', string='Trip',
+        required=True, ondelete='cascade', index=True,
+    )
+    project_name = fields.Char(string='Project Name', required=True)
+    analytic_account_id = fields.Many2one(
+        'account.analytic.account', string='Analytic Account',
+        help='Optional — link to an analytic account for project reporting.',
+    )
+    date_from = fields.Date(string='From', required=True)
+    date_to = fields.Date(string='To', required=True)
+    notes = fields.Char(string='Notes')
+
+    @api.constrains('date_from', 'date_to')
+    def _check_dates(self):
+        for rec in self:
+            if rec.date_from and rec.date_to and rec.date_from > rec.date_to:
+                raise ValidationError(_('Project allocation "From" must be on or before "To".'))
 
 
 class Way4TechTruckTrip(models.Model):
@@ -13,6 +38,10 @@ class Way4TechTruckTrip(models.Model):
         default=lambda self: _('New'),
     )
     truck_id = fields.Many2one('fleet.vehicle', string='Truck', required=True, tracking=True)
+    truck_license_plate = fields.Char(
+        related='truck_id.license_plate', string='License Plate',
+        store=True, readonly=True,
+    )
     client_id = fields.Many2one('res.partner', string='Client', required=True, tracking=True)
     salesperson_id = fields.Many2one('res.users', string='Salesperson', tracking=True)
     trip_date = fields.Date(
@@ -84,6 +113,12 @@ class Way4TechTruckTrip(models.Model):
 
     # ── Driver Cost Breakdown ─────────────────────────────────────────────────
     driver_id = fields.Many2one('hr.employee', string='Driver')
+    driver_iqama_number = fields.Char(
+        related='driver_id.way4tech_iqama_number',
+        string="Driver Iqama #",
+        readonly=True,
+        store=False,
+    )
     driver_basic = fields.Monetary(
         string='Driver Basic Salary', currency_field='currency_id',
         help="Driver's basic monthly/trip salary portion.\n"
@@ -160,6 +195,15 @@ class Way4TechTruckTrip(models.Model):
     )
     notes = fields.Text(string='Notes')
 
+    # ── Multi-Project Allocation (Flat Rate only) ────────────────────────────
+    # Used when the same truck serves multiple projects during a rental period.
+    project_allocation_ids = fields.One2many(
+        'way4tech.trip.project.allocation', 'trip_id',
+        string='Project Allocations',
+        help="For Fixed Monthly / Flat Rate trips: allocate the period across "
+             "multiple projects with their own date ranges.",
+    )
+
     # ── Compute Methods ───────────────────────────────────────────────────────
 
     @api.depends('driver_basic', 'driver_overtime_amount', 'driver_food_allowance')
@@ -175,6 +219,14 @@ class Way4TechTruckTrip(models.Model):
             third_party = rec.third_party_cost if rec.trip_type == 'middleman' else 0.0
             rec.total_cost = rec.fuel_cost + rec.driver_cost + rec.other_cost + third_party
             rec.gross_profit = rec.revenue - rec.total_cost
+
+    @api.onchange('truck_id')
+    def _onchange_truck_autoselect_driver(self):
+        """Auto-select the truck's current assigned driver (user can still override)."""
+        if self.truck_id and not self.driver_id:
+            current = self.truck_id.current_driver_assignment_id
+            if current and current.employee_id:
+                self.driver_id = current.employee_id
 
     @api.onchange('rental_type', 'standard_hours', 'hourly_rate',
                   'overtime_hours', 'overtime_rate', 'trip_count', 'rate_per_trip',

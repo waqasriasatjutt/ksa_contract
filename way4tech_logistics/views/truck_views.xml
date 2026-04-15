@@ -340,9 +340,13 @@
                         <group string="Vehicle &amp; Period">
                             <field name="truck_id" readonly="state != 'draft'"
                                    help="Select any active vehicle — company-owned or investor-owned."/>
+                            <field name="truck_license_plate" readonly="1"/>
                             <field name="investor_id" readonly="1"
                                    invisible="ownership_type != 'investor'"
                                    help="Auto-filled from the truck for investor-owned vehicles."/>
+                            <field name="investor_share_basis" readonly="state != 'draft'"
+                                   invisible="ownership_type != 'investor'"
+                                   help="Choose whether the investor's share is calculated on Gross Profit or Net Profit."/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
@@ -388,7 +392,15 @@
                         </group>
                     </group>
 
-                    <group string="Indirect Expenses (Company Bears)">
+                    <div class="alert alert-info" role="alert"
+                         invisible="ownership_type != 'investor'">
+                        <strong>Note for Investor-Owned Vehicles:</strong>
+                        Indirect expenses below are borne by the <b>company only</b>,
+                        deducted from its 50% share. The investor's profit share is
+                        calculated <b>before</b> indirect expenses (unless you switch
+                        "Investor Share Basis" above to "Net Profit").
+                    </div>
+                    <group string="Indirect Expenses (Borne by Company Only)">
                         <group>
                             <field name="yard_rent" readonly="state != 'draft'"
                                    help="Parking / yard rent allocated to this vehicle."/>
@@ -426,7 +438,8 @@
             <list string="Fleet Profitability">
                 <field name="name"/>
                 <field name="truck_id"/>
-                <field name="investor_id"/>
+                <field name="truck_license_plate" string="Plate #"/>
+                <field name="investor_id" optional="show"/>
                 <field name="period_start"/>
                 <field name="period_end"/>
                 <field name="total_revenue" sum="Total Revenue"/>

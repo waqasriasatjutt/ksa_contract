@@ -69,10 +69,14 @@
                         </group>
                         <group string="Rate &amp; Revenue">
                             <field name="rate_type" widget="radio"/>
+                            <field name="hours_used"
+                                   invisible="rate_type not in ('hourly', 'basic_hourly')"/>
+                            <field name="basic_amount"
+                                   invisible="rate_type != 'basic_hourly'"/>
                             <field name="rate_amount"
                                    string="Rate / Period"
                                    invisible="rate_type == 'fixed'"
-                                   help="Rate per day / week / month."/>
+                                   help="Rate per hour / day / week / month."/>
                             <field name="rate_amount"
                                    string="Total Fixed Price"
                                    invisible="rate_type != 'fixed'"
@@ -80,7 +84,7 @@
                             <field name="revenue" readonly="1"
                                    class="o_field_highlight"
                                    invisible="rate_type == 'fixed'"
-                                   help="Duration × Rate. Auto-calculated."/>
+                                   help="Duration × Rate (+ Basic if Basic+Hourly). Auto-calculated."/>
                         </group>
                     </group>
 

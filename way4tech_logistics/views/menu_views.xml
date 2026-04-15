@@ -122,9 +122,9 @@
     <menuitem
         id="menu_maintenance_history_report"
         name="Maintenance History Report"
-        parent="menu_way4tech_fleet"
+        parent="menu_truck_maintenance"
         action="way4tech_logistics.action_maintenance_history_wizard"
-        sequence="70"
+        sequence="20"
     />
 
     <menuitem
@@ -297,6 +297,16 @@
         parent="menu_way4tech_config"
         action="way4tech_logistics.action_pending_approvals"
         sequence="40"
+        groups="way4tech_logistics.group_logistics_manager"
+    />
+
+    <!-- Vehicle Models (edit / delete management) -->
+    <menuitem
+        id="menu_fleet_vehicle_models"
+        name="Vehicle Models"
+        parent="menu_way4tech_config"
+        action="fleet.fleet_vehicle_model_action"
+        sequence="50"
         groups="way4tech_logistics.group_logistics_manager"
     />
 

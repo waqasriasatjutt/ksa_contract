@@ -20,6 +20,12 @@ class Way4TechInvestorPayable(models.Model):
         required=True,
         tracking=True,
     )
+    truck_license_plate = fields.Char(
+        related='truck_id.license_plate',
+        string='License Plate',
+        store=True,
+        readonly=True,
+    )
     ownership_type = fields.Selection(
         related='truck_id.ownership_type',
         store=True,
@@ -30,6 +36,16 @@ class Way4TechInvestorPayable(models.Model):
         string='Investor',
         related='truck_id.investor_id',
         store=True,
+    )
+    investor_share_basis = fields.Selection(
+        selection=[
+            ('gross', 'Gross Profit'),
+            ('net', 'Net Profit (after indirect)'),
+        ],
+        string="Investor Share Basis",
+        default='gross',
+        help="Choose whether the investor's percentage is applied to Gross Profit "
+             "(before indirect/operational expenses) or Net Profit (after indirect).",
     )
     company_id = fields.Many2one(
         comodel_name='res.company',
@@ -135,20 +151,23 @@ class Way4TechInvestorPayable(models.Model):
 
     @api.depends(
         'total_revenue', 'total_expenses', 'profit_share_rate', 'ownership_type',
+        'investor_share_basis',
         'yard_rent', 'coordinator_salary', 'iqama_cost', 'other_operational',
     )
     def _compute_amounts(self):
         for rec in self:
             gross = rec.total_revenue - rec.total_expenses
-            if rec.ownership_type == 'investor':
-                investor = gross * rec.profit_share_rate / 100.0
-            else:
-                investor = 0.0
-            company_gross = gross - investor
             indirect = (
                 rec.yard_rent + rec.coordinator_salary
                 + rec.iqama_cost + rec.other_operational
             )
+            if rec.ownership_type == 'investor':
+                # Base for investor share: gross OR net (after indirect)
+                base = (gross - indirect) if rec.investor_share_basis == 'net' else gross
+                investor = base * rec.profit_share_rate / 100.0
+            else:
+                investor = 0.0
+            company_gross = gross - investor
             rec.gross_profit = gross
             rec.net_profit = gross              # backward compat alias
             rec.investor_amount = investor

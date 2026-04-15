@@ -58,6 +58,8 @@
                             <field name="trip_date"/>
                             <field name="trip_type"/>
                             <field name="driver_id"/>
+                            <field name="driver_iqama_number" readonly="1"
+                                   invisible="not driver_iqama_number"/>
                             <field name="salesperson_id"/>
                             <field name="analytic_account_id"/>
                         </group>
@@ -141,6 +143,23 @@
                             </group>
                         </page>
 
+                        <page string="Project Allocation" name="project_allocation"
+                              invisible="rental_type != 'flat'">
+                            <p class="text-muted">
+                                Split this flat-rate period across multiple projects
+                                (used when the same fleet serves different projects in one month).
+                            </p>
+                            <field name="project_allocation_ids">
+                                <list editable="bottom">
+                                    <field name="project_name"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="analytic_account_id" optional="show"/>
+                                    <field name="notes" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+
                         <page string="Notes" name="notes">
                             <field name="notes" nolabel="1" colspan="2"/>
                         </page>
@@ -165,6 +184,7 @@
                 <field name="name"/>
                 <field name="trip_date"/>
                 <field name="truck_id"/>
+                <field name="truck_license_plate" string="Plate #"/>
                 <field name="client_id"/>
                 <field name="po_id" optional="show"/>
                 <field name="trip_type"/>
