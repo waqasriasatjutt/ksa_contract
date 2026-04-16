@@ -310,4 +310,29 @@
         groups="way4tech_logistics.group_logistics_manager"
     />
 
+    <!-- Fleet Excel Export -->
+    <menuitem
+        id="menu_fleet_excel_export"
+        name="Export Fleet to Excel"
+        parent="menu_way4tech_fleet"
+        action="way4tech_logistics.action_fleet_excel_export"
+        sequence="80"
+    />
+
+    <!-- Maintenance Excel Export / Import -->
+    <menuitem
+        id="menu_maintenance_excel_export"
+        name="Export Maintenance to Excel"
+        parent="menu_truck_maintenance"
+        action="way4tech_logistics.action_maintenance_excel_export"
+        sequence="30"
+    />
+    <menuitem
+        id="menu_maintenance_excel_import"
+        name="Import Maintenance from Excel"
+        parent="menu_truck_maintenance"
+        action="way4tech_logistics.action_maintenance_excel_import"
+        sequence="40"
+    />
+
 </odoo>

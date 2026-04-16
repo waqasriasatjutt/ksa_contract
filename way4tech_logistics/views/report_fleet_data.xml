@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================================================
+         Fleet Data Sheet — PDF Report (QWeb)
+         =================================================== -->
+    <record id="action_report_fleet_data" model="ir.actions.report">
+        <field name="name">Fleet Data Sheet</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_fleet_data_document</field>
+        <field name="report_file">way4tech_logistics.report_fleet_data_document</field>
+        <field name="binding_model_id" ref="fleet.model_fleet_vehicle"/>
+        <field name="binding_type">report</field>
+        <field name="print_report_name">'Fleet Data Sheet - %s' % (object.license_plate or object.name)</field>
+    </record>
+
+    <!-- ===================================================
+         QWeb Template
+         =================================================== -->
+    <template id="report_fleet_data_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="oe_structure"/>
+                        <h2>Fleet Data Sheet</h2>
+                        <h4>
+                            <span t-field="o.license_plate"/>
+                            <span t-if="o.name"> — <t t-esc="o.name"/></span>
+                        </h4>
+                        <hr/>
+
+                        <div class="row">
+                            <div class="col-6">
+                                <h5>Identification</h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Fleet Sequence #</strong></td>
+                                        <td><span t-field="o.way4tech_sequence"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>License Plate</strong></td>
+                                        <td><span t-field="o.license_plate"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Chassis #</strong></td>
+                                        <td><span t-field="o.chassis_number"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Plate Type</strong></td>
+                                        <td><span t-field="o.plate_type"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Vehicle Category</strong></td>
+                                        <td><span t-field="o.vehicle_category"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Model</strong></td>
+                                        <td><span t-field="o.model_id"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Model Year</strong></td>
+                                        <td><span t-field="o.model_year"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Operational State</strong></td>
+                                        <td><span t-field="o.operational_state"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <div class="col-6">
+                                <h5>Ownership</h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Ownership Type</strong></td>
+                                        <td><span t-field="o.ownership_type"/></td>
+                                    </tr>
+                                    <tr t-if="o.ownership_type == 'investor'">
+                                        <td><strong>Investor</strong></td>
+                                        <td><span t-field="o.investor_id"/></td>
+                                    </tr>
+                                    <tr t-if="o.ownership_type == 'investor'">
+                                        <td><strong>Profit Share %</strong></td>
+                                        <td><span t-field="o.profit_share_rate"/>%</td>
+                                    </tr>
+                                    <tr t-if="o.purchase_value">
+                                        <td><strong>Purchase Value</strong></td>
+                                        <td>
+                                            <span t-field="o.purchase_value"
+                                                  t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    <tr t-if="o.current_client_id">
+                                        <td><strong>Current Client</strong></td>
+                                        <td><span t-field="o.current_client_id"/></td>
+                                    </tr>
+                                </table>
+
+                                <h5 t-if="o.is_installment">Installment</h5>
+                                <table class="table table-sm" t-if="o.is_installment">
+                                    <tr>
+                                        <td><strong>Financing Vendor</strong></td>
+                                        <td><span t-field="o.installment_vendor_id"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Total Financed</strong></td>
+                                        <td>
+                                            <span t-field="o.installment_total_price"
+                                                  t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Monthly Installment</strong></td>
+                                        <td>
+                                            <span t-field="o.installment_monthly_amount"
+                                                  t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Outstanding</strong></td>
+                                        <td>
+                                            <span t-field="o.installment_remaining_balance"
+                                                  t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h5>Compliance &amp; Expiry Dates</h5>
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Document</th>
+                                            <th>Expiry Date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Registration (Istimara)</td>
+                                            <td><span t-field="o.registration_expiry_date"/></td>
+                                            <td>
+                                                <span t-if="o.registration_expiry_date">—</span>
+                                                <span t-else="">N/A</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Periodic Inspection (Fahes)</td>
+                                            <td><span t-field="o.inspection_expiry_date"/></td>
+                                            <td>
+                                                <span t-if="o.inspection_expiry_date">—</span>
+                                                <span t-else="">N/A</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Insurance</td>
+                                            <td><span t-field="o.insurance_expiry_date"/></td>
+                                            <td>
+                                                <span t-if="o.insurance_expiry_date">—</span>
+                                                <span t-else="">N/A</span>
+                                            </td>
+                                        </tr>
+                                        <tr t-if="o.plate_type == 'public'">
+                                            <td>Operation Card (Public Plate)</td>
+                                            <td><span t-field="o.operation_card_expiry_date"/></td>
+                                            <td>
+                                                <span t-if="o.operation_card_expiry_date">—</span>
+                                                <span t-else="">N/A</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3" t-if="o.current_driver_name">
+                            <div class="col-12">
+                                <h5>Current Driver</h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Driver Name</strong></td>
+                                        <td><span t-field="o.current_driver_name"/></td>
+                                        <td><strong>Iqama #</strong></td>
+                                        <td><span t-field="o.current_driver_iqama"/></td>
+                                        <td><strong>Handover Date</strong></td>
+                                        <td><span t-field="o.current_driver_handover_date"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="oe_structure"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

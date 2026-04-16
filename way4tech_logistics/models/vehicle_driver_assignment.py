@@ -9,6 +9,7 @@ class VehicleDriverAssignment(models.Model):
     The current active assignment drives the fleet.vehicle.current_driver_* fields.
     """
     _name = 'way4tech.vehicle.driver.assignment'
+    _inherit = ['mail.thread']
     _description = 'Vehicle Driver Assignment'
     _order = 'handover_date desc, id desc'
     _rec_name = 'display_name'

@@ -9,3 +9,6 @@ from . import rejection_wizard
 from . import employee_category_report_wizard
 from . import staff_cost_report_wizard
 from . import employee_margin_report_wizard
+# ── Fleet / Maintenance Excel wizards (BRD v3 feedback) ──────────────────────
+from . import fleet_excel_export
+from . import maintenance_excel_wizard

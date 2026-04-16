@@ -269,7 +269,7 @@ Legend: ✅ Implemented • 🟡 Partial • ⏳ Pending • 🔵 New (future) �
 
 ## Section 4 — Implementation Status Summary
 
-### ✅ Fully implemented (21 major areas)
+### ✅ Fully implemented (25+ major areas)
 
 1. Multi-company setup (5 companies)
 2. Fleet vehicle with full KSA identifiers (chassis, plate, sequence)
@@ -292,6 +292,17 @@ Legend: ✅ Implemented • 🟡 Partial • ⏳ Pending • 🔵 New (future) �
 19. Mandatory entry category on journal entries
 20. Approval workflow > 500 SAR with rejection wizard
 21. Reports: truck profitability, salesperson profitability, investor aging, maintenance history, employee margin, employee category, staff cost
+22. **Fleet identification** (chassis, plate type, sequence — Session 4)
+23. **Expiry tracking** (registration, inspection, insurance, operation card + 60-day cron)
+24. **Driver assignment** with iqama, handover/return tracking
+25. **Fleet PDF Report** (Session 4)
+26. **Fleet Excel Export** (Session 4)
+27. **Maintenance Excel Import + Export** (Session 4)
+28. **Maintenance scan copy attachment field** (Session 4)
+29. **Partner CR/Iqama + Employee Iqama** notebook tabs (Session 4)
+30. **Multi-project allocation on trips** (for Flat Rate only)
+31. **Vehicle Models admin menu + extended vehicle types** (Session 4)
+32. **Investor share basis selector** (Gross vs Net)
 
 ### 🟡 Partial — needs completion
 
@@ -310,15 +321,22 @@ Legend: ✅ Implemented • 🟡 Partial • ⏳ Pending • 🔵 New (future) �
 ### ⏳ Pending — not started
 
 1. **Inventory for fleet parts** (tires, oil, batteries as stock)
-2. **Excel import/export for fleet master data**
+2. **Excel import for fleet master data** (export DONE 2026-04-16)
 3. **Excel import/export for trips**
-4. **Excel import/export for maintenance**
+4. ~~Excel import/export for maintenance~~ ✅ **Done 2026-04-16** (both import and export)
 5. **ZIP bundle report with related invoices**
 6. **PO per-category rates** (car/truck/helper hourly)
 7. **Daily cashflow alerts to owner** with graph via WhatsApp/Email
 8. **Employee category report auto-send** (email/WhatsApp)
 9. **Email/WhatsApp direct-send** for invoices/reports
 10. **Graph/chart view on ALL reports**
+11. **PO renewal workflow** (80% alert + renewal button/wizard)
+12. **Repeated repair detection** in maintenance history report
+13. **Previous expense display widget** (field exists, UI pending)
+14. **Asset depreciation compute** (SL/DB methods)
+15. **Office staff cost breakdown fields** (SIM/car/fuel/FAT)
+16. **Invoice category admin control per user**
+17. **Bill-level access restriction**
 
 ### 🎁 Extra features added beyond any quote (free value for client)
 
@@ -464,6 +482,9 @@ Use the draft message template from the previous CR messages — same structure,
 | BRD v1 | `docs/brd_v1_alzain.md` ✅ |
 | BRD v2 | `docs/brd_v2_alzain.md` ✅ (CR-1 summary included) |
 | BRD v3 | `docs/brd_v3_alzain.md` ✅ (CR-2 summary included) |
+| **Work Queue (pending + questions)** | **`docs/WORK_QUEUE.md`** ✅ |
+
+> **IMPORTANT:** `docs/WORK_QUEUE.md` is the live pending-work file. Read it before doing anything. It has Tier A/B/C task details, open questions to client, and decision log.
 | **This tracking doc** | `way4tech_logistics/PROJECT_TRACKING.md` |
 | Technical reference | `way4tech_logistics/WAY4TECH_LOGISTICS_TECHNICAL_REFERENCE.md` |
 | User guide | `way4tech_logistics/WAY4TECH_LOGISTICS_USER_GUIDE.md` |
@@ -484,4 +505,43 @@ Keep this document updated as the single source of truth. Every new BRD, every c
 
 ---
 
-*Last updated: 2026-04-15 (post-BRD-v3, CR-2 quoted)*
+*Last updated: 2026-04-16 (session 4 complete — 11 items closed from client's latest feedback, Fleet PDF + Fleet Excel Export + Maintenance Excel Import/Export delivered, 17/23 feedback items done = 74%)*
+
+## Session 4 Summary (2026-04-16)
+
+**Tasks completed:**
+
+**Round 1 — 7 quick wins:**
+1. Fleet sequence → simple 10-digit format (1000000001+)
+2. Indirect expenses info banner for investor-owned trucks
+3. Driver iqama read-only field on trip form
+4. Partner CR/Iqama moved to proper "KSA Info" notebook tab
+5. Maintenance scan copy binary field (PDF/image upload)
+6. Vehicle Models config menu (admin edit/delete)
+7. Vehicle type selection extended (+Truck, Bus, Flatbed, Trailer, Heavy, Other)
+
+**Round 2 — 4 Excel/PDF items:**
+1. Fleet PDF report (`views/report_fleet_data.xml`) — Print button on fleet form
+2. Fleet Excel Export (`wizard/fleet_excel_export.py`) — 29-column download
+3. Maintenance Excel Export (`wizard/maintenance_excel_wizard.py`) — filterable
+4. Maintenance Excel Import — auto-creates vendors, row-level error log
+
+**Client communication:** Sent short payment request message for Quote v1 completion.
+
+**Next unblocked work (no client input needed):**
+- Tier A: PO renewal, repeated repair detection, previous expense display widget, office staff cost fields, invoice category admin control, bill restriction (~7h)
+- Tier B: Asset depreciation, ZIP bundle, cashflow email, Fleet Excel Import, Trip Excel Import/Export, graph views (~21h)
+- Tier C: Inventory for fleet parts, driver payroll templates (~9h)
+
+**Blocked on client answers:**
+- Q1: Trip revenue type "mix" — need screenshot/clarification
+- Q2: Salesperson commission rules (4 criteria + multi-person + employee/user)
+- Q3: WhatsApp provider for alerts
+- Q4-Q12: Secondary clarifications (don't block all work)
+
+**Files added/modified in Session 4:**
+- Added: `wizard/fleet_excel_export.py` + `_views.xml`
+- Added: `wizard/maintenance_excel_wizard.py` + `_views.xml`
+- Added: `views/report_fleet_data.xml`
+- Modified: `wizard/__init__.py`, `__manifest__.py`, `security/ir.model.access.csv`, `views/menu_views.xml`, `models/fleet_vehicle_extension.py` (vehicle_type extended + new model), `models/truck_trip.py` (driver_iqama_number related field), `models/fleet_service_extension.py` (scan copy binary), `views/partner_employee_views.xml` (notebook tab), `views/truck_views.xml` (investor banner), `views/truck_trip_views.xml` (driver iqama display), `views/truck_maintenance_views.xml` (scan copy field)
+- DB change: `ir_sequence` row for `way4tech.fleet.vehicle` updated to prefix='', padding=10, start=1000000001

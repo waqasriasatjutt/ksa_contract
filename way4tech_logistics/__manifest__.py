@@ -225,6 +225,8 @@ DEPENDENCIES
         'data/category_data.xml',
         # ── Wizard views ──────────────────────────────────────────────────────
         'wizard/salary_excel_import_views.xml',
+        'wizard/fleet_excel_export_views.xml',
+        'wizard/maintenance_excel_wizard_views.xml',
         'wizard/truck_profitability_wizard_views.xml',
         'wizard/investor_aging_wizard_views.xml',
         'wizard/setup_wizard_views.xml',
@@ -267,6 +269,7 @@ DEPENDENCIES
         'views/report_employee_category.xml',
         'views/report_staff_cost.xml',
         'views/report_employee_margin.xml',
+        'views/report_fleet_data.xml',
         # ── Menu (always last) ────────────────────────────────────────────────
         'views/menu_views.xml',
     ],

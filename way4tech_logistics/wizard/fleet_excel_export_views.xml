@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_fleet_excel_export_form" model="ir.ui.view">
+        <field name="name">way4tech.fleet.excel.export.form</field>
+        <field name="model">way4tech.fleet.excel.export</field>
+        <field name="arch" type="xml">
+            <form string="Export Fleet to Excel">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Click <strong>Generate Excel</strong> to download all fleet master data
+                        as an .xlsx file.
+                    </div>
+                    <group invisible="not file_data">
+                        <field name="file_name" readonly="1"/>
+                        <field name="file_data" filename="file_name" readonly="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_export" type="object"
+                            string="Generate Excel"
+                            class="btn-primary"/>
+                    <button special="cancel" string="Close" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fleet_excel_export" model="ir.actions.act_window">
+        <field name="name">Export Fleet to Excel</field>
+        <field name="res_model">way4tech.fleet.excel.export</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_fleet_excel_export_form"/>
+        <field name="target">new</field>
+    </record>
+
+</odoo>
