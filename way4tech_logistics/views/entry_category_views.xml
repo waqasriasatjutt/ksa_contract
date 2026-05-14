@@ -13,7 +13,6 @@
                 <field name="apply_to"/>
                 <field name="color" widget="color_picker"/>
                 <field name="active" optional="hide"/>
-                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
             </list>
         </field>
     </record>
@@ -35,7 +34,6 @@
                             <field name="sequence"/>
                             <field name="color" widget="color_picker"/>
                             <field name="active"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
                     <group string="Notes">

@@ -7,6 +7,10 @@ class Way4TechEntryCategory(models.Model):
     Admin can add / edit / delete categories.
     Categories are enforced as mandatory on account.move posting
     (see account_move_extension.py).
+
+    SHARED across all companies — there is intentionally no `company_id` field, so
+    one category list is reused everywhere. To migrate existing per-company records
+    after this change, see migrations/19.0.2.0.02/pre-migrate.py.
     """
     _name = 'way4tech.entry.category'
     _description = 'Way4Tech Accounting Entry / Invoice Category'
@@ -27,16 +31,12 @@ class Way4TechEntryCategory(models.Model):
              'Payments: only on payment entries.\n'
              'Journal Entries: only on manual journal entries.')
     active = fields.Boolean(default=True)
-    company_id = fields.Many2one(
-        'res.company', string='Company',
-        default=lambda self: self.env.company,
-    )
     color = fields.Integer(string='Color Index', default=0)
     notes = fields.Text(string='Notes / Description')
 
     _sql_constraints = [
-        ('name_company_uniq', 'UNIQUE(name, company_id)',
-         'Category name must be unique per company.'),
+        ('name_uniq', 'UNIQUE(name)',
+         'Category name must be unique (categories are shared across all companies).'),
     ]
 
     @api.model
