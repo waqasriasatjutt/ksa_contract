@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_ksa_tax_invoice" model="ir.actions.report">
+        <field name="name">Tax Invoice (KSA)</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_ksa_tax_invoice.ksa_tax_invoice_document</field>
+        <field name="report_file">way4tech_ksa_tax_invoice.ksa_tax_invoice_document</field>
+        <field name="print_report_name">'Tax Invoice - %s' % ((object.name or 'INV').replace('/', '-'))</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="paperformat_ksa_tax_invoice"/>
+    </record>
+</odoo>
