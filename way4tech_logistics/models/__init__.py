@@ -19,6 +19,8 @@ from . import client_po
 from . import equipment_rental
 from . import equipment_rental_inbound
 # ── New features (BRD v2) ────────────────────────────────────────────────────
+from . import project
+from . import tag
 from . import entry_category
 from . import installment_schedule
 from . import asset_register

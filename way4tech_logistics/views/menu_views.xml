@@ -282,6 +282,24 @@
     />
 
     <menuitem
+        id="menu_way4tech_projects"
+        name="Projects"
+        parent="menu_way4tech_config"
+        action="way4tech_logistics.action_way4tech_project"
+        sequence="22"
+        groups="way4tech_logistics.group_logistics_manager"
+    />
+
+    <menuitem
+        id="menu_way4tech_tags"
+        name="Tags"
+        parent="menu_way4tech_config"
+        action="way4tech_logistics.action_way4tech_tag"
+        sequence="24"
+        groups="way4tech_logistics.group_logistics_manager"
+    />
+
+    <menuitem
         id="menu_cashflow_alerts"
         name="Cash Flow Alerts"
         parent="menu_way4tech_config"

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══ Project master ══ -->
+    <record id="view_way4tech_project_list" model="ir.ui.view">
+        <field name="name">way4tech.project.list</field>
+        <field name="model">way4tech.project</field>
+        <field name="arch" type="xml">
+            <list string="Projects" editable="top">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="note"/>
+                <field name="active" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_way4tech_project_form" model="ir.ui.view">
+        <field name="name">way4tech.project.form</field>
+        <field name="model">way4tech.project</field>
+        <field name="arch" type="xml">
+            <form string="Project">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                        </group>
+                        <group>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="note"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_way4tech_project" model="ir.actions.act_window">
+        <field name="name">Projects</field>
+        <field name="res_model">way4tech.project</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first Project</p>
+            <p>Projects appear as a dropdown on invoices and journal entries for grouping in reports.</p>
+        </field>
+    </record>
+
+    <!-- ══ Tag master ══ -->
+    <record id="view_way4tech_tag_list" model="ir.ui.view">
+        <field name="name">way4tech.tag.list</field>
+        <field name="model">way4tech.tag</field>
+        <field name="arch" type="xml">
+            <list string="Tags" editable="top">
+                <field name="name"/>
+                <field name="color" widget="color_picker"/>
+                <field name="active" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_way4tech_tag_form" model="ir.ui.view">
+        <field name="name">way4tech.tag.form</field>
+        <field name="model">way4tech.tag</field>
+        <field name="arch" type="xml">
+            <form string="Tag">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="color" widget="color_picker"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_way4tech_tag" model="ir.actions.act_window">
+        <field name="name">Tags</field>
+        <field name="res_model">way4tech.tag</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first Tag</p>
+            <p>Tags are a multi-select field on invoices and journal entries for flexible reporting.</p>
+        </field>
+    </record>
+
+</odoo>

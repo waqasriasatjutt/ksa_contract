@@ -48,6 +48,21 @@
                        string="Client PO"
                        invisible="move_type != 'out_invoice'"
                        options="{'no_create': true}"/>
+                <field name="way4tech_project_id" string="Project"
+                       options="{'no_quick_create': true}"/>
+                <field name="way4tech_tag_ids" string="Tags"
+                       widget="many2many_tags"
+                       options="{'color_field': 'color'}"/>
+                <field name="way4tech_inv_month" string="INV Month" readonly="1"/>
+            </xpath>
+
+            <!-- Surface the Accounting Date next to Invoice Date so revenue can
+                 be posted to the correct P&amp;L month while the Invoice Date
+                 (document/tax date) stays current for ZATCA. -->
+            <xpath expr="//field[@name='invoice_date']" position="after">
+                <field name="date" string="Accounting Date"
+                       invisible="move_type not in ('out_invoice','out_refund','in_invoice','in_refund')"
+                       help="Drives the accounting period / P&amp;L. Set this to the month the work belongs to; keep the Invoice Date as the real issue date."/>
             </xpath>
 
             <!-- Previous expense info box (shown when a vendor/partner is set) -->

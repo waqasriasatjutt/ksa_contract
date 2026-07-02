@@ -42,6 +42,37 @@ class AccountMoveWay4Tech(models.Model):
         help='Link this invoice to a Client PO for balance tracking.',
     )
 
+    # ── Project + Tags (custom reporting dimensions) ──────────────────────────
+    way4tech_project_id = fields.Many2one(
+        'way4tech.project',
+        string='Project',
+        tracking=True,
+        index=True,
+        help='Project this entry belongs to. Managed in Configuration → Projects.',
+    )
+    way4tech_tag_ids = fields.Many2many(
+        'way4tech.tag',
+        'way4tech_move_tag_rel', 'move_id', 'tag_id',
+        string='Tags',
+        help='Free tags for filtering/reporting. Managed in Configuration → Tags.',
+    )
+
+    # ── Invoice Month (auto from Accounting Date) ─────────────────────────────
+    way4tech_inv_month = fields.Char(
+        string='INV Month',
+        compute='_compute_way4tech_inv_month',
+        store=True,
+        index=True,
+        help='Accounting month (e.g. Jan-2026) derived from the Accounting Date — '
+             'so revenue is grouped in the correct P&L period even when the '
+             'invoice is issued in a later month.',
+    )
+
+    @api.depends('date')
+    def _compute_way4tech_inv_month(self):
+        for rec in self:
+            rec.way4tech_inv_month = rec.date.strftime('%b-%Y') if rec.date else False
+
     # ── Approval Workflow ─────────────────────────────────────────────────────
     way4tech_approval_state = fields.Selection([
         ('na', 'N/A'),
