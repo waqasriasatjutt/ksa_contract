@@ -117,11 +117,6 @@
 
     <!-- ── BRD v2 new models ── -->
 
-    <record id="rule_entry_category_company" model="ir.rule">
-        <field name="name">Entry Category: multi-company</field>
-        <field name="model_id" ref="model_way4tech_entry_category"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
 
     <record id="rule_installment_schedule_company" model="ir.rule">
         <field name="name">Installment Schedule: multi-company</field>
