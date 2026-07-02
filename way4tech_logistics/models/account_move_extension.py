@@ -71,7 +71,30 @@ class AccountMoveWay4Tech(models.Model):
     @api.depends('date')
     def _compute_way4tech_inv_month(self):
         for rec in self:
-            rec.way4tech_inv_month = rec.date.strftime('%b-%Y') if rec.date else False
+            # e.g. "02 Jul 2026" — day, month and year from the Accounting Date
+            rec.way4tech_inv_month = rec.date.strftime('%d %b %Y') if rec.date else False
+
+    def _compute_date(self):
+        """Keep a manually-picked Accounting Date on DRAFT invoices instead of
+        letting it snap back to the Invoice Date.
+
+        Odoo core computes `date` from `invoice_date` (@api.depends), so
+        changing the Invoice Date overwrote the accounting date the user set.
+        The client needs the accounting period independent of the document
+        date (timesheets arrive late -> invoice issued next month but revenue
+        belongs to the prior month). Once a DRAFT invoice already has an
+        accounting date, keep it; Odoo still seeds it on creation and still
+        handles posted moves and journal entries normally.
+        """
+        keep = self.filtered(
+            lambda m: m.state == 'draft' and m.date
+            and m.is_invoice(include_receipts=True)
+        )
+        for move in keep:
+            move.date = move.date  # re-assert (satisfies the compute engine)
+        rest = self - keep
+        if rest:
+            super(AccountMoveWay4Tech, rest)._compute_date()
 
     # ── Approval Workflow ─────────────────────────────────────────────────────
     way4tech_approval_state = fields.Selection([
