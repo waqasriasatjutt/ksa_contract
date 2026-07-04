@@ -165,22 +165,13 @@ class AccountMoveWay4Tech(models.Model):
             )
         )
 
-        # Check if categories are configured at all
-        _categories_exist = bool(self.env['way4tech.entry.category'].sudo().search(
-            [], limit=1
-        ))
-
         for move in self:
-            # 1. Mandatory category — block posting without a category
-            #    Only enforce when categories are configured (feature active).
-            #    Skip for non-logistics users (system, cron, other modules).
-            if _categories_exist and is_logistics_user and not move.way4tech_category_id:
-                raise UserError(_(
-                    'Entry Category is required before posting.\n\n'
-                    'Please select a category from the "Entry Category" field.'
-                ))
+            # Entry Category is OPTIONAL (client decision) - it never
+            # blocks posting; used only for classification / reporting.
+            # This also stops it breaking moves posted by wizards,
+            # payments, bank reconciliation and other modules.
 
-            # 2. Approval threshold (non-managers only, not already approved)
+            # Approval threshold (non-managers only, not already approved)
             if (is_logistics_user and not is_manager
                     and move.way4tech_approval_state not in ('approved',)
                     and move.amount_total > threshold):
