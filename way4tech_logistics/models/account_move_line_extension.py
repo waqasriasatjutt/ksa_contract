@@ -25,16 +25,23 @@ from odoo import api, fields, models
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
+    # readonly=False makes these editable ON THE LINE (incl. bulk multi-edit in
+    # the ledger/journal-items list). A stored related m2o with readonly=False
+    # writes straight back to the header (move_id.*); the m2m uses an explicit
+    # inverse. Because the dimension is entry-level, editing any line's value
+    # sets it for the whole journal entry (all its lines stay in sync).
     way4tech_project_id = fields.Many2one(
         related="move_id.way4tech_project_id",
         store=True,
         index=True,
+        readonly=False,
         string="Project",
     )
     way4tech_category_id = fields.Many2one(
         related="move_id.way4tech_category_id",
         store=True,
         index=True,
+        readonly=False,
         string="Entry Category",
     )
     way4tech_tag_ids = fields.Many2many(
@@ -44,10 +51,19 @@ class AccountMoveLine(models.Model):
         column2="tag_id",
         string="Contract Tags",
         compute="_compute_way4tech_line_tags",
+        inverse="_inverse_way4tech_line_tags",
         store=True,
+        readonly=False,
     )
 
     @api.depends("move_id.way4tech_tag_ids")
     def _compute_way4tech_line_tags(self):
         for line in self:
             line.way4tech_tag_ids = line.move_id.way4tech_tag_ids
+
+    def _inverse_way4tech_line_tags(self):
+        """Push a line-level Contract Tags edit up to the journal entry so the
+        whole entry (and its other lines) stays consistent."""
+        for line in self:
+            if line.move_id:
+                line.move_id.way4tech_tag_ids = line.way4tech_tag_ids

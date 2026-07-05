@@ -7,11 +7,16 @@
         <field name="model">account.move.line</field>
         <field name="inherit_id" ref="account.view_move_line_tree"/>
         <field name="arch" type="xml">
+            <!-- Bulk-edit: select rows, edit one Project/Category/Tags cell,
+                 Odoo prompts "update N records" — like native multi-edit. -->
+            <xpath expr="//list" position="attributes">
+                <attribute name="multi_edit">1</attribute>
+            </xpath>
             <xpath expr="//field[@name='account_id']" position="after">
                 <field name="way4tech_project_id" optional="show"/>
                 <field name="way4tech_category_id" optional="show"/>
                 <field name="way4tech_tag_ids" widget="many2many_tags"
-                       options="{'color_field': 'color'}" optional="hide"/>
+                       options="{'color_field': 'color'}" optional="show"/>
             </xpath>
         </field>
     </record>
