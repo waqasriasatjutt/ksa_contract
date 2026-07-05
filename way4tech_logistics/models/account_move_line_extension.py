@@ -42,7 +42,7 @@ class AccountMoveLine(models.Model):
         relation="way4tech_move_line_tag_rel",
         column1="line_id",
         column2="tag_id",
-        string="Tags",
+        string="Contract Tags",
         compute="_compute_way4tech_line_tags",
         store=True,
     )

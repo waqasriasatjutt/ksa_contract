@@ -292,11 +292,11 @@
 
     <menuitem
         id="menu_way4tech_tags"
-        name="Tags"
+        name="Contract Tags"
         parent="menu_way4tech_config"
         action="way4tech_logistics.action_way4tech_tag"
         sequence="24"
-        groups="way4tech_logistics.group_logistics_manager"
+        groups="way4tech_logistics.group_logistics_user"
     />
 
     <menuitem

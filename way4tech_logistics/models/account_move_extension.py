@@ -53,8 +53,9 @@ class AccountMoveWay4Tech(models.Model):
     way4tech_tag_ids = fields.Many2many(
         'way4tech.tag',
         'way4tech_move_tag_rel', 'move_id', 'tag_id',
-        string='Tags',
-        help='Free tags for filtering/reporting. Managed in Configuration → Tags.',
+        string='Contract Tags',
+        help='Free tags for filtering/reporting. Managed in Configuration → '
+             'Contract Tags (users can also create tags on the fly here).',
     )
 
     # ── Invoice Month (auto from Accounting Date) ─────────────────────────────

@@ -52,7 +52,7 @@
                        options="{'no_create': true}"/>
                 <field name="way4tech_project_id" string="Project"
                        options="{'no_quick_create': true}"/>
-                <field name="way4tech_tag_ids" string="Tags"
+                <field name="way4tech_tag_ids" string="Contract Tags"
                        widget="many2many_tags"
                        options="{'color_field': 'color'}"/>
                 <field name="way4tech_inv_month" string="INV Month" readonly="1"
