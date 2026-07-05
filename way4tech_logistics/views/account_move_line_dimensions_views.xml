@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Journal Items list — show the propagated dimensions as columns
+         (users can toggle via the optional-columns picker). -->
+    <record id="view_move_line_tree_way4tech_dims" model="ir.ui.view">
+        <field name="name">account.move.line.tree.way4tech.dimensions</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_move_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='account_id']" position="after">
+                <field name="way4tech_project_id" optional="show"/>
+                <field name="way4tech_category_id" optional="show"/>
+                <field name="way4tech_tag_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Journal Items search — make the dimensions searchable + group-able.
+         This is what powers filtering when drilling from any report into the
+         journal items list. -->
+    <record id="view_account_move_line_filter_way4tech_dims" model="ir.ui.view">
+        <field name="name">account.move.line.search.way4tech.dimensions</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_account_move_line_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="way4tech_project_id"/>
+                <field name="way4tech_category_id"/>
+                <field name="way4tech_tag_ids"/>
+                <separator/>
+                <filter name="groupby_way4tech_project" string="Project"
+                        context="{'group_by': 'way4tech_project_id'}"/>
+                <filter name="groupby_way4tech_category" string="Entry Category"
+                        context="{'group_by': 'way4tech_category_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Journal Item form (drill-in from a report) — show the dimensions. -->
+    <record id="view_move_line_form_way4tech_dims" model="ir.ui.view">
+        <field name="name">account.move.line.form.way4tech.dimensions</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_move_line_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='account_id']" position="after">
+                <field name="way4tech_project_id"/>
+                <field name="way4tech_category_id"/>
+                <field name="way4tech_tag_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
