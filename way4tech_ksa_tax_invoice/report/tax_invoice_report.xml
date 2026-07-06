@@ -10,19 +10,22 @@
                 <t t-set="m" t-value="lambda v: '{:,.2f}'.format(v or 0.0)"/>
                 <div class="ksa-inv">
                     <style>
-                        .ksa-inv { font-family: Arial, 'DejaVu Sans', sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.3; }
+                        .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.5; }
                         .ksa-inv table { border-collapse: collapse; width:100%; }
-                        .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:3px 6px; vertical-align:top; }
+                        .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:5px 8px; vertical-align:middle; }
+                        .ksa-inv td:empty:after { content:"\00a0"; }
                         .ksa-red { color:#8a1c1c; }
                         .ksa-b { font-weight:bold; }
-                        .ksa-ar { direction:rtl; text-align:right; }
-                        .ksa-title { background:#8a1c1c; color:#fff; text-align:center; font-size:14px; font-weight:bold; letter-spacing:5px; padding:7px; }
-                        .ksa-sec { background:#f4e9e9; color:#8a1c1c; font-weight:bold; border:1px solid #8a1c1c; padding:4px 7px; font-size:9px; }
+                        .ksa-ar { direction:rtl; text-align:right; letter-spacing:normal; }
+                        .ksa-title { background:#8a1c1c; color:#fff; text-align:center; font-size:15px; font-weight:bold; padding:10px 8px; }
+                        .ksa-title .en { letter-spacing:2px; }
+                        .ksa-title .ar { margin-left:22px; }
+                        .ksa-sec { background:#f4e9e9; color:#8a1c1c; font-weight:bold; border:1px solid #8a1c1c; padding:8px 10px; font-size:10px; line-height:1.4; overflow:hidden; }
                         .ksa-inv .lbl { color:#8a1c1c; font-weight:bold; white-space:nowrap; }
-                        .ksa-inv .noborder td { border:0; }
-                        .ksa-th { background:#8a1c1c; color:#fff; font-weight:bold; text-align:center; font-size:7.5px; letter-spacing:.3px; }
-                        .ksa-lines td { padding:7px 6px; vertical-align:middle; }
-                        .ksa-lines th { padding:6px 6px; }
+                        .ksa-inv .noborder td { border:0; padding:3px 4px; }
+                        .ksa-th { background:#8a1c1c; color:#fff; font-weight:bold; text-align:center; font-size:7.5px; line-height:1.4; }
+                        .ksa-lines td { padding:9px 8px; vertical-align:middle; }
+                        .ksa-lines th { padding:8px 7px; }
                         .ksa-lines tr.zebra td { background:#faf6f6; }
                         .ksa-right { text-align:right; }
                         .ksa-center { text-align:center; }
@@ -46,7 +49,7 @@
                     </table>
 
                     <!-- ══ TITLE ══ -->
-                    <div class="ksa-title">T A X &#160; I N V O I C E &#160;&#160; فاتورة ضريبية</div>
+                    <div class="ksa-title"><span class="en">TAX&#160;&#160;INVOICE</span><span class="ar">فاتورة ضريبية</span></div>
 
                     <!-- ══ INVOICE NO ══ -->
                     <table style="margin-top:3px;"><tr>
