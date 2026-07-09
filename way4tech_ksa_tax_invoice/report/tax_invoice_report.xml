@@ -10,7 +10,16 @@
                 <t t-set="m" t-value="lambda v: '{:,.2f}'.format(v or 0.0)"/>
                 <div class="ksa-inv">
                     <style>
-                        .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.5; }
+                        /* Sticky-to-bottom footer group: on a short invoice (1–2 line items),
+                           the payee/bank + address block would otherwise float mid-page and
+                           leave a huge blank strip at the bottom. The flex-column + min-height
+                           on .ksa-inv, combined with margin-top:auto on .ksa-footer-group,
+                           pushes that block to the page bottom when there's spare room and
+                           lets it flow naturally when the line table fills the page.
+                           A4 usable height ≈ 27cm after paperformat margins. */
+                        .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.5;
+                                   display:flex; flex-direction:column; min-height:26.5cm; }
+                        .ksa-footer-group { margin-top:auto; }
                         .ksa-inv table { border-collapse: collapse; width:100%; }
                         .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:5px 8px; vertical-align:middle; height:16px; }
                         .ksa-inv td:empty:after { content:"\00a0"; white-space:pre; }
@@ -155,30 +164,37 @@
 
                     <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
 
-                    <!-- ══ PAYEE / BANK ══ -->
-                    <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
-                    <table style="text-align:center;">
-                        <tr>
-                            <th class="ksa-th">Account Number<div class="ksa-ar">رقم الحساب</div></th>
-                            <th class="ksa-th">Bank<div class="ksa-ar">المصرف</div></th>
-                            <th class="ksa-th">Branch<div class="ksa-ar">فرع</div></th>
-                            <th class="ksa-th">IBAN<div class="ksa-ar">رقم الآيبان</div></th>
-                            <th class="ksa-th">Swift<div class="ksa-ar">رقم السويفت</div></th>
-                        </tr>
-                        <tr>
-                            <td t-esc="bank.acc_number or ''"/>
-                            <td t-esc="bank.bank_id.name or ''"/>
-                            <td t-esc="bank.bank_id.city or ''"/>
-                            <td t-esc="bank.acc_number or ''"/>
-                            <td t-esc="bank.bank_id.bic or ''"/>
-                        </tr>
-                    </table>
+                    <!-- ══ FOOTER GROUP ══ payee/bank + address strip.
+                         Wrapped in .ksa-footer-group so margin-top:auto pushes it to
+                         the bottom of the A4 page when items are few (no more huge
+                         blank strip below), and lets it flow naturally when items
+                         push it there anyway. -->
+                    <div class="ksa-footer-group">
+                        <!-- ══ PAYEE / BANK ══ -->
+                        <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
+                        <table style="text-align:center;">
+                            <tr>
+                                <th class="ksa-th">Account Number<div class="ksa-ar">رقم الحساب</div></th>
+                                <th class="ksa-th">Bank<div class="ksa-ar">المصرف</div></th>
+                                <th class="ksa-th">Branch<div class="ksa-ar">فرع</div></th>
+                                <th class="ksa-th">IBAN<div class="ksa-ar">رقم الآيبان</div></th>
+                                <th class="ksa-th">Swift<div class="ksa-ar">رقم السويفت</div></th>
+                            </tr>
+                            <tr>
+                                <td t-esc="bank.acc_number or ''"/>
+                                <td t-esc="bank.bank_id.name or ''"/>
+                                <td t-esc="bank.bank_id.city or ''"/>
+                                <td t-esc="bank.acc_number or ''"/>
+                                <td t-esc="bank.bank_id.bic or ''"/>
+                            </tr>
+                        </table>
 
-                    <!-- ══ FOOTER ══ -->
-                    <div style="margin-top:6px; border-top:2px solid #8a1c1c; padding-top:3px; text-align:center; color:#555;">
-                        <span t-esc="cp.street or ''"/> <span t-esc="cp.city or ''"/> <span t-esc="cp.country_id.name or ''"/>
-                        <t t-if="company.email"> &#160;|&#160; <span t-esc="company.email"/></t>
-                        <t t-if="company.website"> &#160;|&#160; <span t-esc="company.website"/></t>
+                        <!-- ══ FOOTER ══ -->
+                        <div style="margin-top:6px; border-top:2px solid #8a1c1c; padding-top:3px; text-align:center; color:#555;">
+                            <span t-esc="cp.street or ''"/> <span t-esc="cp.city or ''"/> <span t-esc="cp.country_id.name or ''"/>
+                            <t t-if="company.email"> &#160;|&#160; <span t-esc="company.email"/></t>
+                            <t t-if="company.website"> &#160;|&#160; <span t-esc="company.website"/></t>
+                        </div>
                     </div>
                 </div>
             </t>
