@@ -10,16 +10,15 @@
                 <t t-set="m" t-value="lambda v: '{:,.2f}'.format(v or 0.0)"/>
                 <div class="ksa-inv">
                     <style>
-                        /* Sticky-to-bottom footer group: on a short invoice (1–2 line items),
-                           the payee/bank + address block would otherwise float mid-page and
-                           leave a huge blank strip at the bottom. The flex-column + min-height
-                           on .ksa-inv, combined with margin-top:auto on .ksa-footer-group,
-                           pushes that block to the page bottom when there's spare room and
-                           lets it flow naturally when the line table fills the page.
-                           A4 usable height ≈ 27cm after paperformat margins. */
-                        .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.5;
-                                   display:flex; flex-direction:column; min-height:26.5cm; }
-                        .ksa-footer-group { margin-top:auto; }
+                        .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.5; }
+                        /* Sticky-to-bottom footer: on a short invoice the payee/bank block
+                           would otherwise sit mid-page. A two-row table with fixed height +
+                           vertical-align top/bottom is the wkhtmltopdf-safe pattern (its
+                           WebKit ignores flex margin-top:auto). */
+                        .ksa-inv table.ksa-sticky { height:25cm; }
+                        .ksa-inv table.ksa-sticky > tbody > tr > td { border:0; padding:0; height:auto; }
+                        .ksa-inv table.ksa-sticky > tbody > tr > td.ksa-body { vertical-align:top; }
+                        .ksa-inv table.ksa-sticky > tbody > tr > td.ksa-foot { vertical-align:bottom; }
                         .ksa-inv table { border-collapse: collapse; width:100%; }
                         .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:5px 8px; vertical-align:middle; height:16px; }
                         .ksa-inv td:empty:after { content:"\00a0"; white-space:pre; }
@@ -39,6 +38,8 @@
                         .ksa-right { text-align:right; }
                         .ksa-center { text-align:center; }
                     </style>
+
+                    <table class="ksa-sticky"><tr><td class="ksa-body">
 
                     <!-- ══ HEADER ══ -->
                     <table class="noborder" style="margin-bottom:4px;">
@@ -164,11 +165,8 @@
 
                     <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
 
-                    <!-- ══ FOOTER GROUP ══ payee/bank + address strip.
-                         Wrapped in .ksa-footer-group so margin-top:auto pushes it to
-                         the bottom of the A4 page when items are few (no more huge
-                         blank strip below), and lets it flow naturally when items
-                         push it there anyway. -->
+                    </td></tr><tr><td class="ksa-foot">
+
                     <div class="ksa-footer-group">
                         <!-- ══ PAYEE / BANK ══ -->
                         <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>

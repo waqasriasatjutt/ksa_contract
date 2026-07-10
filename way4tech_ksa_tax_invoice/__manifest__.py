@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'KSA Bilingual Tax Invoice (Al Zain format)',
-    'version': '19.0.1.0.3',
+    'version': '19.0.1.0.4',
     'category': 'Accounting',
     'summary': 'Bilingual Arabic/English ZATCA-style Tax Invoice PDF matching '
                'the Al Zain Tower layout (seller/buyer grids, bilingual line '
