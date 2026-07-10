@@ -194,6 +194,8 @@
                             <t t-if="company.website"> &#160;|&#160; <span t-esc="company.website"/></t>
                         </div>
                     </div>
+
+                    </td></tr></table>
                 </div>
             </t>
         </t>
