@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="paperformat_ksa_tax_invoice" model="report.paperformat">
-        <field name="name">KSA Tax Invoice A4</field>
+        <field name="name">ATCO A4 (KSA Letterhead)</field>
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
-        <field name="margin_top">6</field>
-        <field name="margin_bottom">14</field>
-        <field name="margin_left">6</field>
-        <field name="margin_right">6</field>
+        <field name="margin_top">52</field>
+        <field name="margin_bottom">30</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
         <field name="header_line" eval="False"/>
-        <field name="header_spacing">6</field>
-        <field name="dpi">96</field>
+        <field name="header_spacing">5</field>
+        <field name="dpi">90</field>
     </record>
 </odoo>

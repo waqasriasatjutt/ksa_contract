@@ -1,44 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <template id="external_layout_atco" name="KSA Bilingual Letterhead (ATCO)">
+
+    <template id="external_layout_atco">
         <t t-set="cp" t-value="company.partner_id"/>
         <t t-set="name_ar" t-value="company.x_name_ar or company.name"/>
         <t t-set="ar_digits" t-value="lambda s: (s or '').replace('0','٠').replace('1','١').replace('2','٢').replace('3','٣').replace('4','٤').replace('5','٥').replace('6','٦').replace('7','٧').replace('8','٨').replace('9','٩')"/>
 
         <div t-attf-class="header o_company_#{company.id}_layout">
-            <style>
-                .atco-h { font-family:'DejaVu Sans',Arial,sans-serif; color:#1a1a1a; width:100%; padding-bottom:6px; }
-                .atco-h table.h { width:100%; border-collapse:collapse; }
-                .atco-h table.h td { border:0; padding:0; vertical-align:middle; }
-                .atco-h .name-en { font-size:17px; font-weight:bold; color:#111; display:inline-block; border-bottom:5px solid #8a1c1c; padding:2px 6px 2px 0; }
-                .atco-h .name-ar { font-size:17px; font-weight:bold; color:#111; display:inline-block; border-bottom:5px solid #8a1c1c; padding:2px 0 2px 6px; direction:rtl; }
-                .atco-h .meta { font-size:11px; margin-top:4px; line-height:1.5; }
-                .atco-h .meta-ar { font-size:11px; margin-top:4px; line-height:1.5; direction:rtl; text-align:right; }
-                .atco-h .logo img { max-height:70px; max-width:100%; }
+            <style type="text/css">
+                .atco-hdr {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    font-family: 'Helvetica', 'Arial', sans-serif;
+                    color: #1a1a1a;
+                    background: #ffffff;
+                }
+                .atco-hdr td {
+                    vertical-align: top;
+                    padding: 22px 0 18px 0;
+                    background: #ffffff;
+                }
+                .atco-hdr .atco-col-left {
+                    width: 38%;
+                    padding-left: 42px;
+                    padding-right: 16px;
+                    text-align: left;
+                }
+                .atco-hdr .atco-col-center {
+                    width: 24%;
+                    text-align: center;
+                    vertical-align: middle;
+                    padding-top: 22px;
+                    padding-bottom: 18px;
+                }
+                .atco-hdr .atco-col-right {
+                    width: 38%;
+                    padding-left: 16px;
+                    padding-right: 42px;
+                    text-align: right;
+                    direction: rtl;
+                    unicode-bidi: embed;
+                }
+                .atco-hdr .atco-name {
+                    font-size: 28px;
+                    font-weight: bold;
+                    color: #111111;
+                    letter-spacing: -0.2px;
+                    line-height: 1.15;
+                    margin: 0;
+                    padding: 0;
+                }
+                .atco-hdr .atco-name-ar {
+                    font-size: 28px;
+                    font-weight: bold;
+                    color: #111111;
+                    line-height: 1.25;
+                    margin: 0;
+                    padding: 0;
+                    direction: rtl;
+                    unicode-bidi: embed;
+                    font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
+                }
+                .atco-hdr .atco-bar {
+                    display: block;
+                    height: 5px;
+                    width: 70%;
+                    background-color: #8a1c1c;
+                    margin: 8px 0 0 0;
+                    padding: 0;
+                    font-size: 0;
+                    line-height: 0;
+                    overflow: hidden;
+                }
+                .atco-hdr .atco-bar-right {
+                    margin-left: 30%;
+                    margin-right: 0;
+                }
+                .atco-hdr .atco-meta {
+                    margin-top: 16px;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    color: #333333;
+                }
+                .atco-hdr .atco-meta-ar {
+                    direction: rtl;
+                    unicode-bidi: embed;
+                    text-align: right;
+                    font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
+                }
+                .atco-hdr .atco-meta div {
+                    margin: 0;
+                    padding: 0;
+                }
+                .atco-hdr .atco-lbl {
+                    font-weight: bold;
+                    color: #1a1a1a;
+                }
+                .atco-hdr .atco-logo {
+                    max-height: 120px;
+                    max-width: 130px;
+                    height: auto;
+                    width: auto;
+                    display: inline-block;
+                    vertical-align: middle;
+                }
+                .atco-sep {
+                    border: 0;
+                    border-top: 1px solid #111111;
+                    height: 0;
+                    margin: 16px 0 0 0;
+                    padding: 0;
+                    width: 100%;
+                    font-size: 0;
+                    line-height: 0;
+                }
             </style>
-            <div class="atco-h">
-                <table class="h">
-                    <tr>
-                        <td style="width:38%; text-align:left;">
-                            <div class="name-en" t-esc="company.name"/>
-                            <div class="meta">
-                                <div><b>Vat No.:</b> <span t-esc="cp.vat or ''"/></div>
-                                <div><b>C.R.</b> <span t-esc="cp.company_registry or ''"/></div>
-                            </div>
-                        </td>
-                        <td class="logo" style="width:24%; text-align:center;">
-                            <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="logo"/>
-                        </td>
-                        <td style="width:38%; text-align:right;">
-                            <div class="name-ar" t-esc="name_ar"/>
-                            <div class="meta-ar">
-                                <div>الرقم الضريبي : <span t-esc="ar_digits(cp.vat or '')"/></div>
-                                <div>س.ت : <span t-esc="ar_digits(cp.company_registry or '')"/></div>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-            </div>
+
+            <table class="atco-hdr" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="atco-col-left">
+                        <div class="atco-name"><span t-esc="company.name"/></div>
+                        <div class="atco-bar">&#160;</div>
+                        <div class="atco-meta">
+                            <div><span class="atco-lbl">Vat No. :</span> <span t-esc="cp.vat or ''"/></div>
+                            <div><span class="atco-lbl">C.R.</span> <span t-esc="cp.company_registry or ''"/></div>
+                        </div>
+                    </td>
+                    <td class="atco-col-center">
+                        <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="logo" class="atco-logo"/>
+                    </td>
+                    <td class="atco-col-right">
+                        <div class="atco-name-ar"><span t-esc="name_ar"/></div>
+                        <div class="atco-bar atco-bar-right">&#160;</div>
+                        <div class="atco-meta atco-meta-ar">
+                            <div><span class="atco-lbl">الرقم الضريبي :</span> <span t-esc="ar_digits(cp.vat or '')"/></div>
+                            <div><span class="atco-lbl">س.ت :</span> <span t-esc="ar_digits(cp.company_registry or '')"/></div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            <div class="atco-sep"></div>
         </div>
 
         <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
@@ -51,43 +153,146 @@
         </div>
 
         <div t-attf-class="footer o_company_#{company.id}_layout">
-            <style>
-                .atco-f { font-family:'DejaVu Sans',Arial,sans-serif; color:#333; font-size:10px; width:100%; padding-top:4px; }
-                .atco-f table.f { width:100%; border-collapse:collapse; }
-                .atco-f table.f td { border:0; padding:0; vertical-align:middle; }
-                .atco-f .aramco img { max-height:36px; max-width:120px; }
-                .atco-f .vc { font-size:10px; color:#333; margin-top:2px; }
-                .atco-f .page-no { font-size:9px; color:#888; text-align:center; margin-top:2px; }
+            <style type="text/css">
+                .atco-ftr-sep {
+                    border: 0;
+                    border-top: 1px solid #111111;
+                    height: 0;
+                    margin: 0 0 14px 0;
+                    padding: 0;
+                    width: 100%;
+                    font-size: 0;
+                    line-height: 0;
+                }
+                .atco-ftr {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    font-family: 'Helvetica', 'Arial', sans-serif;
+                    color: #1a1a1a;
+                    background: #ffffff;
+                }
+                .atco-ftr td {
+                    vertical-align: top;
+                    padding: 0;
+                    background: #ffffff;
+                }
+                .atco-ftr .atco-ftr-left {
+                    width: 40%;
+                    padding-left: 42px;
+                    padding-right: 14px;
+                    text-align: left;
+                    font-size: 14px;
+                    line-height: 1.55;
+                }
+                .atco-ftr .atco-ftr-center {
+                    width: 30%;
+                    text-align: center;
+                    font-size: 14px;
+                    line-height: 1.55;
+                    vertical-align: middle;
+                }
+                .atco-ftr .atco-ftr-right {
+                    width: 30%;
+                    padding-left: 14px;
+                    padding-right: 42px;
+                    text-align: right;
+                    font-size: 13px;
+                    line-height: 1.35;
+                }
+                .atco-ftr .atco-ico {
+                    color: #8a1c1c;
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-right: 4px;
+                }
+                .atco-ftr .atco-ftr-l1 {
+                    font-weight: bold;
+                    color: #111111;
+                }
+                .atco-ftr .atco-ftr-l2 {
+                    color: #333333;
+                    font-size: 13px;
+                    padding-left: 18px;
+                }
+                .atco-ftr .atco-mail {
+                    font-weight: 600;
+                    color: #111111;
+                }
+                .atco-aramco-chip {
+                    display: inline-block;
+                    padding: 4px 8px;
+                    border: 1px solid #e2e2e2;
+                    border-radius: 3px;
+                    background: #ffffff;
+                }
+                .atco-aramco-logo {
+                    max-height: 34px;
+                    height: auto;
+                    width: auto;
+                    max-width: 110px;
+                    display: block;
+                    margin: 0 0 0 auto;
+                }
+                .atco-vendor {
+                    font-weight: bold;
+                    color: #111111;
+                    font-size: 13px;
+                    margin-top: 3px;
+                }
+                .atco-ftr-bottom {
+                    height: 10px;
+                    line-height: 10px;
+                    font-size: 1px;
+                }
+                .atco-pgnum {
+                    text-align: center;
+                    font-size: 11px;
+                    color: #777777;
+                    padding-top: 6px;
+                    font-family: 'Helvetica', 'Arial', sans-serif;
+                }
             </style>
-            <div class="atco-f">
-                <table class="f">
-                    <tr>
-                        <td style="width:40%; text-align:left;">
-                            <t t-if="cp.zip or cp.city">
-                                <span style="color:#8a1c1c;">&#9679;</span> <b>P.O. Box <t t-esc="cp.zip or ''"/></b> <t t-esc="cp.city or ''"/>
-                            </t>
-                            <div t-if="cp.country_id"><t t-esc="cp.country_id.name"/></div>
-                        </td>
-                        <td style="width:30%; text-align:center;">
-                            <t t-if="company.email">
-                                <span style="color:#8a1c1c;">&#9993;</span> <span t-esc="company.email"/>
-                            </t>
-                        </td>
-                        <td class="aramco" style="width:30%; text-align:right;">
-                            <img t-if="company.x_aramco_logo" t-att-src="image_data_uri(company.x_aramco_logo)" alt="aramco"/>
-                            <div class="vc" t-if="company.x_aramco_vendor_code">
-                                <b>Vendor Code </b><span t-esc="company.x_aramco_vendor_code"/>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-                <div t-if="report_type == 'pdf'" class="page-no">Page <span class="page"/> / <span class="topage"/></div>
+
+            <div class="atco-ftr-sep"></div>
+            <table class="atco-ftr" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="atco-ftr-left">
+                        <div class="atco-ftr-l1">
+                            <span class="atco-ico">&#9679;</span>
+                            P.O. Box <span t-esc="cp.zip or ''"/> <span t-esc="cp.city or ''"/>
+                        </div>
+                        <div class="atco-ftr-l2" t-if="cp.country_id">
+                            <span t-esc="cp.country_id.name"/>
+                        </div>
+                    </td>
+                    <td class="atco-ftr-center">
+                        <span t-if="company.email">
+                            <span class="atco-ico">&#9993;</span>
+                            <span class="atco-mail"><span t-esc="company.email"/></span>
+                        </span>
+                    </td>
+                    <td class="atco-ftr-right">
+                        <span class="atco-aramco-chip" t-if="company.x_aramco_logo">
+                            <img t-att-src="image_data_uri(company.x_aramco_logo)" alt="aramco" class="atco-aramco-logo"/>
+                        </span>
+                        <div class="atco-vendor" t-if="company.x_aramco_vendor_code">
+                            Vendor Code <span t-esc="company.x_aramco_vendor_code"/>
+                        </div>
+                    </td>
+                </tr>
+                <tr><td colspan="3" class="atco-ftr-bottom"></td></tr>
+            </table>
+            <div class="atco-pgnum">
+                Page <span class="page"/> of <span class="topage"/>
             </div>
         </div>
     </template>
 
     <record id="report_layout_atco" model="report.layout">
         <field name="view_id" ref="external_layout_atco"/>
-        <field name="name">KSA Bilingual (ATCO)</field>
+        <field name="name">ATCO Bilingual Letterhead</field>
+        <field name="sequence">10</field>
     </record>
+
 </odoo>
