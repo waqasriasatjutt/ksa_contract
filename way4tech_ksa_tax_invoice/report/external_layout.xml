@@ -58,7 +58,7 @@
                    the only bar style that renders reliably in wkhtmltopdf 0.12. */
                 .atco-hdr .atco-name {
                     display: inline-block;
-                    font-size: 21px;
+                    font-size: 18px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.2;
@@ -68,7 +68,7 @@
                 }
                 .atco-hdr .atco-name-ar {
                     display: inline-block;
-                    font-size: 21px;
+                    font-size: 18px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.25;
@@ -80,9 +80,9 @@
                     font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
                 }
                 .atco-hdr .atco-meta {
-                    margin-top: 10px;
-                    font-size: 13px;
-                    line-height: 1.55;
+                    margin-top: 5px;
+                    font-size: 11px;
+                    line-height: 1.4;
                     color: #333333;
                 }
                 .atco-hdr .atco-meta-ar {
@@ -109,7 +109,7 @@
                     display: block;
                     border-top: 1.2px solid #111111 !important;
                     height: 0;
-                    margin: 6px 0 0 0;
+                    margin: 3px 0 0 0;
                     padding: 0;
                     width: 100%;
                     font-size: 0;
