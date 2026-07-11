@@ -65,9 +65,8 @@
                         <td style="width:40%; text-align:left;">
                             <t t-if="cp.zip or cp.city">
                                 <span style="color:#8a1c1c;">&#9679;</span> <b>P.O. Box <t t-esc="cp.zip or ''"/></b> <t t-esc="cp.city or ''"/>
-                                <t t-if="cp.zip"> <t t-esc="cp.zip or ''"/></t>
                             </t>
-                            <div t-if="cp.country_id">Kingdom of <span t-esc="cp.country_id.name"/></div>
+                            <div t-if="cp.country_id"><t t-esc="cp.country_id.name"/></div>
                         </td>
                         <td style="width:30%; text-align:center;">
                             <t t-if="company.email">
