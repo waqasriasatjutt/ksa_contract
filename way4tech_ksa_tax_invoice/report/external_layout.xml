@@ -6,17 +6,14 @@
         <t t-set="name_ar" t-value="company.x_name_ar or company.name"/>
         <t t-set="ar_digits" t-value="lambda s: (s or '').replace('0','٠').replace('1','١').replace('2','٢').replace('3','٣').replace('4','٤').replace('5','٥').replace('6','٦').replace('7','٧').replace('8','٨').replace('9','٩')"/>
 
-        <div t-attf-class="header o_company_#{company.id}_layout">
+        <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
             <style type="text/css">
-                /* Kill wkhtmltopdf webkit default body margin so the header
-                   content sits flush at the top of the page. */
-                html, body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                /* Kill Odoo report bundle inherited borders on TABLE CELLS ONLY.
-                   Do NOT use a universal * selector here — it wipes the
-                   border-bottom red bar on .atco-name. */
+                /* ATCO letterhead rendered INLINE at the top of the body
+                   (page 1 only) — bypasses wkhtmltopdf's --header-html slot
+                   entirely so paperformat margin_top can be near-zero. */
                 table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
@@ -28,7 +25,7 @@
                     table-layout: fixed;
                     font-family: 'Helvetica', 'Arial', sans-serif;
                     color: #1a1a1a;
-                    margin: 0;
+                    margin: 0 0 4px 0;
                     padding: 0;
                 }
                 .atco-hdr td {
@@ -37,7 +34,7 @@
                 }
                 .atco-hdr .atco-col-left {
                     width: 40%;
-                    padding-left: 30px;
+                    padding-left: 0;
                     padding-right: 10px;
                     text-align: left;
                 }
@@ -49,16 +46,14 @@
                 .atco-hdr .atco-col-right {
                     width: 40%;
                     padding-left: 10px;
-                    padding-right: 30px;
+                    padding-right: 0;
                     text-align: right;
                     direction: rtl;
                     unicode-bidi: embed;
                 }
-                /* Company name + red underline in ONE element — border-bottom is
-                   the only bar style that renders reliably in wkhtmltopdf 0.12. */
                 .atco-hdr .atco-name {
                     display: inline-block;
-                    font-size: 18px;
+                    font-size: 20px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.2;
@@ -68,7 +63,7 @@
                 }
                 .atco-hdr .atco-name-ar {
                     display: inline-block;
-                    font-size: 18px;
+                    font-size: 20px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.25;
@@ -80,9 +75,9 @@
                     font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
                 }
                 .atco-hdr .atco-meta {
-                    margin-top: 5px;
-                    font-size: 11px;
-                    line-height: 1.4;
+                    margin-top: 6px;
+                    font-size: 12px;
+                    line-height: 1.5;
                     color: #333333;
                 }
                 .atco-hdr .atco-meta-ar {
@@ -92,10 +87,7 @@
                     font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
                 }
                 .atco-hdr .atco-meta div { margin: 0; padding: 0; }
-                .atco-hdr .atco-lbl {
-                    font-weight: bold;
-                    color: #1a1a1a;
-                }
+                .atco-hdr .atco-lbl { font-weight: bold; color: #1a1a1a; }
                 .atco-hdr .atco-logo {
                     max-height: 110px;
                     max-width: 140px;
@@ -104,12 +96,11 @@
                     display: inline-block;
                     vertical-align: middle;
                 }
-                /* Thin black rule under the whole header. */
                 .atco-sep {
                     display: block;
                     border-top: 1.2px solid #111111 !important;
                     height: 0;
-                    margin: 3px 0 0 0;
+                    margin: 3px 0 8px 0;
                     padding: 0;
                     width: 100%;
                     font-size: 0;
@@ -117,6 +108,7 @@
                 }
             </style>
 
+            <!-- Letterhead top block (inline in body — appears at very top of page 1) -->
             <table class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                     <td class="atco-col-left">
@@ -139,12 +131,7 @@
                 </tr>
             </table>
             <div class="atco-sep"></div>
-        </div>
 
-        <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
-             t-att-data-oe-model="o and o._name"
-             t-att-data-oe-id="o and o.id"
-             t-att-data-oe-lang="o and o.env.context.get('lang')">
             <t t-if="not disable_atco_address_layout" t-call="web.address_layout"/>
             <h2 t-if="layout_document_title" t-out="layout_document_title"/>
             <t t-out="0"/>
@@ -152,7 +139,6 @@
 
         <div t-attf-class="footer o_company_#{company.id}_layout">
             <style type="text/css">
-                /* Kill inherited borders on footer TABLE CELLS ONLY. */
                 table.atco-ftr, table.atco-ftr > tbody > tr, table.atco-ftr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
@@ -177,71 +163,58 @@
                     margin: 0;
                     padding: 0;
                 }
-                .atco-ftr td {
-                    vertical-align: top;
-                    padding: 0;
-                }
+                .atco-ftr td { vertical-align: top; padding: 0; }
                 .atco-ftr .atco-ftr-left {
                     width: 40%;
-                    padding-left: 28px;
+                    padding-left: 20px;
                     padding-right: 12px;
                     text-align: left;
-                    font-size: 13px;
+                    font-size: 12px;
                     line-height: 1.5;
                 }
                 .atco-ftr .atco-ftr-center {
                     width: 30%;
                     text-align: center;
-                    font-size: 13px;
+                    font-size: 12px;
                     line-height: 1.5;
                     vertical-align: middle;
                 }
                 .atco-ftr .atco-ftr-right {
                     width: 30%;
                     padding-left: 12px;
-                    padding-right: 28px;
+                    padding-right: 20px;
                     text-align: right;
-                    font-size: 12.5px;
+                    font-size: 11.5px;
                     line-height: 1.35;
                 }
                 .atco-ftr .atco-ico {
                     color: #8a1c1c;
-                    font-size: 13px;
+                    font-size: 12px;
                     font-weight: bold;
                     margin-right: 4px;
                 }
-                .atco-ftr .atco-ftr-l1 {
-                    font-weight: bold;
-                    color: #111111;
-                }
-                .atco-ftr .atco-ftr-l2 {
-                    color: #333333;
-                    font-size: 12.5px;
-                    padding-left: 15px;
-                }
-                .atco-ftr .atco-mail {
-                    font-weight: bold;
-                    color: #111111;
-                }
+                .atco-ftr .atco-ftr-l1 { font-weight: bold; color: #111111; }
+                .atco-ftr .atco-ftr-l2 { color: #333333; font-size: 11.5px; padding-left: 14px; }
+                .atco-ftr .atco-mail { font-weight: bold; color: #111111; }
                 .atco-aramco-logo {
-                    max-height: 32px;
+                    max-height: 30px;
                     height: auto;
                     width: auto;
-                    max-width: 110px;
+                    max-width: 100px;
                     display: block;
                     margin: 0 0 0 auto;
                 }
                 .atco-vendor {
                     font-weight: bold;
                     color: #111111;
-                    font-size: 12.5px;
+                    font-size: 11.5px;
                     margin-top: 2px;
                 }
                 .atco-pgnum {
                     text-align: center;
-                    font-size: 10px;
+                    font-size: 9.5px;
                     color: #777777;
-                    padding-top: 4px;
+                    padding-top: 3px;
                     font-family: 'Helvetica', 'Arial', sans-serif;
                 }
             </style>
