@@ -5,6 +5,8 @@
             <t t-foreach="docs" t-as="o">
                 <t t-set="doc" t-value="o"/>
                 <t t-set="company" t-value="o.company_id"/>
+                <t t-set="disable_atco_address_layout" t-value="True"/>
+                <t t-set="layout_document_title" t-value="''"/>
                 <t t-call="web.external_layout">
                     <t t-set="cp" t-value="company.partner_id"/>
                     <t t-set="bp" t-value="o.partner_id"/>
