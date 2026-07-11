@@ -27,23 +27,23 @@
                 }
                 .atco-hdr td {
                     vertical-align: top;
-                    padding: 6px 0 4px 0;
+                    padding: 10px 0 8px 0;
                 }
                 .atco-hdr .atco-col-left {
-                    width: 42%;
-                    padding-left: 28px;
+                    width: 40%;
+                    padding-left: 30px;
                     padding-right: 10px;
                     text-align: left;
                 }
                 .atco-hdr .atco-col-center {
-                    width: 16%;
+                    width: 20%;
                     text-align: center;
                     vertical-align: middle;
                 }
                 .atco-hdr .atco-col-right {
-                    width: 42%;
+                    width: 40%;
                     padding-left: 10px;
-                    padding-right: 28px;
+                    padding-right: 30px;
                     text-align: right;
                     direction: rtl;
                     unicode-bidi: embed;
@@ -52,7 +52,7 @@
                    the only bar style that renders reliably in wkhtmltopdf 0.12. */
                 .atco-hdr .atco-name {
                     display: inline-block;
-                    font-size: 17px;
+                    font-size: 21px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.2;
@@ -62,7 +62,7 @@
                 }
                 .atco-hdr .atco-name-ar {
                     display: inline-block;
-                    font-size: 17px;
+                    font-size: 21px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.25;
@@ -91,8 +91,8 @@
                     color: #1a1a1a;
                 }
                 .atco-hdr .atco-logo {
-                    max-height: 90px;
-                    max-width: 110px;
+                    max-height: 110px;
+                    max-width: 140px;
                     height: auto;
                     width: auto;
                     display: inline-block;
