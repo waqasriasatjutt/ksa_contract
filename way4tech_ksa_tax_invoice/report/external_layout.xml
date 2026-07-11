@@ -8,6 +8,12 @@
 
         <div t-attf-class="header o_company_#{company.id}_layout">
             <style type="text/css">
+                /* Kill wkhtmltopdf webkit default body margin so the header
+                   content sits flush at the top of the page. */
+                html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
                 /* Kill Odoo report bundle inherited borders on TABLE CELLS ONLY.
                    Do NOT use a universal * selector here — it wipes the
                    border-bottom red bar on .atco-name. */
@@ -27,7 +33,7 @@
                 }
                 .atco-hdr td {
                     vertical-align: top;
-                    padding: 10px 0 8px 0;
+                    padding: 0 0 4px 0;
                 }
                 .atco-hdr .atco-col-left {
                     width: 40%;
