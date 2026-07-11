@@ -8,8 +8,10 @@
 
         <div t-attf-class="header o_company_#{company.id}_layout">
             <style type="text/css">
-                /* Kill Odoo report bundle inherited table borders in the header slot. */
-                .atco-hdr, .atco-hdr *, .atco-hdr table, .atco-hdr tr, .atco-hdr td, .atco-hdr th {
+                /* Kill Odoo report bundle inherited borders on TABLE CELLS ONLY.
+                   Do NOT use a universal * selector here — it wipes the
+                   border-bottom red bar on .atco-name. */
+                table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
                     background: #ffffff !important;
@@ -56,7 +58,7 @@
                     line-height: 1.2;
                     padding: 0 0 6px 0;
                     margin: 0;
-                    border-bottom: 5px solid #8a1c1c;
+                    border-bottom: 5px solid #8a1c1c !important;
                 }
                 .atco-hdr .atco-name-ar {
                     display: inline-block;
@@ -66,7 +68,7 @@
                     line-height: 1.25;
                     padding: 0 0 6px 0;
                     margin: 0;
-                    border-bottom: 5px solid #8a1c1c;
+                    border-bottom: 5px solid #8a1c1c !important;
                     direction: rtl;
                     unicode-bidi: embed;
                     font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
@@ -99,7 +101,7 @@
                 /* Thin black rule under the whole header. */
                 .atco-sep {
                     display: block;
-                    border-top: 1.2px solid #111111;
+                    border-top: 1.2px solid #111111 !important;
                     height: 0;
                     margin: 6px 0 0 0;
                     padding: 0;
@@ -144,15 +146,15 @@
 
         <div t-attf-class="footer o_company_#{company.id}_layout">
             <style type="text/css">
-                /* Kill inherited borders in the footer slot too. */
-                .atco-ftr, .atco-ftr *, .atco-ftr table, .atco-ftr tr, .atco-ftr td, .atco-ftr th {
+                /* Kill inherited borders on footer TABLE CELLS ONLY. */
+                table.atco-ftr, table.atco-ftr > tbody > tr, table.atco-ftr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
                     background: #ffffff !important;
                 }
                 .atco-ftr-sep {
                     display: block;
-                    border-top: 1.2px solid #111111;
+                    border-top: 1.2px solid #111111 !important;
                     height: 0;
                     margin: 0 0 8px 0;
                     padding: 0;
