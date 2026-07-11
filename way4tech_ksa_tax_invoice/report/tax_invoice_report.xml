@@ -12,14 +12,6 @@
                     <t t-set="m" t-value="lambda v: '{:,.2f}'.format(v or 0.0)"/>
                     <div class="page ksa-inv">
                         <style>
-                            /* Two-row sticky table so payee/bank anchors to the bottom
-                               of the invoice body region even on short invoices. Body
-                               height inside the ATCO letterhead is A4 (297mm) minus
-                               paperformat margins 52+30 = ~21.5cm; use 20cm to be safe. */
-                            .ksa-inv table.ksa-sticky { height:20cm; }
-                            .ksa-inv table.ksa-sticky > tbody > tr > td { border:0; padding:0; height:auto; }
-                            .ksa-inv table.ksa-sticky > tbody > tr > td.ksa-body { vertical-align:top; }
-                            .ksa-inv table.ksa-sticky > tbody > tr > td.ksa-foot { vertical-align:bottom; }
                             .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.5; }
                             .ksa-inv table { border-collapse: collapse; width:100%; }
                             .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:5px 8px; vertical-align:middle; height:16px; }
@@ -40,8 +32,6 @@
                             .ksa-right { text-align:right; }
                             .ksa-center { text-align:center; }
                         </style>
-
-                        <table class="ksa-sticky"><tr><td class="ksa-body">
 
                         <!-- ══ TITLE ══ (kept here because ATCO letterhead does not include "TAX INVOICE" wording) -->
                         <div class="ksa-title"><span class="en">TAX&#160;&#160;INVOICE</span><span class="ar">فاتورة ضريبية</span></div>
@@ -150,8 +140,6 @@
 
                         <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
 
-                        </td></tr><tr><td class="ksa-foot">
-
                         <!-- ══ PAYEE / BANK ══ (kept in body: bank details are payment info, not letterhead) -->
                         <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
                         <table style="text-align:center;">
@@ -170,8 +158,6 @@
                                 <td t-esc="bank.bank_id.bic or ''"/>
                             </tr>
                         </table>
-
-                        </td></tr></table>
                     </div>
                 </t>
             </t>

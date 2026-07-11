@@ -43,7 +43,7 @@
                     unicode-bidi: embed;
                 }
                 .atco-hdr .atco-name {
-                    font-size: 28px;
+                    font-size: 22px;
                     font-weight: bold;
                     color: #111111;
                     letter-spacing: -0.2px;
@@ -52,7 +52,7 @@
                     padding: 0;
                 }
                 .atco-hdr .atco-name-ar {
-                    font-size: 28px;
+                    font-size: 22px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.25;
