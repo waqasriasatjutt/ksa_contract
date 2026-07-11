@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_ksa_letterhead" model="ir.ui.view">
+        <field name="name">res.company.form.ksa.letterhead</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="KSA Bilingual Letterhead">
+                    <field name="x_name_ar" placeholder="مؤسسة أبراج الزين للمقاولات"/>
+                    <field name="x_aramco_vendor_code" placeholder="10110430"/>
+                    <field name="x_aramco_logo" widget="image" options="{'size': [0, 60]}"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
