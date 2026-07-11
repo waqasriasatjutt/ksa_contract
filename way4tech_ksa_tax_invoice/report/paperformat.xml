@@ -4,8 +4,8 @@
         <field name="name">ATCO A4 (KSA Letterhead)</field>
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
-        <field name="margin_top">36</field>
-        <field name="margin_bottom">22</field>
+        <field name="margin_top">28</field>
+        <field name="margin_bottom">20</field>
         <field name="margin_left">7</field>
         <field name="margin_right">7</field>
         <field name="header_line" eval="False"/>

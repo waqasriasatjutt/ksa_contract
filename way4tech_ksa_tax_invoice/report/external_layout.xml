@@ -26,8 +26,8 @@
                     padding: 0;
                 }
                 .atco-hdr td {
-                    vertical-align: middle;
-                    padding: 8px 0 6px 0;
+                    vertical-align: top;
+                    padding: 6px 0 4px 0;
                 }
                 .atco-hdr .atco-col-left {
                     width: 42%;
@@ -52,7 +52,7 @@
                    the only bar style that renders reliably in wkhtmltopdf 0.12. */
                 .atco-hdr .atco-name {
                     display: inline-block;
-                    font-size: 19px;
+                    font-size: 17px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.2;
@@ -62,7 +62,7 @@
                 }
                 .atco-hdr .atco-name-ar {
                     display: inline-block;
-                    font-size: 19px;
+                    font-size: 17px;
                     font-weight: bold;
                     color: #111111;
                     line-height: 1.25;
