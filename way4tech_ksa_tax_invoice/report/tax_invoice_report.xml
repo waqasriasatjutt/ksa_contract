@@ -31,6 +31,17 @@
                             .ksa-lines td { padding:9px 8px; vertical-align:middle; }
                             .ksa-lines th { padding:8px 7px; }
                             .ksa-lines tr.zebra td { background:#faf6f6; }
+                            /* Full-width note row rendered when a line has display_type='line_note'.
+                               Sits directly beneath the item line it was added to, spanning all 10 columns. */
+                            .ksa-lines tr.ksa-note-row td.ksa-note {
+                                background:#fff8f8;
+                                color:#333;
+                                font-style:italic;
+                                text-align:left;
+                                padding:8px 12px;
+                                border-top:1px dashed #d0cdcd;
+                                white-space:pre-wrap;
+                            }
                             .ksa-right { text-align:right; }
                             .ksa-center { text-align:center; }
                         </style>
@@ -44,8 +55,8 @@
                             <td class="ksa-red ksa-b ksa-ar" style="border:0;">رقم الفاتورة</td>
                         </tr></table>
 
-                        <!-- ══ SELLER ══ -->
-                        <div class="ksa-sec"><span>Seller Details</span><span style="float:right;">المورد</span></div>
+                        <!-- ══ VENDOR ══ -->
+                        <div class="ksa-sec"><span>Vendor Details</span><span style="float:right;">المورد</span></div>
                         <table>
                             <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="company.name"/><td style="width:36%;" class="ksa-ar" t-esc="company.name"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
                             <tr><td class="lbl">Street Name:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="cp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
@@ -55,8 +66,8 @@
                             <tr><td class="lbl">VAT Number:</td><td class="ksa-b" t-esc="cp.vat or ''"/><td class="lbl">CRN: <span class="ksa-b" t-esc="cp.company_registry or ''"/></td><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
                         </table>
 
-                        <!-- ══ BUYER ══ -->
-                        <div class="ksa-sec" style="margin-top:3px;"><span>Buyer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
+                        <!-- ══ CUSTOMER ══ -->
+                        <div class="ksa-sec" style="margin-top:3px;"><span>Customer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
                         <table>
                             <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="bp.name or ''"/><td style="width:36%;" class="ksa-ar" t-esc="bp.name or ''"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
                             <tr><td class="lbl">Street Name:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="bp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
@@ -101,23 +112,28 @@
                                 <th class="ksa-th">SUBTOTAL INCL. VAT<div class="ksa-ar">شامل الضريبة</div></th>
                             </tr>
                             <t t-set="idx" t-value="0"/>
-                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type not in ('line_section', 'line_note'))" t-as="l">
-                                <t t-set="idx" t-value="idx + 1"/>
-                                <t t-set="rate" t-value="(l.tax_ids and l.tax_ids[0].amount) or 0.0"/>
-                                <tr t-att-class="'zebra' if idx % 2 == 0 else ''">
-                                    <td class="ksa-center" t-esc="idx"/>
-                                    <td><span class="ksa-b" t-esc="l.product_id.name or ''"/><div t-esc="l.name or ''"/></td>
-                                    <td class="ksa-center" t-esc="'{:g}'.format(l.quantity)"/>
-                                    <td class="ksa-center" t-esc="l.product_uom_id.name or ''"/>
-                                    <td class="ksa-right" t-esc="m(l.price_unit)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_subtotal)"/>
-                                    <td class="ksa-center" t-esc="'{:g}%'.format(rate)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_total - l.price_subtotal)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_total)"/>
-                                </tr>
+                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type != 'line_section')" t-as="l">
+                                <t t-if="l.display_type == 'line_note'">
+                                    <!-- Full-width note row (Add a note) -->
+                                    <tr class="ksa-note-row"><td colspan="10" class="ksa-note"><t t-out="l.name or ''"/></td></tr>
+                                </t>
+                                <t t-else="">
+                                    <t t-set="idx" t-value="idx + 1"/>
+                                    <t t-set="rate" t-value="(l.tax_ids and l.tax_ids[0].amount) or 0.0"/>
+                                    <tr t-att-class="'zebra' if idx % 2 == 0 else ''">
+                                        <td class="ksa-center" t-esc="idx"/>
+                                        <td><span class="ksa-b" t-esc="l.product_id.name or ''"/><div t-esc="l.name or ''"/></td>
+                                        <td class="ksa-center" t-esc="'{:g}'.format(l.quantity)"/>
+                                        <td class="ksa-center" t-esc="l.product_uom_id.name or ''"/>
+                                        <td class="ksa-right" t-esc="m(l.price_unit)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_subtotal)"/>
+                                        <td class="ksa-center" t-esc="'{:g}%'.format(rate)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_total - l.price_subtotal)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_total)"/>
+                                    </tr>
+                                </t>
                             </t>
-                            <tr><td colspan="10" class="ksa-center ksa-b">***** Nothing follow / لا شيء يتبع *****</td></tr>
                         </table>
 
                         <!-- ══ QR + TOTALS ══ -->
