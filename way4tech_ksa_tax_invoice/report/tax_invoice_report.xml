@@ -111,28 +111,27 @@
                                 <th class="ksa-th">TAX AMOUNT<div class="ksa-ar">مبلغ الضريبة</div></th>
                                 <th class="ksa-th">SUBTOTAL INCL. VAT<div class="ksa-ar">شامل الضريبة</div></th>
                             </tr>
+                            <!-- Product lines first — sequence order preserved. -->
                             <t t-set="idx" t-value="0"/>
-                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type != 'line_section')" t-as="l">
-                                <t t-if="l.display_type == 'line_note'">
-                                    <!-- Full-width note row (Add a note) -->
-                                    <tr class="ksa-note-row"><td colspan="10" class="ksa-note"><t t-out="l.name or ''"/></td></tr>
-                                </t>
-                                <t t-else="">
-                                    <t t-set="idx" t-value="idx + 1"/>
-                                    <t t-set="rate" t-value="(l.tax_ids and l.tax_ids[0].amount) or 0.0"/>
-                                    <tr t-att-class="'zebra' if idx % 2 == 0 else ''">
-                                        <td class="ksa-center" t-esc="idx"/>
-                                        <td><span class="ksa-b" t-esc="l.product_id.name or ''"/><div t-esc="l.name or ''"/></td>
-                                        <td class="ksa-center" t-esc="'{:g}'.format(l.quantity)"/>
-                                        <td class="ksa-center" t-esc="l.product_uom_id.name or ''"/>
-                                        <td class="ksa-right" t-esc="m(l.price_unit)"/>
-                                        <td class="ksa-right" t-esc="m(l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)"/>
-                                        <td class="ksa-right" t-esc="m(l.price_subtotal)"/>
-                                        <td class="ksa-center" t-esc="'{:g}%'.format(rate)"/>
-                                        <td class="ksa-right" t-esc="m(l.price_total - l.price_subtotal)"/>
-                                        <td class="ksa-right" t-esc="m(l.price_total)"/>
-                                    </tr>
-                                </t>
+                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type not in ('line_section', 'line_note'))" t-as="l">
+                                <t t-set="idx" t-value="idx + 1"/>
+                                <t t-set="rate" t-value="(l.tax_ids and l.tax_ids[0].amount) or 0.0"/>
+                                <tr t-att-class="'zebra' if idx % 2 == 0 else ''">
+                                    <td class="ksa-center" t-esc="idx"/>
+                                    <td><span class="ksa-b" t-esc="l.product_id.name or ''"/><div t-esc="l.name or ''"/></td>
+                                    <td class="ksa-center" t-esc="'{:g}'.format(l.quantity)"/>
+                                    <td class="ksa-center" t-esc="l.product_uom_id.name or ''"/>
+                                    <td class="ksa-right" t-esc="m(l.price_unit)"/>
+                                    <td class="ksa-right" t-esc="m(l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)"/>
+                                    <td class="ksa-right" t-esc="m(l.price_subtotal)"/>
+                                    <td class="ksa-center" t-esc="'{:g}%'.format(rate)"/>
+                                    <td class="ksa-right" t-esc="m(l.price_total - l.price_subtotal)"/>
+                                    <td class="ksa-right" t-esc="m(l.price_total)"/>
+                                </tr>
+                            </t>
+                            <!-- All notes at the bottom, grouped, in their original (sequence) order. -->
+                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type == 'line_note')" t-as="l">
+                                <tr class="ksa-note-row"><td colspan="10" class="ksa-note"><t t-out="l.name or ''"/></td></tr>
                             </t>
                         </table>
 
