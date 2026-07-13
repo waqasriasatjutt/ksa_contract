@@ -58,23 +58,24 @@
                         <!-- ══ VENDOR ══ -->
                         <div class="ksa-sec"><span>Vendor Details</span><span style="float:right;">المورد</span></div>
                         <table>
-                            <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="company.name"/><td style="width:36%;" class="ksa-ar" t-esc="company.name"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
-                            <tr><td class="lbl">Street Name:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="cp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
-                            <tr><td class="lbl">Building No:</td><td/><td class="lbl">City: <span class="ksa-b" t-esc="cp.city or ''"/></td><td class="lbl ksa-ar">المدينة / رقم المبنى</td></tr>
-                            <tr><td class="lbl">Addl. No:</td><td/><td class="lbl">District: <span class="ksa-b" t-esc="cp.state_id.name or cp.city or ''"/></td><td class="lbl ksa-ar">الحي / الرقم الإضافي</td></tr>
+                            <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="company.name"/><td style="width:36%;" class="ksa-ar" t-esc="cp.x_name_ar or company.name"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
+                            <tr><td class="lbl">Street Name:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="cp.x_street_ar or cp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
+                            <tr><td class="lbl">Building No:</td><td t-esc="cp.x_building_no or ''"/><td class="lbl">City: <span class="ksa-b" t-esc="cp.city or ''"/></td><td class="lbl ksa-ar">المدينة / رقم المبنى</td></tr>
+                            <tr><td class="lbl">Addl. No:</td><td t-esc="cp.x_additional_no or ''"/><td class="lbl">District: <span class="ksa-b" t-esc="cp.x_district or cp.state_id.name or ''"/></td><td class="lbl ksa-ar">الحي / الرقم الإضافي</td></tr>
                             <tr><td class="lbl">Postal Code:</td><td t-esc="cp.zip or ''"/><td class="lbl">Country: <span class="ksa-b" t-esc="cp.country_id.name or ''"/></td><td class="lbl ksa-ar">البلد / الرمز البريدي</td></tr>
                             <tr><td class="lbl">VAT Number:</td><td class="ksa-b" t-esc="cp.vat or ''"/><td class="lbl">CRN: <span class="ksa-b" t-esc="cp.company_registry or ''"/></td><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
                         </table>
 
-                        <!-- ══ CUSTOMER ══ -->
+                        <!-- ══ CUSTOMER ══ Mirrors Vendor structure exactly. Arabic Name pulls from
+                             partner.x_name_ar (English &amp; Arabic Information tab). -->
                         <div class="ksa-sec" style="margin-top:3px;"><span>Customer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
                         <table>
-                            <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="bp.name or ''"/><td style="width:36%;" class="ksa-ar" t-esc="bp.name or ''"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
-                            <tr><td class="lbl">Street Name:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="bp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
-                            <tr><td class="lbl">Building No:</td><td/><td class="lbl">City: <span class="ksa-b" t-esc="bp.city or ''"/></td><td class="lbl ksa-ar">المدينة / رقم المبنى</td></tr>
-                            <tr><td class="lbl">Addl. No:</td><td/><td class="lbl">District: <span class="ksa-b" t-esc="bp.state_id.name or bp.city or ''"/></td><td class="lbl ksa-ar">الحي / الرقم الإضافي</td></tr>
+                            <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="bp.name or ''"/><td style="width:36%;" class="ksa-ar" t-esc="bp.x_name_ar or bp.name or ''"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
+                            <tr><td class="lbl">Street Name:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="bp.x_street_ar or bp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
+                            <tr><td class="lbl">Building No:</td><td t-esc="bp.x_building_no or ''"/><td class="lbl">City: <span class="ksa-b" t-esc="bp.city or ''"/></td><td class="lbl ksa-ar">المدينة / رقم المبنى</td></tr>
+                            <tr><td class="lbl">Addl. No:</td><td t-esc="bp.x_additional_no or ''"/><td class="lbl">District: <span class="ksa-b" t-esc="bp.x_district or bp.state_id.name or ''"/></td><td class="lbl ksa-ar">الحي / الرقم الإضافي</td></tr>
                             <tr><td class="lbl">Postal Code:</td><td t-esc="bp.zip or ''"/><td class="lbl">Country: <span class="ksa-b" t-esc="bp.country_id.name or ''"/></td><td class="lbl ksa-ar">البلد / الرمز البريدي</td></tr>
-                            <tr><td class="lbl">VAT Number:</td><td class="ksa-b" t-esc="bp.vat or ''"/><td class="lbl">CRN:</td><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
+                            <tr><td class="lbl">VAT Number:</td><td class="ksa-b" t-esc="bp.vat or ''"/><td class="lbl">CRN: <span class="ksa-b" t-esc="bp.company_registry or ''"/></td><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
                         </table>
 
                         <!-- ══ META ══ -->
@@ -88,11 +89,11 @@
                                 <td class="lbl">Project / Reference No<div class="ksa-ar">رقم المرجع</div></td>
                             </tr>
                             <tr>
-                                <td t-esc="o.invoice_date"/>
-                                <td t-esc="o.delivery_date or ''"/>
+                                <td t-esc="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/>
+                                <td t-esc="o.delivery_date.strftime('%d/%m/%Y') if o.delivery_date else ''"/>
                                 <td t-esc="o.way4tech_po_id.name or ''"/>
-                                <td t-esc="o.invoice_date_due or ''"/>
-                                <td/>
+                                <td t-esc="o.invoice_date_due.strftime('%d/%m/%Y') if o.invoice_date_due else ''"/>
+                                <td t-esc="o.ksa_invoice_period or ''"/>
                                 <td t-esc="o.way4tech_project_id.name or ''"/>
                             </tr>
                         </table>

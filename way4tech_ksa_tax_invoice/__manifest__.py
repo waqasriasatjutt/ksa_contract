@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'KSA Bilingual Tax Invoice (Al Zain format)',
-    'version': '19.0.3.2.0',
+    'version': '19.0.4.0.0',
     'category': 'Accounting',
     'summary': 'Bilingual Arabic/English ZATCA-style Tax Invoice PDF + shared '
                'ATCO bilingual letterhead applied to invoice/SO/PO/etc. reports. '
@@ -11,6 +11,7 @@
     'depends': ['account', 'l10n_sa', 'way4tech_logistics'],
     'data': [
         'views/res_company_views.xml',
+        'views/res_partner_views.xml',
         'report/paperformat.xml',
         'report/external_layout.xml',
         'report/report_actions.xml',

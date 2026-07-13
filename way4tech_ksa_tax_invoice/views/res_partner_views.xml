@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_ksa_arabic" model="ir.ui.view">
+        <field name="name">res.partner.form.ksa.arabic</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="English &amp; Arabic Information" name="ksa_arabic_info">
+                    <group>
+                        <group string="Arabic Fields">
+                            <field name="x_name_ar" placeholder="اسم الشركة بالعربية"/>
+                            <field name="x_street_ar" placeholder="اسم الشارع"/>
+                            <field name="x_city_ar" placeholder="المدينة"/>
+                            <field name="x_district_ar" placeholder="الحي"/>
+                            <field name="x_country_ar" placeholder="البلد"/>
+                        </group>
+                        <group string="KSA Address Parts">
+                            <field name="x_building_no" placeholder="Building No"/>
+                            <field name="x_additional_no" placeholder="Additional No"/>
+                            <field name="x_district" placeholder="District"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
