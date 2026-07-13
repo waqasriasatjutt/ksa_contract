@@ -33,3 +33,15 @@ class ResCompany(models.Model):
                 vals['paperformat_id'] = paperformat.id
             if vals:
                 c.write(vals)
+
+    @api.model
+    def _apply_ksa_date_format(self):
+        """Force English (en_US) date_format to DD/MM/YYYY across the system.
+
+        This changes how every date renders in the Odoo backend UI (forms, list
+        views, filters) AND in reports — invoice form, sale order, purchase
+        order, journal entries, all of it. KSA business norm is DD/MM/YYYY.
+        """
+        lang = self.env['res.lang'].search([('code', '=', 'en_US')], limit=1)
+        if lang and lang.date_format != '%d/%m/%Y':
+            lang.sudo().write({'date_format': '%d/%m/%Y'})

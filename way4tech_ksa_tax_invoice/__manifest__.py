@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'KSA Bilingual Tax Invoice (Al Zain format)',
-    'version': '19.0.4.0.0',
+    'name': 'KSA Localization (Tax Invoice, Letterhead, Bilingual Contacts)',
+    'version': '19.0.4.1.0',
     'category': 'Accounting',
-    'summary': 'Bilingual Arabic/English ZATCA-style Tax Invoice PDF + shared '
-               'ATCO bilingual letterhead applied to invoice/SO/PO/etc. reports. '
-               'Data-driven from the company + partner + invoice.',
+    'summary': 'KSA localization pack: bilingual Arabic/English tax invoice PDF, '
+               'shared ATCO letterhead for all reports, Arabic address fields on '
+               'contacts + companies, KSA-standard DD/MM/YYYY date format.',
     'author': 'Way4Tech',
     'license': 'LGPL-3',
     'depends': ['account', 'l10n_sa', 'way4tech_logistics'],
