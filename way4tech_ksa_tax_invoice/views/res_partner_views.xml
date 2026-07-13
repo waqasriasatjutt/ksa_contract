@@ -6,7 +6,10 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
             <xpath expr="//notebook" position="inside">
-                <page string="English &amp; Arabic Information" name="ksa_arabic_info">
+                <page string="Arabic Information" name="ksa_arabic_info">
+                    <div class="alert alert-info" role="alert" style="margin-bottom:8px;">
+                        Arabic fields are auto-filled from English via Google Translate when you save. You can override any value manually — your edits are never overwritten.
+                    </div>
                     <group>
                         <group string="Arabic Fields">
                             <field name="x_name_ar" placeholder="اسم الشركة بالعربية"/>
@@ -15,7 +18,7 @@
                             <field name="x_district_ar" placeholder="الحي"/>
                             <field name="x_country_ar" placeholder="البلد"/>
                         </group>
-                        <group string="KSA Address Parts">
+                        <group string="KSA Address Parts (English)">
                             <field name="x_building_no" placeholder="Building No"/>
                             <field name="x_additional_no" placeholder="Additional No"/>
                             <field name="x_district" placeholder="District"/>

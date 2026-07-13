@@ -61,4 +61,5 @@ class AccountMove(models.Model):
     def _compute_ksa_invoice_period(self):
         for move in self:
             d = move.date or move.invoice_date
-            move.ksa_invoice_period = d.strftime('%B-%Y').upper() if d else ''
+            # Format: "MM, YYYY" — e.g. accounting date 2026-06-30 -> "06, 2026".
+            move.ksa_invoice_period = d.strftime('%m, %Y') if d else ''
