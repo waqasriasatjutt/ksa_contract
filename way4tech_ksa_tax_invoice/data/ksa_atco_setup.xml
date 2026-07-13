@@ -2,4 +2,6 @@
 <odoo>
     <function model="res.company" name="_apply_ksa_atco_setup"/>
     <function model="res.company" name="_apply_ksa_date_format"/>
+    <function model="res.company" name="_sync_ksa_arabic_to_partner"/>
+    <function model="res.partner" name="_apply_ksa_partner_translation"/>
 </odoo>

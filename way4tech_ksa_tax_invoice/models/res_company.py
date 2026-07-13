@@ -9,6 +9,28 @@ class ResCompany(models.Model):
     x_aramco_logo = fields.Binary(string='Saudi Aramco Vendor Logo')
     x_aramco_vendor_code = fields.Char(string='Saudi Aramco Vendor Code')
 
+    def write(self, vals):
+        """Mirror x_name_ar to the company's partner record so the tax invoice
+        template (which reads bp.x_name_ar / cp.x_name_ar) stays in sync
+        without the operator having to fill both places."""
+        res = super().write(vals)
+        if 'x_name_ar' in vals:
+            for c in self:
+                if c.partner_id and c.partner_id.x_name_ar != vals['x_name_ar']:
+                    c.partner_id.sudo().write({'x_name_ar': vals['x_name_ar']})
+        return res
+
+    @api.model
+    def _sync_ksa_arabic_to_partner(self):
+        """Backfill: copy company.x_name_ar to company.partner_id.x_name_ar
+        for every KSA company whose partner is missing the Arabic name. Run
+        once on install/upgrade."""
+        for c in self.search([]):
+            if not c.partner_id or not c.x_name_ar:
+                continue
+            if not c.partner_id.x_name_ar:
+                c.partner_id.sudo().write({'x_name_ar': c.x_name_ar})
+
     @api.model
     def _apply_ksa_atco_setup(self):
         view = self.env.ref(

@@ -120,3 +120,25 @@ class ResPartner(models.Model):
             if extra:
                 super(ResPartner, rec).write(extra)
         return res
+
+    def action_force_arabic_translate(self):
+        """Force-fill empty Arabic fields via Google Translate.
+        Used by the module's post-upgrade hook and for manual retries.
+        """
+        for rec in self:
+            extra = rec._autofill_arabic({})
+            if extra:
+                super(ResPartner, rec).write(extra)
+        return True
+
+    @api.model
+    def _apply_ksa_partner_translation(self):
+        """On module upgrade: for every KSA-flagged partner (country=SA or VAT
+        starts with '3'), fill any empty Arabic fields via Google Translate.
+        Runs once on install/upgrade — no-op if already populated.
+        """
+        partners = self.search([]).filtered(
+            lambda p: (p.country_id and p.country_id.code == 'SA')
+                      or (p.vat and p.vat.startswith('3'))
+        )
+        partners.action_force_arabic_translate()
