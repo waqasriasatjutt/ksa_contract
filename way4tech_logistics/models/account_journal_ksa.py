@@ -11,9 +11,13 @@ from odoo import api, models
 
 # Matches PREFIX/YYYY/MM/NNNN with an explicit month capture. Used by Odoo's
 # ``account.move._deduce_sequence_number_reset`` to detect monthly reset.
+# NOTE: every inner group is non-capturing ``(?:...)`` because Odoo's
+# ``_compute_split_sequence`` transforms this regex with a naive
+# ``?P<name>`` -> ``?:`` sub — any residual capturing group other than
+# ``seq`` shifts ``matching.group(1)`` and crashes with AttributeError.
 _MONTHLY_REGEX = (
     r"^(?P<prefix1>.*?)"
-    r"(?P<year>((?<=\D)|(?<=^))\d{4})"
+    r"(?P<year>(?:(?<=\D)|(?<=^))\d{4})"
     r"(?P<prefix2>\D+?)"
     r"(?P<month>0[1-9]|1[0-2])"
     r"(?P<prefix3>\D+?)"
