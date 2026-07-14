@@ -18,10 +18,12 @@ class AccountMove(models.Model):
     #   seller name, seller VAT, timestamp, grand total (incl VAT), VAT total.
     ksa_qr_image = fields.Char(compute='_compute_ksa_qr_image')
     ksa_amount_words = fields.Char(compute='_compute_ksa_amount_words')
-    # Invoice Period auto-derived from the accounting date (o.date), formatted
-    # like "JUNE-2026". Rendered in the Invoice Period column of the KSA tax
-    # invoice's dates table.
-    ksa_invoice_period = fields.Char(compute='_compute_ksa_invoice_period')
+    # INV Month: auto-derived from accounting date (o.date). Format MM/YYYY —
+    # e.g. 2026-06-30 -> "06/2026". Display-only; underlying dates unchanged.
+    ksa_invoice_period = fields.Char(
+        string='INV Month',
+        compute='_compute_ksa_invoice_period',
+    )
 
     @api.depends('company_id', 'amount_total', 'amount_tax', 'invoice_date', 'date')
     def _compute_ksa_qr_image(self):

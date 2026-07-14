@@ -26,4 +26,6 @@ from . import installment_schedule
 from . import asset_register
 from . import account_move_extension
 from . import account_move_line_extension
+from . import account_move_sequence
+from . import account_journal_ksa
 from . import cashflow_alert

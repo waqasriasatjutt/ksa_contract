@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Configure KSA sale + purchase journals for monthly-reset sequences on
+         every install/upgrade of this module. Idempotent: skips journals that
+         already have the desired code + regex. -->
+    <function model="account.journal" name="_apply_ksa_monthly_sequences"/>
+</odoo>

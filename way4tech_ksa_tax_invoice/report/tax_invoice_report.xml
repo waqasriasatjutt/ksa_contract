@@ -121,10 +121,10 @@
                                 <td class="lbl">Project / Reference No<div class="ksa-ar">رقم المرجع</div></td>
                             </tr>
                             <tr>
-                                <td t-esc="o.invoice_date.strftime('%m/%d/%Y') if o.invoice_date else ''"/>
-                                <td t-esc="o.delivery_date.strftime('%m/%d/%Y') if o.delivery_date else ''"/>
+                                <td t-esc="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/>
+                                <td t-esc="o.delivery_date.strftime('%d/%m/%Y') if o.delivery_date else ''"/>
                                 <td t-esc="o.way4tech_po_id.name or ''"/>
-                                <td t-esc="o.invoice_date_due.strftime('%m/%d/%Y') if o.invoice_date_due else ''"/>
+                                <td t-esc="o.invoice_date_due.strftime('%d/%m/%Y') if o.invoice_date_due else ''"/>
                                 <td t-esc="o.ksa_invoice_period or ''"/>
                                 <td t-esc="o.way4tech_project_id.name or ''"/>
                             </tr>

@@ -65,5 +65,5 @@ class ResCompany(models.Model):
         order, journal entries, all of it. KSA business norm is DD/MM/YYYY.
         """
         lang = self.env['res.lang'].search([('code', '=', 'en_US')], limit=1)
-        if lang and lang.date_format != '%m/%d/%Y':
-            lang.sudo().write({'date_format': '%m/%d/%Y'})
+        if lang and lang.date_format != '%d/%m/%Y':
+            lang.sudo().write({'date_format': '%d/%m/%Y'})

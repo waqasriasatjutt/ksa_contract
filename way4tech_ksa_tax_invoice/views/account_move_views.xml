@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- INV Month column: display-only MM/YYYY view of the accounting date.
+         Toggleable via the list-view column optional switch. -->
+    <record id="view_out_invoice_tree_inv_month" model="ir.ui.view">
+        <field name="name">account.move.out.invoice.tree.inv.month</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_out_invoice_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="ksa_invoice_period" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_in_invoice_tree_inv_month" model="ir.ui.view">
+        <field name="name">account.move.in.invoice.tree.inv.month</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_in_invoice_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="ksa_invoice_period" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
