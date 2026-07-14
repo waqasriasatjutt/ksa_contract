@@ -78,25 +78,34 @@
                                    domain="[('client_id', '=', client_id), ('state', '!=', 'closed')]"
                                    help="Link to a Client PO. Invoices from this contract count against the PO balance."/>
                             <field name="salesperson_id"
-                                   help="Salesperson responsible for this contract. Used in the Salesperson Profitability Report."/>
-                            <field name="contract_type" readonly="state != 'draft'"
-                                   help="Food Delivery: manpower supplied to a food delivery platform (e.g. HungerStation, Keeta) — riders, supervisors, support staff. &#10;Project Based: manpower supplied for a specific project or site (construction, logistics hub, etc.)."/>
-                            <field name="billing_type" readonly="state != 'draft'"
-                                   help="Fixed Price: you invoice the client a fixed monthly amount regardless of hours worked. &#10;Hourly Rate: you invoice based on actual hours logged in the Timesheets tab (total_hours × hourly_rate)."/>
-                            <field name="fixed_amount" readonly="state != 'draft'" invisible="billing_type == 'hourly'"
-                                   help="The fixed monthly amount billed to the client. Used as the invoice line amount when Billing Type = Fixed Price. &#10;15% VAT is applied automatically on the invoice."/>
-                            <field name="hourly_rate" readonly="state != 'draft'" invisible="billing_type == 'fixed'"
-                                   help="Rate per hour billed to the client. Invoice amount = Total Hours (from Timesheets tab) × Hourly Rate. &#10;15% VAT is applied automatically on the invoice."/>
+                                   help="Internal HR employee acting as salesperson on this contract."/>
+                            <!-- Hidden per client request (kept in view as invisible so any
+                                 code that references them keeps working; underlying DB
+                                 columns are preserved so no data is lost). -->
+                            <field name="contract_type" invisible="1"/>
+                            <field name="billing_type" invisible="1"/>
+                            <field name="fixed_amount" invisible="1"/>
+                            <field name="hourly_rate" invisible="1"/>
                         </group>
                         <group string="Period &amp; Settings">
                             <field name="start_date" readonly="state != 'draft'"
                                    help="Contract start date. Informational — does not restrict when invoices can be created."/>
                             <field name="end_date" readonly="state in ('completed', 'cancelled')"
                                    help="Contract end date. When reached, manually click 'Complete' to close the contract. Leave blank for open-ended contracts."/>
-                            <field name="analytic_account_id" readonly="state != 'draft'"
-                                   help="Analytic Account — a reporting label applied to all customer invoice lines created from this contract. &#10;&#10;Use this to track manpower revenue per client or per project in Accounting → Reporting → Analytic Report. For example, create an analytic account called 'ACME Warehousing Contract' and select it here — every invoice from this contract will be tagged so you can see total billed and outstanding for that project. &#10;&#10;This does NOT affect which GL account is credited — that is the Manpower Income Account set in Payroll &amp; Accounting Setup → Manpower Contracts tab. &#10;&#10;Leave blank to use the company default from Payroll &amp; Accounting Setup → Analytics tab."/>
-                            <field name="company_id" groups="base.group_multi_company"
-                                   help="Branch company providing the manpower service. Determines which accounts and journals are used for invoices."/>
+                            <field name="analytic_distribution"
+                                   widget="analytic_distribution"
+                                   options="{'account_field': 'account_id'}"
+                                   readonly="state != 'draft'"
+                                   help="Split contract revenue across one or more analytic accounts. Each invoice + bill generated from this contract inherits this exact distribution — same widget/behaviour as on invoice lines."/>
+                            <field name="way4tech_project_id"
+                                   readonly="state != 'draft'"
+                                   help="Reused from customer invoices / vendor bills. Propagates onto every generated invoice + bill."/>
+                            <field name="way4tech_category_id"
+                                   readonly="state != 'draft'"
+                                   help="Reused from customer invoices / vendor bills (e.g. 'Manpower Revenue'). Propagates onto every generated invoice + bill."/>
+                            <!-- Hidden per client request. Underlying data preserved. -->
+                            <field name="company_id" invisible="1"/>
+                            <field name="analytic_account_id" invisible="1"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                     </group>
@@ -116,58 +125,22 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Manpower" name="manpower">
-                            <field name="line_ids" readonly="state in ('completed', 'cancelled')"
-                                   help="List of employees assigned to this contract. Used for reference and cost tracking.">
-                                <list editable="bottom">
-                                    <field name="employee_id"
-                                           help="The Odoo HR employee assigned to this contract."/>
-                                    <field name="role"
-                                           help="Job title or role on this contract (e.g. 'Supervisor', 'Warehouse Staff')."/>
-                                    <field name="start_date"
-                                           help="Date this person started on this contract assignment."/>
-                                    <field name="end_date"
-                                           help="Date this person's assignment on this contract ended. Leave blank if ongoing."/>
-                                    <field name="daily_cost"
-                                           help="Internal daily cost of this person (salary + overhead). Used for internal cost tracking and profitability analysis — not used in client invoicing."/>
-                                    <field name="currency_id" column_invisible="1"/>
-                                </list>
-                            </field>
-                        </page>
-                        <page string="Timesheets" name="timesheets">
-                            <div class="alert alert-info" role="alert"
-                                 invisible="billing_type != 'hourly'">
-                                <strong>Tip:</strong> For hourly contracts, the hours logged here
-                                drive the <strong>client invoice</strong> (total hours × hourly rate set above).
+                        <!-- 1. Project Income — placeholder tab; content defined in a later step. -->
+                        <page string="Project Income" name="project_income">
+                            <div class="alert alert-secondary" role="alert">
+                                <em>Project Income lines will be added here in a later step.</em>
                             </div>
-                            <field name="timesheet_ids"
-                                   readonly="state in ('completed', 'cancelled')"
-                                   context="{'default_contract_id': id}"
-                                   help="Hours worked log. Required for Hourly Rate billing — total hours × hourly rate = invoice amount. For Fixed Price contracts, timesheets are informational only.">
-                                <list editable="bottom">
-                                    <field name="date"
-                                           help="Date the hours were worked."/>
-                                    <field name="employee_id"
-                                           help="Employee who worked these hours."/>
-                                    <field name="description"
-                                           help="Brief description of work performed on this day."/>
-                                    <field name="hours" string="Hours"
-                                           help="Number of hours worked. Summed into Total Hours on the contract header, which drives Hourly Rate invoicing."
-                                           sum="Total Hours"/>
-                                    <field name="currency_id" column_invisible="1"/>
-                                </list>
-                            </field>
                         </page>
-                        <page string="Project Expenses" name="project_expenses"
-                              invisible="contract_type != 'project'">
+                        <!-- 2. Project Expenses — existing tab (unchanged). -->
+                        <page string="Project Expenses" name="project_expenses">
                             <div class="alert alert-info" role="alert">
                                 <strong>Project Cost Tracking:</strong>
                                 Add each cost the company bears for this project — worker wages,
                                 accommodation, utilities, furniture, transport, or other.
                                 Each line creates a proper <strong>Vendor Bill</strong> (accounts payable)
                                 when you click <em>Create Vendor Bill</em> on the line.
-                                All bills are tagged with the contract's analytic account so the full
-                                project P&amp;L is visible in
+                                All bills are tagged with the contract's analytic distribution, project, and
+                                entry category so the full project P&amp;L is visible in
                                 <strong>Accounting → Reporting → Analytic Report</strong>.
                             </div>
                             <field name="project_expense_ids"
@@ -205,8 +178,31 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Notes" name="notes">
-                            <field name="notes" nolabel="1"/>
+                        <!-- 3. Timesheets — existing tab (unchanged, alert banner dropped since billing_type is now hidden). -->
+                        <page string="Timesheets" name="timesheets">
+                            <field name="timesheet_ids"
+                                   readonly="state in ('completed', 'cancelled')"
+                                   context="{'default_contract_id': id}"
+                                   help="Hours worked log. Required for Hourly Rate billing — total hours × hourly rate = invoice amount. For Fixed Price contracts, timesheets are informational only.">
+                                <list editable="bottom">
+                                    <field name="date"
+                                           help="Date the hours were worked."/>
+                                    <field name="employee_id"
+                                           help="Employee who worked these hours."/>
+                                    <field name="description"
+                                           help="Brief description of work performed on this day."/>
+                                    <field name="hours" string="Hours"
+                                           help="Number of hours worked. Summed into Total Hours on the contract header, which drives Hourly Rate invoicing."
+                                           sum="Total Hours"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- 4. Project Budget — placeholder tab; content defined in a later step. -->
+                        <page string="Project Budget" name="project_budget">
+                            <div class="alert alert-secondary" role="alert">
+                                <em>Project Budget lines will be added here in a later step.</em>
+                            </div>
                         </page>
                     </notebook>
                     <div class="alert alert-info" role="alert">

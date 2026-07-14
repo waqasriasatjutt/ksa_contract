@@ -166,7 +166,6 @@ class ManpowerProjectExpense(models.Model):
             ))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = self.analytic_account_id
 
         bill_line_vals = {
             'name': self.description,
@@ -174,8 +173,12 @@ class ManpowerProjectExpense(models.Model):
             'price_unit': self.amount,
             'account_id': self.account_id.id,
         }
-        if analytic:
-            bill_line_vals['analytic_distribution'] = {str(analytic.id): 100}
+        # Reuse the contract's analytic distribution (multi-account) with
+        # legacy single-analytic + company default as fallbacks. Same helper
+        # used for customer-side invoices.
+        distribution = self.contract_id._resolve_analytic_distribution(settings)
+        if distribution:
+            bill_line_vals['analytic_distribution'] = distribution
 
         journal = settings.project_expense_journal_id or self.env['account.journal'].search([
             ('type', '=', 'purchase'),
@@ -193,9 +196,17 @@ class ManpowerProjectExpense(models.Model):
         if journal:
             bill_vals['journal_id'] = journal.id
 
-        _category = self.env.ref('way4tech_logistics.category_others', raise_if_not_found=False)
-        if _category:
-            bill_vals['way4tech_category_id'] = _category.id
+        # Project + Entry Category from the contract propagate onto the
+        # vendor-bill header. Contract's explicit choice wins; fall back to
+        # the generic "Others" category if the contract has none.
+        if self.contract_id.way4tech_project_id:
+            bill_vals['way4tech_project_id'] = self.contract_id.way4tech_project_id.id
+        if self.contract_id.way4tech_category_id:
+            bill_vals['way4tech_category_id'] = self.contract_id.way4tech_category_id.id
+        else:
+            _category = self.env.ref('way4tech_logistics.category_others', raise_if_not_found=False)
+            if _category:
+                bill_vals['way4tech_category_id'] = _category.id
         bill = self.env['account.move'].create(bill_vals)
         self.write({'bill_id': bill.id, 'state': 'billed'})
 

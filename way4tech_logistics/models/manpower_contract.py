@@ -15,7 +15,13 @@ class Way4TechManpowerContract(models.Model):
         required=True,
         tracking=True,
     )
-    salesperson_id = fields.Many2one('res.users', string='Salesperson', tracking=True)
+    salesperson_id = fields.Many2one(
+        'hr.employee',
+        string='Salesperson',
+        tracking=True,
+        help='Internal HR employee acting as salesperson on this contract. '
+             'One salesperson can hold multiple contracts.',
+    )
     contract_type = fields.Selection(
         selection=[
             ('food_delivery', 'Food Delivery'),
@@ -52,7 +58,28 @@ class Way4TechManpowerContract(models.Model):
     )
     analytic_account_id = fields.Many2one(
         comodel_name='account.analytic.account',
-        string='Analytic Account',
+        string='Analytic Account (legacy)',
+        help='Legacy single-analytic field. Kept for backwards compat and '
+             'used as a fallback when Analytic Distribution is empty. '
+             'New workflows should use analytic_distribution instead.',
+    )
+    analytic_distribution = fields.Json(
+        string='Analytic Distribution',
+        help='Split contract cost/revenue across multiple analytic accounts. '
+             'Values propagate onto every invoice + bill generated from this '
+             'contract (same widget/behaviour as account.move.line).',
+    )
+    way4tech_project_id = fields.Many2one(
+        'way4tech.project',
+        string='Project',
+        help='Reused from customer invoices / vendor bills. Every invoice + '
+             'bill generated from this contract inherits this Project.',
+    )
+    way4tech_category_id = fields.Many2one(
+        'way4tech.entry.category',
+        string='Entry Category',
+        help='Reused from customer invoices / vendor bills. Every invoice + '
+             'bill generated from this contract inherits this Entry Category.',
     )
     company_id = fields.Many2one(
         comodel_name='res.company',
@@ -176,6 +203,23 @@ class Way4TechManpowerContract(models.Model):
             rec.total_project_expenses = sum(rec.project_expense_ids.mapped('amount'))
             rec.project_margin = rec.total_invoiced - rec.total_project_expenses
 
+    def _resolve_analytic_distribution(self, settings=None):
+        """Return the analytic distribution dict to stamp on generated lines.
+
+        Preference order: contract's own ``analytic_distribution`` (multi) →
+        legacy ``analytic_account_id`` (single, 100%) → company default from
+        Payroll & Accounting Setup (single, 100%). Returns ``{}`` if nothing
+        is configured — Odoo treats an empty dict as "no analytic".
+        """
+        self.ensure_one()
+        if self.analytic_distribution:
+            return dict(self.analytic_distribution)
+        if self.analytic_account_id:
+            return {str(self.analytic_account_id.id): 100}
+        if settings and settings.default_analytic_account_id:
+            return {str(settings.default_analytic_account_id.id): 100}
+        return {}
+
     def action_activate(self):
         self.ensure_one()
         self.state = 'active'
@@ -220,7 +264,6 @@ class Way4TechManpowerContract(models.Model):
                 ) % (amount, self.po_id.remaining_balance, self.po_id.name))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = self.analytic_account_id or settings.default_analytic_account_id
 
         # Find the default 15% VAT sales tax for this company
         vat_tax = self.env['account.tax'].search([
@@ -237,8 +280,13 @@ class Way4TechManpowerContract(models.Model):
         }
         if settings.manpower_income_account_id:
             invoice_line_vals['account_id'] = settings.manpower_income_account_id.id
-        if analytic:
-            invoice_line_vals['analytic_distribution'] = {str(analytic.id): 100}
+        # Analytic distribution: prefer the new multi-analytic Json; fall
+        # back to legacy single analytic; then to company default. Passes
+        # the exact same shape onto invoice lines that the accountant
+        # already sees on account.move.line.
+        distribution = self._resolve_analytic_distribution(settings)
+        if distribution:
+            invoice_line_vals['analytic_distribution'] = distribution
         if not vat_tax:
             raise UserError(_('No 15% sales tax found for this company. Please configure a 15% VAT sales tax before creating a manpower invoice.'))
         invoice_line_vals['tax_ids'] = [(6, 0, [vat_tax.id])]
@@ -253,9 +301,20 @@ class Way4TechManpowerContract(models.Model):
         if settings.manpower_journal_id:
             invoice_vals['journal_id'] = settings.manpower_journal_id.id
 
-        _category = self.env.ref('way4tech_logistics.category_manpower_revenue', raise_if_not_found=False)
-        if _category:
-            invoice_vals['way4tech_category_id'] = _category.id
+        # Project + Entry Category propagate from the contract onto the
+        # invoice header (which itself mirrors onto every line via the
+        # related fields on account.move.line — see
+        # account_move_line_extension.py). Contract's values win over the
+        # legacy Manpower Revenue default so the operator's explicit choice
+        # is what appears on the invoice.
+        if self.way4tech_project_id:
+            invoice_vals['way4tech_project_id'] = self.way4tech_project_id.id
+        if self.way4tech_category_id:
+            invoice_vals['way4tech_category_id'] = self.way4tech_category_id.id
+        else:
+            _category = self.env.ref('way4tech_logistics.category_manpower_revenue', raise_if_not_found=False)
+            if _category:
+                invoice_vals['way4tech_category_id'] = _category.id
         if self.po_id:
             invoice_vals['way4tech_po_id'] = self.po_id.id
         invoice = self.env['account.move'].create(invoice_vals)
