@@ -77,14 +77,14 @@
                                     <div class="vc-block">
                                         <div class="ksa-sec-slate"><span>Vendor Details</span><span style="float:right;">المورد</span></div>
                                         <table>
-                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="company.name"/><td style="width:28%;" class="ksa-ar" t-esc="company.x_name_ar or cp.x_name_ar or company.name"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
-                                            <tr><td class="lbl">Street:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="cp.x_street_ar or cp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
+                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="company.name"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(company.x_name_ar or cp.x_name_ar or company.name)"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
+                                            <tr><td class="lbl">Street:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_street_ar or cp.street or '')"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
                                             <tr><td class="lbl">Building No:</td><td t-esc="cp.x_building_no or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_building_no or '')"/><td class="lbl ksa-ar">رقم المبنى</td></tr>
-                                            <tr><td class="lbl">City:</td><td t-esc="cp.city or ''"/><td class="ksa-ar" t-esc="cp.x_city_ar or cp.city or ''"/><td class="lbl ksa-ar">المدينة</td></tr>
-                                            <tr><td class="lbl">District:</td><td t-esc="cp.x_district or cp.state_id.name or ''"/><td class="ksa-ar" t-esc="cp.x_district_ar or cp.state_id.name or ''"/><td class="lbl ksa-ar">الحي</td></tr>
+                                            <tr><td class="lbl">City:</td><td t-esc="cp.city or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_city_ar or cp.city or '')"/><td class="lbl ksa-ar">المدينة</td></tr>
+                                            <tr><td class="lbl">District:</td><td t-esc="cp.x_district or cp.state_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_district_ar or cp.state_id.name or '')"/><td class="lbl ksa-ar">الحي</td></tr>
                                             <tr><td class="lbl">Addl. No:</td><td t-esc="cp.x_additional_no or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_additional_no or '')"/><td class="lbl ksa-ar">الرقم الإضافي</td></tr>
                                             <tr><td class="lbl">Postal Code:</td><td t-esc="cp.zip or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.zip or '')"/><td class="lbl ksa-ar">الرمز البريدي</td></tr>
-                                            <tr><td class="lbl">Country:</td><td t-esc="cp.country_id.name or ''"/><td class="ksa-ar" t-esc="cp.x_country_ar or cp.country_id.name or ''"/><td class="lbl ksa-ar">البلد</td></tr>
+                                            <tr><td class="lbl">Country:</td><td t-esc="cp.country_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_country_ar or cp.country_id.name or '')"/><td class="lbl ksa-ar">البلد</td></tr>
                                             <tr><td class="lbl">VAT:</td><td class="ksa-b" t-esc="cp.vat or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(cp.vat or '')"/><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
                                             <tr><td class="lbl">CRN:</td><td class="ksa-b" t-esc="cp.company_registry or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(cp.company_registry or '')"/><td class="lbl ksa-ar">السجل التجاري</td></tr>
                                         </table>
@@ -94,14 +94,14 @@
                                     <div class="vc-block">
                                         <div class="ksa-sec-slate"><span>Customer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
                                         <table>
-                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="bp.name or ''"/><td style="width:28%;" class="ksa-ar" t-esc="bp.x_name_ar or bp.name or ''"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
-                                            <tr><td class="lbl">Street:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="bp.x_street_ar or bp.street or ''"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
+                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="bp.name or ''"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(bp.x_name_ar or bp.name or '')"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
+                                            <tr><td class="lbl">Street:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_street_ar or bp.street or '')"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
                                             <tr><td class="lbl">Building No:</td><td t-esc="bp.x_building_no or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_building_no or '')"/><td class="lbl ksa-ar">رقم المبنى</td></tr>
-                                            <tr><td class="lbl">City:</td><td t-esc="bp.city or ''"/><td class="ksa-ar" t-esc="bp.x_city_ar or bp.city or ''"/><td class="lbl ksa-ar">المدينة</td></tr>
-                                            <tr><td class="lbl">District:</td><td t-esc="bp.x_district or bp.state_id.name or ''"/><td class="ksa-ar" t-esc="bp.x_district_ar or bp.state_id.name or ''"/><td class="lbl ksa-ar">الحي</td></tr>
+                                            <tr><td class="lbl">City:</td><td t-esc="bp.city or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_city_ar or bp.city or '')"/><td class="lbl ksa-ar">المدينة</td></tr>
+                                            <tr><td class="lbl">District:</td><td t-esc="bp.x_district or bp.state_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_district_ar or bp.state_id.name or '')"/><td class="lbl ksa-ar">الحي</td></tr>
                                             <tr><td class="lbl">Addl. No:</td><td t-esc="bp.x_additional_no or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_additional_no or '')"/><td class="lbl ksa-ar">الرقم الإضافي</td></tr>
                                             <tr><td class="lbl">Postal Code:</td><td t-esc="bp.zip or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.zip or '')"/><td class="lbl ksa-ar">الرمز البريدي</td></tr>
-                                            <tr><td class="lbl">Country:</td><td t-esc="bp.country_id.name or ''"/><td class="ksa-ar" t-esc="bp.x_country_ar or bp.country_id.name or ''"/><td class="lbl ksa-ar">البلد</td></tr>
+                                            <tr><td class="lbl">Country:</td><td t-esc="bp.country_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_country_ar or bp.country_id.name or '')"/><td class="lbl ksa-ar">البلد</td></tr>
                                             <tr><td class="lbl">VAT:</td><td class="ksa-b" t-esc="bp.vat or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(bp.vat or '')"/><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
                                             <tr><td class="lbl">CRN:</td><td class="ksa-b" t-esc="bp.company_registry or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(bp.company_registry or '')"/><td class="lbl ksa-ar">السجل التجاري</td></tr>
                                         </table>
