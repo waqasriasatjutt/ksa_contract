@@ -22,7 +22,6 @@ monthly without renaming any posted move:
   restarts at 0001 on the first of the next month).
 """
 from odoo import models
-from odoo.tools import SQL
 
 
 def _is_ksa_sale_purchase(move):
@@ -58,9 +57,6 @@ class AccountMove(models.Model):
         with monthly numbering."""
         where_string, param = super()._get_last_sequence_domain(relaxed)
         if self and _is_ksa_sale_purchase(self):
-            where_string = SQL(
-                "%s AND name ~ %s",
-                where_string,
-                r"^[A-Za-z]+/\d{4}/(0[1-9]|1[0-2])/\d+$",
-            )
+            where_string += " AND name ~ %(ksa_monthly_regex)s "
+            param['ksa_monthly_regex'] = r'^[A-Za-z]+/\d{4}/(0[1-9]|1[0-2])/\d+$'
         return where_string, param
