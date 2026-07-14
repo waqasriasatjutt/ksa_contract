@@ -97,6 +97,18 @@ class ResPartner(models.Model):
                     translated = _google_translate_en_to_ar(cname)
                     if translated:
                         out['x_country_ar'] = translated
+        # State/Province → Arabic district. Odoo's "District" column on the
+        # invoice PDF pulls from state_id.name when x_district is unset, so
+        # also translate that so the Arabic column shows الخبر instead of
+        # falling back to the English state name.
+        if 'x_district_ar' not in vals and not self.x_district_ar and not self.x_district:
+            state_id = vals.get('state_id') or (self.state_id.id if self.state_id else False)
+            if state_id:
+                sname = self.env['res.country.state'].browse(state_id).name or ''
+                if sname:
+                    translated = _google_translate_en_to_ar(sname)
+                    if translated:
+                        out['x_district_ar'] = translated
         return out
 
     @api.model_create_multi
@@ -112,7 +124,7 @@ class ResPartner(models.Model):
         res = super().write(vals)
         # Only run if at least one source field is in vals (avoid extra Google
         # calls on unrelated updates).
-        sources = set(_TRANSLATE_MAP) | {'country_id'}
+        sources = set(_TRANSLATE_MAP) | {'country_id', 'state_id'}
         if not (set(vals) & sources):
             return res
         for rec in self:
