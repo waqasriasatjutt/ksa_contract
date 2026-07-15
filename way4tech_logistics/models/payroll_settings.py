@@ -527,7 +527,13 @@ class PayrollSettings(models.Model):
         _set('rental_income_account_id',      '500010', 'Equipment Rental Income', 'income',                'equipment rental', 'machinery rental', 'rental income')
 
         # ── MANPOWER ─────────────────────────────────────────────────────────
-        _set('manpower_income_account_id', '500009', 'Manpower Income',            'income',            'manpower income', 'manpower', 'labour income')
+        # Al Zain / KSA convention: 410001 = Direct Business Sale (main
+        # manpower revenue). Keywords also match "direct business" so the
+        # scan lands the correct row on tenants that have it.
+        _set('manpower_income_account_id',       '410001', 'Direct Business Sale',        'income',              'direct business sale', 'direct business', 'manpower income', 'manpower', 'labour income')
+        _set('manpower_receivable_account_id',   '140001', 'Direct Business Receivable',  'asset_receivable',    'direct business receivable', 'direct business', 'manpower receivable')
+        _set('manpower_vat_output_account_id',   '250000', 'Output VAT',                  'liability_current',   'output vat', 'vat output', 'sales vat')
+        _set('manpower_payable_account_id',      '210001', 'Manpower Payable',            'liability_current',   'manpower payable', 'labour payable', 'direct business payable')
 
         # ── KSA COMPLIANCE ───────────────────────────────────────────────────
         _set('gosi_expense_account_id',       '400010', 'GOSI Employer Contribution', 'expense',         'gosi', 'social insurance employer', 'life insurance')

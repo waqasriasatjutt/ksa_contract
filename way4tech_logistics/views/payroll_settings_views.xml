@@ -124,10 +124,19 @@
                             <group string="Billing (Customer Invoices)">
                                 <field name="manpower_income_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
-                                       help="Account type: Income / Revenue. Credited on customer invoices for manpower contracts. &#10;Example: '4400 - Manpower Revenue' or '4100 - Service Income'. &#10;This is a Profit &amp; Loss income account."/>
+                                       help="Account type: Income / Revenue. Credited on customer invoices for manpower contracts. &#10;Example: '410001 - Direct Business Sale'. &#10;This is a Profit &amp; Loss income account."/>
                                 <field name="manpower_journal_id"
                                        domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
                                        help="Journal type: Sales. Used for manpower contract customer invoices (out_invoice). Usually your 'Customer Invoices' or 'Sales' journal."/>
+                                <field name="manpower_receivable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Accounts-receivable account for Project Income tab invoices. &#10;Example: '140001 - Direct Business Receivable'. Kept separate per business division so cash-tracking is clean per division."/>
+                                <field name="manpower_vat_output_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Output VAT account for Project Income invoices. &#10;Example: '250000 - Output VAT'. Optional; if empty the tax record's own default account is used."/>
+                                <field name="manpower_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Accounts-payable account credited on Project Expenses vendor bills. &#10;Example: '210001 - Manpower Payable'. Kept separate per business division."/>
                             </group>
                             <group string="Project Expenses — Vendor Bills Journal">
                                 <field name="project_expense_journal_id"
@@ -153,6 +162,19 @@
                                 <field name="project_other_expense_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Expense account debited for Other project expense bills. &#10;Example: 5290 — Other Project Expenses."/>
+                            </group>
+                            <group string="Expense Category → GL Account (15-category KSA map, used by Project Expenses + Project Budget tabs)"
+                                   colspan="4">
+                                <field name="manpower_expense_category_account_ids"
+                                       nolabel="1" colspan="4"
+                                       context="{'default_settings_id': id}">
+                                    <list editable="bottom">
+                                        <field name="category_id"/>
+                                        <field name="account_id"
+                                               domain="[('company_ids', 'in', [parent.company_id])]"/>
+                                        <field name="company_id" column_invisible="1"/>
+                                    </list>
+                                </field>
                             </group>
                             <div class="alert alert-info" role="alert">
                                 <strong>How it works:</strong>
