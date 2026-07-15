@@ -69,6 +69,14 @@ class Way4TechManpowerContract(models.Model):
              'Values propagate onto every invoice + bill generated from this '
              'contract (same widget/behaviour as account.move.line).',
     )
+    # The analytic_distribution WIDGET on the web client reads this companion
+    # field to render the % column at the right decimal precision. Odoo's
+    # account.move.line defines it the same way — leaving it out crashes the
+    # form with KeyError: 'analytic_precision' the moment the widget mounts.
+    analytic_precision = fields.Integer(
+        store=False,
+        default=lambda self: self.env['decimal.precision'].precision_get('Percentage Analytic'),
+    )
     way4tech_project_id = fields.Many2one(
         'way4tech.project',
         string='Project',
