@@ -10,6 +10,15 @@
             <xpath expr="//field[@name='date']" position="after">
                 <field name="ksa_invoice_period" optional="show"/>
             </xpath>
+            <!-- Force plain 'date' widget on list columns so read-only rendering
+                 uses res.lang.date_format (%d/%m/%Y) instead of the compact
+                 'MMM d' fallback some Odoo builds apply to invoice_date. -->
+            <xpath expr="//field[@name='invoice_date']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
+            <xpath expr="//field[@name='date']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
         </field>
     </record>
 
@@ -20,6 +29,40 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='date']" position="after">
                 <field name="ksa_invoice_period" optional="show"/>
+            </xpath>
+            <xpath expr="//field[@name='invoice_date']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
+            <xpath expr="//field[@name='date']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Form view: strip 'warn_future' widget from every date field on
+         account.move so read-only display matches edit display (both use
+         %d/%m/%Y). The 'warn_future' option triggers Odoo's WarnFutureDateField
+         subclass whose read-only render uses a compact 'MMM d' format —
+         source of the "Jul 14" display bug. -->
+    <record id="view_move_form_date_widget_override" model="ir.ui.view">
+        <field name="name">account.move.form.date.widget.override</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- All occurrences of invoice_date — there are two (out_* + in_*
+                 variants gated by invisible attrs). replace_all=true would
+                 clash, so we hit each in turn via a broad match. -->
+            <xpath expr="//field[@name='invoice_date']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
+            <xpath expr="//field[@name='invoice_date_due']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
+            <xpath expr="//field[@name='delivery_date']" position="attributes">
+                <attribute name="widget">date</attribute>
+            </xpath>
+            <xpath expr="//field[@name='date']" position="attributes">
+                <attribute name="widget">date</attribute>
             </xpath>
         </field>
     </record>
