@@ -131,6 +131,36 @@
                                    help="Project Margin = Total Invoiced − Total Project Expenses. Positive means the project is profitable. For full P&amp;L including individual employee salary costs tagged to this project, check the Analytic Report."/>
                         </group>
                     </group>
+                    <!-- P8 (2026-07-15): three read-only summary cards.
+                         All figures computed live from invoice_ids +
+                         project_expense_ids + budget_line_ids. -->
+                    <group col="6" class="oe_edit_only">
+                        <group string="Billing Summary" colspan="2">
+                            <field name="bs_total_invoiced" readonly="1"/>
+                            <field name="bs_total_project_cgs" readonly="1"/>
+                            <field name="bs_total_project_exp" readonly="1"/>
+                            <field name="bs_total_budget_cost" readonly="1"/>
+                            <field name="bs_total_actual_cost" readonly="1"/>
+                            <field name="bs_remaining_budget" readonly="1"/>
+                            <field name="bs_budget_variance" readonly="1"/>
+                        </group>
+                        <group string="Project Profitability" colspan="2">
+                            <field name="pp_gross_profit" readonly="1"/>
+                            <field name="pp_net_profit" readonly="1"/>
+                            <field name="pp_budgeted_profit" readonly="1"/>
+                            <field name="pp_actual_profit" readonly="1"/>
+                        </group>
+                        <group string="KPI %" colspan="2">
+                            <field name="kpi_gross_margin" readonly="1" widget="percentage"/>
+                            <field name="kpi_net_margin" readonly="1" widget="percentage"/>
+                            <field name="kpi_cogs_pct" readonly="1" widget="percentage"/>
+                            <field name="kpi_opex_pct" readonly="1" widget="percentage"/>
+                            <field name="kpi_total_cost_pct" readonly="1" widget="percentage"/>
+                            <field name="kpi_roc" readonly="1" widget="percentage"/>
+                            <field name="kpi_budget_variance_pct" readonly="1" widget="percentage"/>
+                            <field name="kpi_budget_usage_pct" readonly="1" widget="percentage"/>
+                        </group>
+                    </group>
                     <notebook>
                         <!-- 1. Project Income (P4) — one row per invoice-worthy revenue item.
                              Per-line Create Invoice button mints an account.move that inherits

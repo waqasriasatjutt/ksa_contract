@@ -212,6 +212,143 @@ class Way4TechManpowerContract(models.Model):
     )
     notes = fields.Text(string='Notes')
 
+    # ── P8 (2026-07-15): Billing Summary + Project Profitability + KPI% ──
+    # 19 read-only aggregates, all computed from live invoice_ids /
+    # project_expense_ids / budget_line_ids. Non-stored — recompute on every
+    # read; the parent record already invalidates itself when children change.
+    bs_total_invoiced = fields.Monetary(
+        string='Total Invoiced', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    bs_total_project_cgs = fields.Monetary(
+        string='Total Project CGS', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+        help='Sum of Project Expense line amounts whose expense account type '
+             'is Cost of Revenue (account.account.account_type = expense_direct_cost).',
+    )
+    bs_total_project_exp = fields.Monetary(
+        string='Total Project Expenses', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+        help='Sum of Project Expense line amounts whose expense account type '
+             'is Operating Expense (account.account.account_type = expense).',
+    )
+    bs_total_budget_cost = fields.Monetary(
+        string='Total Budget Cost', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    bs_total_actual_cost = fields.Monetary(
+        string='Total Actual Cost', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    bs_remaining_budget = fields.Monetary(
+        string='Remaining Budget', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    bs_budget_variance = fields.Monetary(
+        string='Budget Variance', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    pp_gross_profit = fields.Monetary(
+        string='Project Gross Profit', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    pp_net_profit = fields.Monetary(
+        string='Project Net Profit', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    pp_budgeted_profit = fields.Monetary(
+        string='Budgeted Profit', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    pp_actual_profit = fields.Monetary(
+        string='Actual Profit', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+    )
+    kpi_gross_margin = fields.Float(
+        string='Gross Margin %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_net_margin = fields.Float(
+        string='Net Margin %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_cogs_pct = fields.Float(
+        string='COGS %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_opex_pct = fields.Float(
+        string='Operating Expense %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_total_cost_pct = fields.Float(
+        string='Total Cost %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_roc = fields.Float(
+        string='Profit to Cost (ROC) %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_budget_variance_pct = fields.Float(
+        string='Budget Variance %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+    kpi_budget_usage_pct = fields.Float(
+        string='Budget Usage %', compute='_compute_kpi_summary', digits=(6, 2),
+    )
+
+    @api.depends(
+        'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
+        'project_expense_ids', 'project_expense_ids.amount',
+        'project_expense_ids.account_id.account_type',
+        'budget_line_ids', 'budget_line_ids.budget_amount', 'budget_line_ids.actual_amount',
+    )
+    def _compute_kpi_summary(self):
+        """One pass per record — reads children once, computes all 19 boxes."""
+        def _pct(numerator, denominator):
+            """Guard against divide-by-zero: return 0.0 if denominator is 0.
+            Return value is a FRACTION (0.425 for 42.5%) — Odoo's
+            widget='percentage' does the ×100 + '%' on display."""
+            if not denominator:
+                return 0.0
+            return numerator / denominator
+
+        for rec in self:
+            # Billing Summary
+            total_invoiced = sum(rec.invoice_ids.mapped('amount_untaxed'))
+            cgs = 0.0
+            opex = 0.0
+            for line in rec.project_expense_ids:
+                atype = line.account_id.account_type if line.account_id else ''
+                if atype == 'expense_direct_cost':
+                    cgs += line.amount or 0.0
+                elif atype == 'expense':
+                    opex += line.amount or 0.0
+            total_budget = sum(rec.budget_line_ids.mapped('budget_amount'))
+            total_actual = sum(rec.budget_line_ids.mapped('actual_amount'))
+            remaining = total_budget - total_actual
+            variance = total_actual - total_budget
+
+            # Profitability
+            gross_profit = total_invoiced - cgs
+            net_profit = gross_profit - opex
+            budgeted_profit = net_profit - total_budget
+            actual_profit = net_profit - total_actual
+
+            total_cost = cgs + opex
+
+            rec.bs_total_invoiced = total_invoiced
+            rec.bs_total_project_cgs = cgs
+            rec.bs_total_project_exp = opex
+            rec.bs_total_budget_cost = total_budget
+            rec.bs_total_actual_cost = total_actual
+            rec.bs_remaining_budget = remaining
+            rec.bs_budget_variance = variance
+            rec.pp_gross_profit = gross_profit
+            rec.pp_net_profit = net_profit
+            rec.pp_budgeted_profit = budgeted_profit
+            rec.pp_actual_profit = actual_profit
+            rec.kpi_gross_margin = _pct(gross_profit, total_invoiced)
+            rec.kpi_net_margin = _pct(net_profit, total_invoiced)
+            rec.kpi_cogs_pct = _pct(cgs, total_invoiced)
+            rec.kpi_opex_pct = _pct(opex, total_invoiced)
+            rec.kpi_total_cost_pct = _pct(total_cost, total_invoiced)
+            rec.kpi_roc = _pct(net_profit, total_cost)
+            rec.kpi_budget_variance_pct = _pct(variance, total_budget)
+            rec.kpi_budget_usage_pct = _pct(total_actual, total_budget)
+
     @api.onchange('client_id')
     def _onchange_client_id(self):
         """Auto-fill analytic from food delivery partner for per-partner profit tracking."""
