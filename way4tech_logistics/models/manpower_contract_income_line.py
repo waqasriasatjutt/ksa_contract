@@ -21,10 +21,13 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     currency_id = fields.Many2one(related="contract_id.currency_id", store=True, readonly=True)
 
     accounting_date = fields.Date(string="Accounting Date", required=True, default=fields.Date.context_today)
+    # store=False on the Char compute so setting accounting_date in an inline
+    # editable list does NOT write a DB column on every pick — the extra write
+    # triggers a row re-render that re-focuses the date input and re-opens
+    # the calendar (picker-loop bug users saw on 2026-07-15).
     inv_month = fields.Char(
         string="Inv Month (Auto)",
         compute="_compute_inv_month",
-        store=True,
     )
     invoice_date = fields.Date(string="Invoice Date", default=fields.Date.context_today)
     description = fields.Char(string="Description", required=True)

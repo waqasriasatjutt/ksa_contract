@@ -44,7 +44,9 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         compute="_compute_status",
         help="✅ On Budget when Remaining ≥ 0, ⛔ Over when < 0.",
     )
-    month = fields.Char(string="Month", compute="_compute_month", store=True)
+    # store=False to avoid the row-rerender loop when the user picks Date
+    # in the inline list. See the same fix on income line.inv_month.
+    month = fields.Char(string="Month", compute="_compute_month")
     date = fields.Date(string="Date", default=fields.Date.context_today)
 
     # ── Compute methods ─────────────────────────────────────────────────────

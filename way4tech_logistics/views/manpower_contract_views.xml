@@ -218,18 +218,21 @@
                                    context="{'default_contract_id': id}">
                                 <list editable="bottom" decoration-muted="state == 'invoiced'">
                                     <!-- Way 2: single date -->
-                                    <field name="date" readonly="start_date or end_date"/>
-                                    <!-- Way 1: range -->
-                                    <field name="start_date" readonly="date"/>
-                                    <field name="end_date" readonly="date"/>
+                                    <field name="date"/>
+                                    <!-- Way 1: range. Cross-readonly attrs were removed
+                                         (were: readonly="start_date or end_date" etc.) — the
+                                         attr recomputed on every onchange, and mid-edit
+                                         readonly toggles bounced the date-picker into an
+                                         infinite reopen loop. Mode-exclusivity is enforced
+                                         at save time via _check_one_mode + onchange clears. -->
+                                    <field name="start_date"/>
+                                    <field name="end_date"/>
                                     <field name="employee_id"/>
                                     <field name="description"/>
-                                    <!-- Way 2 field: hours -->
-                                    <field name="hours" readonly="start_date or end_date" sum="Total Hours"/>
+                                    <field name="hours" sum="Total Hours"/>
                                     <field name="rate"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
-                                    <!-- Way 1 field: per-day allowed hours -->
-                                    <field name="per_day_hours" readonly="date" string="Per Day Allowed"/>
+                                    <field name="per_day_hours" string="Per Day Allowed"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
