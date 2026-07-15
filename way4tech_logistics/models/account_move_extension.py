@@ -72,8 +72,9 @@ class AccountMoveWay4Tech(models.Model):
     @api.depends('date')
     def _compute_way4tech_inv_month(self):
         for rec in self:
-            # e.g. "02 Jul 2026" — day, month and year from the Accounting Date
-            rec.way4tech_inv_month = rec.date.strftime('%d %b %Y') if rec.date else False
+            # MM/YYYY — e.g. accounting date 2026-07-15 -> "07/2026" (T1 2026-07-15
+            # requirement). Matches ksa_invoice_period so form + list stay in sync.
+            rec.way4tech_inv_month = rec.date.strftime('%m/%Y') if rec.date else False
 
     def _compute_date(self):
         """Keep a manually-picked Accounting Date on DRAFT invoices instead of
