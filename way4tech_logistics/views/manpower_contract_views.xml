@@ -69,6 +69,10 @@
                         <h1>
                             <field name="name" placeholder="Contract Name"/>
                         </h1>
+                        <h4>
+                            <field name="reference" readonly="1" nolabel="1"
+                                   help="Auto-generated PRO/YYYY/MM/NNNN, monthly counter based on Start Date."/>
+                        </h4>
                     </div>
                     <group>
                         <group string="Contract Details">
@@ -103,6 +107,9 @@
                             <field name="way4tech_category_id"
                                    readonly="state != 'draft'"
                                    help="Reused from customer invoices / vendor bills (e.g. 'Manpower Revenue'). Propagates onto every generated invoice + bill."/>
+                            <field name="tag_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   help="Contract Tags. Propagate onto every generated invoice + bill (way4tech_tag_ids on the header)."/>
                             <!-- Hidden per client request. Underlying data preserved. -->
                             <field name="company_id" invisible="1"/>
                             <field name="analytic_account_id" invisible="1"/>
@@ -125,11 +132,32 @@
                         </group>
                     </group>
                     <notebook>
-                        <!-- 1. Project Income — placeholder tab; content defined in a later step. -->
+                        <!-- 1. Project Income (P4) — one row per invoice-worthy revenue item.
+                             Per-line Create Invoice button mints an account.move that inherits
+                             the contract's analytic + project + category + tags + PRO reference. -->
                         <page string="Project Income" name="project_income">
-                            <div class="alert alert-secondary" role="alert">
-                                <em>Project Income lines will be added here in a later step.</em>
-                            </div>
+                            <field name="income_line_ids" readonly="state == 'cancelled'"
+                                   context="{'default_contract_id': id}">
+                                <list editable="bottom" decoration-muted="state == 'invoiced'">
+                                    <field name="accounting_date"/>
+                                    <field name="inv_month" readonly="1"/>
+                                    <field name="invoice_date"/>
+                                    <field name="description"/>
+                                    <field name="tag_ids" widget="many2many_tags"/>
+                                    <field name="sale_account_id"/>
+                                    <field name="quantity"/>
+                                    <field name="price"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-success="state == 'invoiced'"/>
+                                    <button name="action_create_invoice" type="object"
+                                        string="Create Invoice" icon="fa-file-text-o"
+                                        invisible="state == 'invoiced'"
+                                        class="btn-sm btn-secondary"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
                         </page>
                         <!-- 2. Project Expenses — existing tab (unchanged). -->
                         <page string="Project Expenses" name="project_expenses">
@@ -147,12 +175,15 @@
                                    readonly="state == 'cancelled'"
                                    context="{'default_contract_id': id}">
                                 <list editable="bottom" decoration-muted="state == 'billed'">
-                                    <field name="date"/>
+                                    <field name="date" string="Accounting Date"/>
+                                    <field name="bill_date"/>
                                     <field name="expense_type"/>
+                                    <field name="category_id"/>
+                                    <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                     <field name="description"/>
                                     <field name="vendor_id"/>
                                     <field name="account_id"
-                                           help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense type."/>
+                                           help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>
                                     <field name="amount" sum="Total"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
@@ -178,31 +209,58 @@
                                 </list>
                             </field>
                         </page>
-                        <!-- 3. Timesheets — existing tab (unchanged, alert banner dropped since billing_type is now hidden). -->
+                        <!-- 3. Timesheets (P6) — dual-mode: Way 1 (start+end+per_day) OR
+                             Way 2 (date+hours). Amount computed accordingly. Per-line
+                             Create Invoice button mirrors the Project Income flow. -->
                         <page string="Timesheets" name="timesheets">
                             <field name="timesheet_ids"
                                    readonly="state in ('completed', 'cancelled')"
-                                   context="{'default_contract_id': id}"
-                                   help="Hours worked log. Required for Hourly Rate billing — total hours × hourly rate = invoice amount. For Fixed Price contracts, timesheets are informational only.">
-                                <list editable="bottom">
-                                    <field name="date"
-                                           help="Date the hours were worked."/>
-                                    <field name="employee_id"
-                                           help="Employee who worked these hours."/>
-                                    <field name="description"
-                                           help="Brief description of work performed on this day."/>
-                                    <field name="hours" string="Hours"
-                                           help="Number of hours worked. Summed into Total Hours on the contract header, which drives Hourly Rate invoicing."
-                                           sum="Total Hours"/>
+                                   context="{'default_contract_id': id}">
+                                <list editable="bottom" decoration-muted="state == 'invoiced'">
+                                    <!-- Way 2: single date -->
+                                    <field name="date" readonly="start_date or end_date"/>
+                                    <!-- Way 1: range -->
+                                    <field name="start_date" readonly="date"/>
+                                    <field name="end_date" readonly="date"/>
+                                    <field name="employee_id"/>
+                                    <field name="description"/>
+                                    <!-- Way 2 field: hours -->
+                                    <field name="hours" readonly="start_date or end_date" sum="Total Hours"/>
+                                    <field name="rate"/>
+                                    <field name="tag_ids" widget="many2many_tags" optional="show"/>
+                                    <!-- Way 1 field: per-day allowed hours -->
+                                    <field name="per_day_hours" readonly="date" string="Per Day Allowed"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-success="state == 'invoiced'"/>
+                                    <button name="action_create_invoice" type="object"
+                                        string="Create Invoice" icon="fa-file-text-o"
+                                        invisible="state == 'invoiced'"
+                                        class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
                             </field>
                         </page>
-                        <!-- 4. Project Budget — placeholder tab; content defined in a later step. -->
+                        <!-- 4. Project Budget (P7) — Budget vs Actual per expense category.
+                             Actual auto-sums posted journal items matching the contract's
+                             analytic AND this line's expense_account. Status: ✅ / ⛔. -->
                         <page string="Project Budget" name="project_budget">
-                            <div class="alert alert-secondary" role="alert">
-                                <em>Project Budget lines will be added here in a later step.</em>
-                            </div>
+                            <field name="budget_line_ids" readonly="state == 'cancelled'"
+                                   context="{'default_contract_id': id}">
+                                <list editable="bottom">
+                                    <field name="category_id" string="Expense Type"/>
+                                    <field name="description"/>
+                                    <field name="expense_account_id"/>
+                                    <field name="budget_amount" sum="Total Budget"/>
+                                    <field name="actual_amount" sum="Total Actual"/>
+                                    <field name="remaining" sum="Total Remaining"/>
+                                    <field name="status"/>
+                                    <field name="month" readonly="1"/>
+                                    <field name="date"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
                         </page>
                     </notebook>
                     <div class="alert alert-info" role="alert">

@@ -284,6 +284,32 @@ class PayrollSettings(models.Model):
              'the specific types above.\n'
              'Example: 5290 — Other Project Expenses.',
     )
+    # ── P4/P5/P7 (2026-07-15): per-business-division accounts referenced
+    #    by the Manpower Contract Income + Expense tabs. Kept nullable so
+    #    the settings screen stays valid on existing tenants until an
+    #    accountant fills them in.
+    manpower_receivable_account_id = fields.Many2one(
+        'account.account', string='Manpower Receivable Account', check_company=True,
+        help='140001 Direct Business Receivable (or the equivalent for this '
+             'business division). Set on invoices generated from the Project '
+             'Income tab so accounts-receivable posts to the correct GL.',
+    )
+    manpower_vat_output_account_id = fields.Many2one(
+        'account.account', string='Manpower Output VAT Account', check_company=True,
+        help='250000 Output VAT — used by the Project Income tab. Optional; '
+             'if left empty, invoices fall back to the tax record default.',
+    )
+    manpower_payable_account_id = fields.Many2one(
+        'account.account', string='Manpower Payable Account', check_company=True,
+        help='210001 Manpower Payable — credited on vendor bills generated '
+             'from the Project Expenses tab. Kept separate per business division.',
+    )
+    manpower_expense_category_account_ids = fields.One2many(
+        'way4tech.settings.expense.account.map', 'settings_id',
+        string='Expense Category → GL Account Map',
+        help='Per-category GL expense account. Selecting a category on a '
+             'Project Expense line auto-fills the account from this map.',
+    )
     project_expense_journal_id = fields.Many2one(
         'account.journal',
         string='Project Expense Journal',

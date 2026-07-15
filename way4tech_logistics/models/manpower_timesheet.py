@@ -1,4 +1,5 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError, ValidationError
 
 
 class Way4TechManpowerTimesheet(models.Model):
@@ -13,32 +14,53 @@ class Way4TechManpowerTimesheet(models.Model):
         ondelete='cascade',
         index=True,
     )
-    date = fields.Date(
-        string='Date',
-        required=True,
-        default=fields.Date.today,
-    )
-    employee_id = fields.Many2one(
-        comodel_name='hr.employee',
-        string='Employee',
-    )
+    date = fields.Date(string='Date', default=fields.Date.today)
+    # P6: dual-entry mode. Way 1 uses (start_date, end_date, per_day_hours);
+    # Way 2 uses (date, hours). Only one mode is active per line — the other
+    # side is disabled via readonly attrs in the view.
+    start_date = fields.Date(string='Start Date')
+    end_date = fields.Date(string='End Date')
+    per_day_hours = fields.Float(string='Per Day Allowed Hours', digits=(16, 2))
+    employee_id = fields.Many2one(comodel_name='hr.employee', string='Employee')
     description = fields.Char(string='Description')
     hours = fields.Float(string='Hours', digits=(16, 2))
+    rate = fields.Monetary(
+        string='Rate',
+        currency_field='currency_id',
+        help='P6: per-line billing rate. Replaces the contract-header Hourly Rate.',
+    )
+    tag_ids = fields.Many2many(
+        'way4tech.tag',
+        'way4tech_timesheet_tag_rel',
+        'line_id', 'tag_id',
+        string='Contract Tags',
+    )
+    amount = fields.Monetary(
+        string='Amount',
+        compute='_compute_amount',
+        store=True,
+        currency_field='currency_id',
+        help='Way 1 (range): calendar_days × per_day_hours × rate. '
+             'Way 2 (single date): hours × rate.',
+    )
+    invoice_id = fields.Many2one('account.move', string='Invoice', readonly=True, copy=False)
+    state = fields.Selection(
+        [('draft', 'Draft'), ('invoiced', 'Invoiced')],
+        default='draft', readonly=True, copy=False,
+    )
 
     # ── Employee salary cost side (mirrors the billing side) ──────────────────
     employee_hourly_rate = fields.Monetary(
         string="Employee Rate / Hour",
         currency_field='currency_id',
-        help="Employee's hourly salary cost. The same hours used to invoice the client "
-             "also compute the employee's salary cost for this period. "
-             "This is the gross salary rate (what the company pays the employee per hour).",
+        help="Employee's hourly salary cost — kept separate from the client "
+             "billing Rate above so cost tracking is unaffected by pricing.",
     )
     employee_cost = fields.Monetary(
         string='Employee Cost',
         compute='_compute_employee_cost',
         store=True,
         currency_field='currency_id',
-        help="Hours × Employee Rate. The direct labour cost for this timesheet line.",
     )
     currency_id = fields.Many2one(
         comodel_name='res.currency',
@@ -52,11 +74,54 @@ class Way4TechManpowerTimesheet(models.Model):
         for line in self:
             line.employee_cost = line.hours * line.employee_hourly_rate
 
+    @api.depends('date', 'hours', 'rate', 'start_date', 'end_date', 'per_day_hours')
+    def _compute_amount(self):
+        """P6 dual-mode amount. Uses range mode if BOTH start_date + end_date
+        are set; otherwise single-date mode. Calendar-day count is INCLUSIVE
+        of both endpoints AND weekends (per spec)."""
+        for line in self:
+            rate = line.rate or 0.0
+            if line.start_date and line.end_date and line.end_date >= line.start_date:
+                days = (line.end_date - line.start_date).days + 1
+                line.amount = days * (line.per_day_hours or 0.0) * rate
+            else:
+                line.amount = (line.hours or 0.0) * rate
+
+    @api.onchange('start_date', 'end_date')
+    def _onchange_range_clears_single(self):
+        """Way 1: clear the single-date + hours pair so the two modes don't
+        pollute each other. View also flips readonly attrs based on this."""
+        if self.start_date or self.end_date:
+            self.date = False
+            self.hours = 0.0
+
+    @api.onchange('date', 'hours')
+    def _onchange_single_clears_range(self):
+        """Way 2 mirror of the above."""
+        if self.date and not (self.start_date or self.end_date):
+            self.per_day_hours = 0.0
+
+    @api.constrains('start_date', 'end_date')
+    def _check_range_order(self):
+        for line in self:
+            if line.start_date and line.end_date and line.end_date < line.start_date:
+                raise ValidationError(_('End Date must be on or after Start Date.'))
+
+    @api.constrains('date', 'start_date', 'end_date')
+    def _check_one_mode(self):
+        for line in self:
+            has_range = bool(line.start_date and line.end_date)
+            has_single = bool(line.date)
+            if not has_range and not has_single:
+                raise ValidationError(_(
+                    'Fill either a single Date (with Hours) OR a Start/End Date '
+                    'range (with Per Day Allowed Hours) — one mode is required.'
+                ))
+
     @api.onchange('employee_id')
     def _onchange_employee_id(self):
         """Auto-fill employee hourly rate from hr.contract if available."""
         if self.employee_id and not self.employee_hourly_rate:
-            # hr_contract may not be installed — check safely
             if 'hr.contract' not in self.env:
                 return
             contract = self.env['hr.contract'].search([
@@ -64,5 +129,66 @@ class Way4TechManpowerTimesheet(models.Model):
                 ('state', '=', 'open'),
             ], limit=1)
             if contract and contract.wage:
-                # Convert monthly wage to hourly rate (Saudi: 30 days × 8 hours)
+                # Convert monthly wage to hourly rate (KSA: 30 days × 8 hours)
                 self.employee_hourly_rate = contract.wage / (30.0 * 8.0)
+
+    def action_create_invoice(self):
+        """P6: per-line Create Invoice. Reuses the contract's income
+        propagation (analytic + project + category + tags + PRO ref)."""
+        for line in self:
+            if line.invoice_id:
+                raise UserError(_('This timesheet line has already been invoiced.'))
+            contract = line.contract_id
+            settings = self.env['way4tech.payroll.settings'].get_for_company(contract.company_id.id)
+            distribution = contract._resolve_analytic_distribution(settings)
+            sale_account = settings.manpower_income_account_id
+            if not sale_account:
+                raise UserError(_(
+                    "No Manpower Income Account configured in Payroll & Accounting Setup."
+                ))
+            vat_tax = self.env['account.tax'].search([
+                ('type_tax_use', '=', 'sale'),
+                ('amount_type', '=', 'percent'),
+                ('amount', '=', 15.0),
+                ('company_id', '=', contract.company_id.id),
+            ], limit=1)
+            if not vat_tax:
+                raise UserError(_('No 15% sales tax configured for this company.'))
+            desc = line.description or _('Timesheet %s') % (line.date or line.start_date or '')
+            line_vals = {
+                'name': desc,
+                'quantity': 1.0,
+                'price_unit': line.amount or 0.0,
+                'account_id': sale_account.id,
+                'tax_ids': [(6, 0, [vat_tax.id])],
+            }
+            if distribution:
+                line_vals['analytic_distribution'] = distribution
+            move_vals = {
+                'move_type': 'out_invoice',
+                'partner_id': contract.client_id.id,
+                'company_id': contract.company_id.id,
+                'invoice_date': line.date or line.end_date or fields.Date.today(),
+                'invoice_line_ids': [(0, 0, line_vals)],
+            }
+            if settings.manpower_journal_id:
+                move_vals['journal_id'] = settings.manpower_journal_id.id
+            if contract.way4tech_project_id:
+                move_vals['way4tech_project_id'] = contract.way4tech_project_id.id
+            if contract.way4tech_category_id:
+                move_vals['way4tech_category_id'] = contract.way4tech_category_id.id
+            all_tags = (contract.tag_ids | line.tag_ids)
+            if all_tags:
+                move_vals['way4tech_tag_ids'] = [(6, 0, all_tags.ids)]
+            invoice = self.env['account.move'].create(move_vals)
+            invoice.ref = contract._compose_reference_string(invoice=invoice)
+            line.write({'invoice_id': invoice.id, 'state': 'invoiced'})
+            contract.invoice_ids = [(4, invoice.id)]
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Invoice'),
+            'res_model': 'account.move',
+            'res_id': self[:1].invoice_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The 15 canonical KSA expense categories used by Project Expenses,
+         Project Budget, and Payroll & Accounting Setup. Codes are stable
+         identifiers used by code — do not rename after ship. -->
+    <record id="expense_cat_iqama_renewal" model="way4tech.expense.category">
+        <field name="code">iqama_renewal</field>
+        <field name="name">Work Permit &amp; Iqama Renewal</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="expense_cat_telephone_internet" model="way4tech.expense.category">
+        <field name="code">telephone_internet</field>
+        <field name="name">Telephone &amp; Internet</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="expense_cat_fuel" model="way4tech.expense.category">
+        <field name="code">fuel</field>
+        <field name="name">Fuel</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="expense_cat_refreshment" model="way4tech.expense.category">
+        <field name="code">refreshment</field>
+        <field name="name">Refreshment</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="expense_cat_vehicle_maintenance" model="way4tech.expense.category">
+        <field name="code">vehicle_maintenance</field>
+        <field name="name">Vehicle Maintenance</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="expense_cat_building_maintenance" model="way4tech.expense.category">
+        <field name="code">building_maintenance</field>
+        <field name="name">Building Maintenance</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="expense_cat_building_fixtures" model="way4tech.expense.category">
+        <field name="code">building_fixtures</field>
+        <field name="name">Building Fixtures &amp; Improvements</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="expense_cat_equipment_maintenance" model="way4tech.expense.category">
+        <field name="code">equipment_maintenance</field>
+        <field name="name">Equipment Maintenance</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="expense_cat_uniform_safety" model="way4tech.expense.category">
+        <field name="code">uniform_safety</field>
+        <field name="name">Uniform &amp; Safety</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="expense_cat_mob_demob" model="way4tech.expense.category">
+        <field name="code">mob_demob</field>
+        <field name="name">Mob &amp; Demob</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="expense_cat_chamber" model="way4tech.expense.category">
+        <field name="code">chamber</field>
+        <field name="name">Chamber</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="expense_cat_utility" model="way4tech.expense.category">
+        <field name="code">utility</field>
+        <field name="name">Utility</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="expense_cat_miscellaneous" model="way4tech.expense.category">
+        <field name="code">miscellaneous</field>
+        <field name="name">Miscellaneous</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="expense_cat_commission_exp" model="way4tech.expense.category">
+        <field name="code">commission_exp</field>
+        <field name="name">Commission Exp</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="expense_cat_equipment_rent_exp" model="way4tech.expense.category">
+        <field name="code">equipment_rent_exp</field>
+        <field name="name">Equipment Rent Exp</field>
+        <field name="sequence">150</field>
+    </record>
+</odoo>

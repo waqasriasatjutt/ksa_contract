@@ -29,3 +29,8 @@ from . import account_move_line_extension
 from . import account_move_sequence
 from . import account_journal_ksa
 from . import cashflow_alert
+# 2026-07-15 — P3/P4/P5/P6/P7 additions
+from . import expense_category
+from . import settings_expense_account_map
+from . import manpower_contract_income_line
+from . import manpower_contract_budget_line

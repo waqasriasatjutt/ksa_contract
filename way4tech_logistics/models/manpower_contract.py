@@ -1,5 +1,7 @@
+from datetime import date
+
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 class Way4TechManpowerContract(models.Model):
@@ -9,6 +11,24 @@ class Way4TechManpowerContract(models.Model):
     _order = 'start_date desc, name'
 
     name = fields.Char(string='Contract Name', required=True, tracking=True)
+    # PRO/YYYY/MM/NNNN — auto-minted on create, monthly-reset counter.
+    reference = fields.Char(
+        string='Reference',
+        readonly=True,
+        copy=False,
+        index=True,
+        help='PRO/YYYY/MM/NNNN — monthly counter based on contract start_date. '
+             'Propagates onto customer invoices (ref) and vendor bills '
+             '(payment_reference) generated from this contract.',
+    )
+    # Contract-level tags. Available manually across all system tags — no
+    # domain filter, per P4/P5/P6 requirement.
+    tag_ids = fields.Many2many(
+        'way4tech.tag',
+        'way4tech_manpower_contract_tag_rel',
+        'contract_id', 'tag_id',
+        string='Contract Tags',
+    )
     client_id = fields.Many2one(
         comodel_name='res.partner',
         string='Client',
@@ -163,6 +183,16 @@ class Way4TechManpowerContract(models.Model):
         inverse_name='contract_id',
         string='Project Expenses',
     )
+    income_line_ids = fields.One2many(
+        'way4tech.manpower.contract.income.line',
+        'contract_id',
+        string='Project Income',
+    )
+    budget_line_ids = fields.One2many(
+        'way4tech.manpower.contract.budget.line',
+        'contract_id',
+        string='Project Budget',
+    )
     total_project_expenses = fields.Monetary(
         string='Total Project Expenses',
         compute='_compute_project_margin',
@@ -210,6 +240,36 @@ class Way4TechManpowerContract(models.Model):
         for rec in self:
             rec.total_project_expenses = sum(rec.project_expense_ids.mapped('amount'))
             rec.project_margin = rec.total_invoiced - rec.total_project_expenses
+
+    # ── Reference auto-generation (P3) ──────────────────────────────────────
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('reference'):
+                seq_date = vals.get('start_date') or date.today()
+                vals['reference'] = self.env['ir.sequence'].with_context(
+                    ir_sequence_date=seq_date,
+                ).next_by_code('way4tech.manpower.contract.pro') or '/'
+        return super().create(vals_list)
+
+    def _compose_reference_string(self, invoice=None):
+        """Build the composite reference string used on generated documents.
+
+        Pattern (P3): ``Reference — Project — Partner — Invoice# — Tags — Month``
+        Missing pieces are dropped (no empty ``—`` runs).
+        """
+        self.ensure_one()
+        month = self.start_date.strftime('%m/%Y') if self.start_date else ''
+        parts = [
+            self.reference or '',
+            (self.way4tech_project_id.name or '') if self.way4tech_project_id else '',
+            self.client_id.name or '',
+            (invoice.name or '') if invoice else '',
+            ', '.join(self.tag_ids.mapped('name')) if self.tag_ids else '',
+            month,
+        ]
+        return ' — '.join(p for p in parts if p)
 
     def _resolve_analytic_distribution(self, settings=None):
         """Return the analytic distribution dict to stamp on generated lines.
@@ -325,7 +385,10 @@ class Way4TechManpowerContract(models.Model):
                 invoice_vals['way4tech_category_id'] = _category.id
         if self.po_id:
             invoice_vals['way4tech_po_id'] = self.po_id.id
+        if self.tag_ids:
+            invoice_vals['way4tech_tag_ids'] = [(6, 0, self.tag_ids.ids)]
         invoice = self.env['account.move'].create(invoice_vals)
+        invoice.ref = self._compose_reference_string(invoice=invoice)
         self.invoice_ids = [(4, invoice.id)]
         return {
             'type': 'ir.actions.act_window',

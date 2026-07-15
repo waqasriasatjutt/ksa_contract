@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- PRO/YYYY/MM/0001 counter, monthly reset. Sequence's use_date_range
+         + %(range_month)s/%(range_year)s date-range tokens let Odoo mint
+         per-month sub-sequences automatically without extra glue. -->
+    <record id="seq_manpower_contract_pro" model="ir.sequence">
+        <field name="name">Manpower Contract PRO Reference</field>
+        <field name="code">way4tech.manpower.contract.pro</field>
+        <field name="implementation">standard</field>
+        <field name="prefix">PRO/%(range_year)s/%(range_month)s/</field>
+        <field name="padding">4</field>
+        <field name="use_date_range" eval="True"/>
+        <field name="number_next">1</field>
+        <field name="number_increment">1</field>
+    </record>
+</odoo>

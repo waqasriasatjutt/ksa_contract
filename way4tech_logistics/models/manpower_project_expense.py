@@ -1,5 +1,5 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 class ManpowerProjectExpense(models.Model):
@@ -30,11 +30,34 @@ class ManpowerProjectExpense(models.Model):
         ondelete='cascade',
         tracking=True,
     )
+    # P5 (2026-07-15): rename semantics — "date" kept as accounting_date-alias
+    # for BC; new bill_date (invoice_date on the bill) exposed separately.
     date = fields.Date(
-        string='Date',
+        string='Accounting Date',
         required=True,
         default=fields.Date.today,
         tracking=True,
+        help='Posting date on the generated vendor bill (accounting_date).',
+    )
+    bill_date = fields.Date(
+        string='Bill Date',
+        default=fields.Date.today,
+        tracking=True,
+        help='Vendor invoice date shown on the bill (bill_date). Defaults to '
+             'today; DD/MM/YYYY display.',
+    )
+    category_id = fields.Many2one(
+        'way4tech.expense.category',
+        string='Category',
+        help='One of the 15 KSA canonical expense categories. Selecting it '
+             'auto-fills the Expense Account from Payroll Settings → Expense '
+             'Category → GL Account map.',
+    )
+    tag_ids = fields.Many2many(
+        'way4tech.tag',
+        'way4tech_project_expense_tag_rel',
+        'expense_id', 'tag_id',
+        string='Contract Tags',
     )
     expense_type = fields.Selection(
         selection=[
@@ -138,6 +161,23 @@ class ManpowerProjectExpense(models.Model):
         if account:
             self.account_id = account
 
+    @api.onchange('category_id')
+    def _onchange_category_id(self):
+        """P5: 15-category → GL account map lookup on the settings record.
+        Overrides the legacy expense_type mapping when a category is picked."""
+        if not self.category_id:
+            return
+        settings = self.env['way4tech.payroll.settings'].get_for_company(
+            (self.company_id or self.env.company).id
+        )
+        mapping = settings.manpower_expense_category_account_ids.filtered(
+            lambda m: m.category_id == self.category_id
+        )[:1]
+        if mapping:
+            self.account_id = mapping.account_id
+        elif self.category_id.default_expense_account_id:
+            self.account_id = self.category_id.default_expense_account_id
+
     def _get_expense_account(self, settings):
         """Return the configured GL account for this expense type."""
         mapping = {
@@ -164,6 +204,18 @@ class ManpowerProjectExpense(models.Model):
                 'Configuration → Payroll & Accounting Setup → Project Expenses, '
                 'or set it directly on this expense line.'
             ))
+        # P3 block rule: a project-expense bill's reference REQUIRES an
+        # invoice number to compile — refuse to create a bill until at
+        # least one customer invoice exists on the parent contract. (This
+        # does not affect Timesheet lines, which only create invoices.)
+        if not self.contract_id.invoice_ids:
+            raise ValidationError(_(
+                'Cannot create a vendor bill for this project expense — the '
+                'parent contract has no customer invoice yet. Create the '
+                'customer invoice first (Project Income tab or the "Create '
+                'Invoice" contract-header button); the bill will then inherit '
+                'the invoice number as part of its Payment Reference.'
+            ))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
 
@@ -188,11 +240,18 @@ class ManpowerProjectExpense(models.Model):
         bill_vals = {
             'move_type': 'in_invoice',
             'partner_id': self.vendor_id.id,
-            'invoice_date': self.date,
+            # bill_date -> account.move.invoice_date (vendor invoice date)
+            # accounting date -> account.move.date
+            'invoice_date': self.bill_date or self.date,
+            'date': self.date,
             'company_id': self.company_id.id,
             'ref': '%s / %s' % (self.contract_id.name, self.description),
             'invoice_line_ids': [(0, 0, bill_line_vals)],
         }
+        # P3: mirror contract-composite reference onto the bill's payment_reference.
+        bill_vals['payment_reference'] = self.contract_id._compose_reference_string(
+            invoice=self.contract_id.invoice_ids[:1]
+        )
         if journal:
             bill_vals['journal_id'] = journal.id
 
@@ -207,6 +266,9 @@ class ManpowerProjectExpense(models.Model):
             _category = self.env.ref('way4tech_logistics.category_others', raise_if_not_found=False)
             if _category:
                 bill_vals['way4tech_category_id'] = _category.id
+        all_tags = (self.contract_id.tag_ids | self.tag_ids)
+        if all_tags:
+            bill_vals['way4tech_tag_ids'] = [(6, 0, all_tags.ids)]
         bill = self.env['account.move'].create(bill_vals)
         self.write({'bill_id': bill.id, 'state': 'billed'})
 
