@@ -32,17 +32,21 @@ class ManpowerProjectExpense(models.Model):
     )
     # P5 (2026-07-15): rename semantics — "date" kept as accounting_date-alias
     # for BC; new bill_date (invoice_date on the bill) exposed separately.
+    # NOTE (2026-07-17): tracking=True dropped from both date fields.
+    # mail.thread's tracking hook fires on every write, which combined with
+    # `_order = 'date desc, id desc'` was re-ordering + re-rendering the row
+    # on every date pick → editable-list focus bounced into the picker → loop.
+    # Auditability on dates is low-value (the created vendor bill retains its
+    # own posted-date audit trail); prioritising UX correctness here.
     date = fields.Date(
         string='Accounting Date',
         required=True,
         default=fields.Date.today,
-        tracking=True,
         help='Posting date on the generated vendor bill (accounting_date).',
     )
     bill_date = fields.Date(
         string='Bill Date',
         default=fields.Date.today,
-        tracking=True,
         help='Vendor invoice date shown on the bill (bill_date). Defaults to '
              'today; DD/MM/YYYY display.',
     )
@@ -270,6 +274,7 @@ class ManpowerProjectExpense(models.Model):
         if all_tags:
             bill_vals['way4tech_tag_ids'] = [(6, 0, all_tags.ids)]
         bill = self.env['account.move'].create(bill_vals)
+        self.contract_id._apply_ksa_account_overrides(bill)
         self.write({'bill_id': bill.id, 'state': 'billed'})
 
         return {

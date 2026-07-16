@@ -124,6 +124,7 @@ class Way4TechManpowerContractIncomeLine(models.Model):
 
             invoice = self.env["account.move"].create(move_vals)
             invoice.ref = contract._compose_reference_string(invoice=invoice)
+            contract._apply_ksa_account_overrides(invoice)
             line.write({"invoice_id": invoice.id, "state": "invoiced"})
             contract.invoice_ids = [(4, invoice.id)]
         return {

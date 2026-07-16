@@ -38,7 +38,6 @@ class Way4TechManpowerTimesheet(models.Model):
     amount = fields.Monetary(
         string='Amount',
         compute='_compute_amount',
-        store=True,
         currency_field='currency_id',
         help='Way 1 (range): calendar_days × per_day_hours × rate. '
              'Way 2 (single date): hours × rate.',
@@ -59,7 +58,6 @@ class Way4TechManpowerTimesheet(models.Model):
     employee_cost = fields.Monetary(
         string='Employee Cost',
         compute='_compute_employee_cost',
-        store=True,
         currency_field='currency_id',
     )
     currency_id = fields.Many2one(
@@ -87,19 +85,13 @@ class Way4TechManpowerTimesheet(models.Model):
             else:
                 line.amount = (line.hours or 0.0) * rate
 
-    @api.onchange('start_date', 'end_date')
-    def _onchange_range_clears_single(self):
-        """Way 1: clear the single-date + hours pair so the two modes don't
-        pollute each other. View also flips readonly attrs based on this."""
-        if self.start_date or self.end_date:
-            self.date = False
-            self.hours = 0.0
-
-    @api.onchange('date', 'hours')
-    def _onchange_single_clears_range(self):
-        """Way 2 mirror of the above."""
-        if self.date and not (self.start_date or self.end_date):
-            self.per_day_hours = 0.0
+    # NOTE (2026-07-17): removed the two @api.onchange handlers that
+    # cross-cleared date/hours vs start_date/end_date/per_day_hours.
+    # Their side-effect writes mutated OTHER cells in the same row on every
+    # date pick → editable-list widget re-rendered the row → focus bounced
+    # back into the date input → picker looped. Mode-exclusivity is still
+    # enforced at save time by _check_one_mode below (@api.constrains), so
+    # the UX contract is preserved without the row-refocus bug.
 
     @api.constrains('start_date', 'end_date')
     def _check_range_order(self):
@@ -182,6 +174,7 @@ class Way4TechManpowerTimesheet(models.Model):
                 move_vals['way4tech_tag_ids'] = [(6, 0, all_tags.ids)]
             invoice = self.env['account.move'].create(move_vals)
             invoice.ref = contract._compose_reference_string(invoice=invoice)
+            contract._apply_ksa_account_overrides(invoice)
             line.write({'invoice_id': invoice.id, 'state': 'invoiced'})
             contract.invoice_ids = [(4, invoice.id)]
         return {

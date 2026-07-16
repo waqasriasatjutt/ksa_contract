@@ -17,6 +17,7 @@
                 <field name="way4tech_category_id" optional="show"/>
                 <field name="way4tech_tag_ids" widget="many2many_tags"
                        options="{'color_field': 'color'}" optional="show"/>
+                <field name="vehicle_id" optional="hide"/>
             </xpath>
         </field>
     </record>
@@ -33,6 +34,7 @@
                 <field name="way4tech_project_id"/>
                 <field name="way4tech_category_id"/>
                 <field name="way4tech_tag_ids"/>
+                <field name="vehicle_id"/>
                 <separator/>
                 <filter name="groupby_way4tech_project" string="Project"
                         context="{'group_by': 'way4tech_project_id'}"/>

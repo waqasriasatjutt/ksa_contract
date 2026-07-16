@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Customer Invoice + Vendor Bill list search — expose Contract Tags
+         (stored M2M on account.move) and Vehicle (on account.move.line,
+         pierced via invoice_line_ids) so users can build custom filters
+         on either. Odoo 19 uses the same account.view_account_invoice_filter
+         for both Customer Invoice and Vendor Bill list actions; the
+         customer/vendor split is done by the action's move_type filter. -->
+    <record id="view_account_invoice_filter_way4tech" model="ir.ui.view">
+        <field name="name">account.view.account.invoice.filter.way4tech.logistics</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="way4tech_tag_ids"/>
+                <field name="invoice_line_ids" string="Vehicle"
+                       filter_domain="[('invoice_line_ids.vehicle_id', 'ilike', self)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -526,6 +526,7 @@ class Way4TechManpowerContract(models.Model):
             invoice_vals['way4tech_tag_ids'] = [(6, 0, self.tag_ids.ids)]
         invoice = self.env['account.move'].create(invoice_vals)
         invoice.ref = self._compose_reference_string(invoice=invoice)
+        self._apply_ksa_account_overrides(invoice)
         self.invoice_ids = [(4, invoice.id)]
         return {
             'type': 'ir.actions.act_window',
@@ -535,6 +536,40 @@ class Way4TechManpowerContract(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def _apply_ksa_account_overrides(self, move):
+        """CR2 G1 (2026-07-17): after a move is created via one of the
+        contract's Create Invoice / Create Bill actions, force the AR/AP
+        counterpart line to the account configured in Payroll & Accounting
+        Setup (Manpower Receivable = 140001 for invoices, Manpower Payable
+        = 210001 for bills). Odoo's auto-balance defaults to the partner's
+        property_account_receivable/payable_id, which the client says is
+        the wrong account by default — this override reads from the settings
+        and re-points the counterpart line. Payable is applied ONLY on
+        purchase-side moves (in_invoice / in_refund), receivable ONLY on
+        sale-side (out_invoice / out_refund) — no cross-contamination."""
+        self.ensure_one()
+        if not move:
+            return
+        settings = self.env['way4tech.payroll.settings'].get_for_company(
+            move.company_id.id,
+        )
+        if move.move_type in ('out_invoice', 'out_refund'):
+            target = settings.manpower_receivable_account_id
+            if target:
+                for line in move.line_ids.filtered(
+                    lambda l: l.account_id and l.account_id.account_type == 'asset_receivable'
+                ):
+                    if line.account_id != target:
+                        line.account_id = target
+        elif move.move_type in ('in_invoice', 'in_refund'):
+            target = settings.manpower_payable_account_id
+            if target:
+                for line in move.line_ids.filtered(
+                    lambda l: l.account_id and l.account_id.account_type == 'liability_payable'
+                ):
+                    if line.account_id != target:
+                        line.account_id = target
 
     def action_view_invoices(self):
         self.ensure_one()

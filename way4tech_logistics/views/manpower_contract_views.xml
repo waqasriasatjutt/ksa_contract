@@ -170,7 +170,10 @@
                                    context="{'default_contract_id': id}">
                                 <list editable="bottom" decoration-muted="state == 'invoiced'">
                                     <field name="accounting_date"/>
-                                    <field name="inv_month" readonly="1"/>
+                                    <!-- inv_month hidden from list (2026-07-17): the non-stored
+                                         compute re-rendered this neighbor cell on every accounting_date
+                                         pick → row re-render bounced focus back into the picker → loop. -->
+                                    <field name="inv_month" column_invisible="1"/>
                                     <field name="invoice_date"/>
                                     <field name="description"/>
                                     <field name="tag_ids" widget="many2many_tags"/>
@@ -289,7 +292,10 @@
                                     <field name="actual_amount" sum="Total Actual"/>
                                     <field name="remaining" sum="Total Remaining"/>
                                     <field name="status"/>
-                                    <field name="month" readonly="1"/>
+                                    <!-- month hidden from list (2026-07-17): same picker-loop
+                                         pattern as inv_month above — non-stored compute on date
+                                         re-renders this cell on every pick → focus bounce. -->
+                                    <field name="month" column_invisible="1"/>
                                     <field name="date"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
