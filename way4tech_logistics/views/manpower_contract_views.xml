@@ -61,8 +61,28 @@
                             type="object"
                             class="oe_stat_button"
                             icon="fa-pencil-square-o"
-                        >
-                            <field name="invoice_count" widget="statinfo" string="Invoices"/>
+                            invisible="invoice_count == 0">
+                            <field name="invoice_count" widget="statinfo" string="Invoiced"/>
+                        </button>
+                        <!-- CR2 G4 (19.0.2.8.0): 2 new smart buttons -->
+                        <button
+                            name="action_view_bills"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-file-o"
+                            invisible="bill_count == 0">
+                            <field name="bill_count" widget="statinfo" string="Vendor Bills"/>
+                        </button>
+                        <button
+                            name="action_view_partner_ledger"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-book"
+                            invisible="not client_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Customer</span>
+                                <span class="o_stat_value">Statement</span>
+                            </div>
                         </button>
                     </div>
                     <div class="oe_title">
@@ -192,6 +212,11 @@
                                         string="Create Invoice" icon="fa-file-text-o"
                                         invisible="state == 'invoiced'"
                                         class="btn-sm btn-secondary"/>
+                                    <!-- CR2 G4: parity View-Invoice button -->
+                                    <button name="action_view_invoice" type="object"
+                                        string="View Invoice" icon="fa-eye"
+                                        invisible="state == 'draft'"
+                                        class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
                             </field>
@@ -317,6 +342,11 @@
                                     <button name="action_create_invoice" type="object"
                                         string="Create Invoice" icon="fa-file-text-o"
                                         invisible="state == 'invoiced'"
+                                        class="btn-sm btn-secondary"/>
+                                    <!-- CR2 G4: parity View-Invoice button -->
+                                    <button name="action_view_invoice" type="object"
+                                        string="View Invoice" icon="fa-eye"
+                                        invisible="state == 'draft'"
                                         class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>

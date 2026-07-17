@@ -237,6 +237,26 @@ class Way4TechManpowerContract(models.Model):
              "tab. Amount auto-computes via _get_commission_amount() from "
              "the contract's commission_type + the employee's template rate.",
     )
+    # ── CR2 G4 (19.0.2.8.0): Vendor Bills smart-button aggregates ─────────
+    # Non-stored M2M computed from the three child-line bill_id fields.
+    # Single source of truth = the line-level FK; no shadow M2M table to
+    # drift out of sync. Depends chain includes .state so the accountant
+    # cancelling/deleting a bill immediately drops the count.
+    bill_ids = fields.Many2many(
+        comodel_name='account.move',
+        string='Vendor Bills',
+        compute='_compute_bill_aggregates',
+        help='CR2 G4: all vendor bills posted from Project Direct Cost, '
+             'Project Operating Exp and Sales Person Commission line tabs. '
+             'Non-stored — computed from child lines.bill_id on every read.',
+    )
+    bill_count = fields.Integer(
+        string='Vendor Bill Count', compute='_compute_bill_aggregates',
+    )
+    bill_total = fields.Monetary(
+        string='Total Vendor Bills', compute='_compute_bill_aggregates',
+        currency_field='currency_id',
+    )
     income_line_ids = fields.One2many(
         'way4tech.manpower.contract.income.line',
         'contract_id',
@@ -730,6 +750,70 @@ class Way4TechManpowerContract(models.Model):
         rate, profit_value = rate_map.get(self.commission_type, (0.0, 0.0))
         computed = (rate or 0.0) / 100.0 * (profit_value or 0.0)
         return max(0.0, computed)
+
+    @api.depends(
+        'direct_cost_line_ids.bill_id',
+        'direct_cost_line_ids.bill_id.amount_untaxed',
+        'direct_cost_line_ids.bill_id.state',
+        'direct_cost_line_ids.bill_id.move_type',
+        'operating_exp_line_ids.bill_id',
+        'operating_exp_line_ids.bill_id.amount_untaxed',
+        'operating_exp_line_ids.bill_id.state',
+        'operating_exp_line_ids.bill_id.move_type',
+        'commission_line_ids.bill_id',
+        'commission_line_ids.bill_id.amount_untaxed',
+        'commission_line_ids.bill_id.state',
+        'commission_line_ids.bill_id.move_type',
+    )
+    def _compute_bill_aggregates(self):
+        """CR2 G4: aggregate all vendor bills across Direct Cost / OpEx /
+        Commission tabs for the smart button. Non-stored — single source
+        of truth is child line's bill_id FK."""
+        for rec in self:
+            moves = (
+                rec.direct_cost_line_ids.mapped('bill_id')
+                | rec.operating_exp_line_ids.mapped('bill_id')
+                | rec.commission_line_ids.mapped('bill_id')
+            ).filtered(lambda m: m.move_type in ('in_invoice', 'in_refund'))
+            rec.bill_ids = moves
+            rec.bill_count = len(moves)
+            rec.bill_total = sum(moves.mapped('amount_untaxed'))
+
+    def action_view_bills(self):
+        """CR2 G4: Vendor Bills smart button — opens filtered list."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Vendor Bills'),
+            'res_model': 'account.move',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.bill_ids.ids)],
+            'context': {'default_move_type': 'in_invoice'},
+        }
+
+    def action_view_partner_ledger(self):
+        """CR2 G4: Customer Statement smart button — opens standard Odoo
+        journal-items list filtered to this contract's client's AR/AP
+        entries. Community-safe: works without account_reports (Enterprise).
+        Skeptic amendment F: drop parent_state='posted' so drafts also show
+        (real accountant workflow); drop group_by_partner (redundant since
+        the domain is already partner-scoped)."""
+        self.ensure_one()
+        if not self.client_id:
+            raise UserError(_(
+                'Set a client on the contract before opening its statement.'
+            ))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Statement — %s') % self.client_id.display_name,
+            'res_model': 'account.move.line',
+            'view_mode': 'list,form',
+            'domain': [
+                ('partner_id', '=', self.client_id.id),
+                ('account_id.account_type', 'in', ('asset_receivable', 'liability_payable')),
+            ],
+            'context': {'search_default_group_by_account': 1},
+        }
 
     def action_view_invoices(self):
         self.ensure_one()

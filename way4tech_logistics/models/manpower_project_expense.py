@@ -162,6 +162,14 @@ class ManpowerProjectExpense(models.Model):
         copy=False,
         help='Vendor bill created when you click "Create Vendor Bill". Read-only.',
     )
+    # CR2 G4 amendment A: pin specific bill line for per-line sync-back.
+    bill_line_id = fields.Many2one(
+        'account.move.line',
+        string='Bill Line',
+        readonly=True, copy=False, ondelete='set null',
+        help='CR2 G4: the account.move.line minted by Create Bill on this '
+             'expense row. Sync back-reads price_subtotal from this line.',
+    )
     state = fields.Selection(
         selection=[
             ('draft', 'Draft'),
@@ -316,7 +324,12 @@ class ManpowerProjectExpense(models.Model):
             bill_vals['way4tech_tag_ids'] = [(6, 0, all_tags.ids)]
         bill = self.env['account.move'].create(bill_vals)
         self.contract_id._apply_ksa_account_overrides(bill)
-        self.write({'bill_id': bill.id, 'state': 'billed'})
+        # CR2 G4: pin the specific bill line for per-line sync-back.
+        self.write({
+            'bill_id': bill.id,
+            'bill_line_id': bill.invoice_line_ids[:1].id or False,
+            'state': 'billed',
+        })
 
         return {
             'type': 'ir.actions.act_window',
@@ -339,3 +352,30 @@ class ManpowerProjectExpense(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def _sync_amount_from_move(self, move):
+        """CR2 G4 amendment A: pull price_subtotal from the pinned bill
+        line back into this expense row. amount is a plain Monetary
+        user-input field so direct write is safe. Skip legacy pre-G4
+        rows without the pinned FK — never guess from amount_untaxed."""
+        self.ensure_one()
+        if move.move_type not in ('in_invoice', 'in_refund'):
+            return
+        if not self.bill_line_id:
+            return
+        new_amount = self.bill_line_id.price_subtotal or 0.0
+        if new_amount != self.amount:
+            self.with_context(way4tech_skip_move_sync=True).write({'amount': new_amount})
+
+    def unlink(self):
+        """CR2 G4 item 4/5: block deletion only when linked vendor bill is
+        POSTED (skeptic amendment E — allow delete for draft/cancelled)."""
+        for line in self:
+            move = line.bill_id
+            if move and move.state == 'posted':
+                raise UserError(_(
+                    'Cannot delete this Project Expense line — the linked '
+                    'vendor bill "%s" is POSTED. Reset the bill to draft or '
+                    'cancel it from the Accounting menu first, then retry.'
+                ) % move.display_name)
+        return super().unlink()

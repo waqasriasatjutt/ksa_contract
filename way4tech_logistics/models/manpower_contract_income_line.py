@@ -46,6 +46,19 @@ class Way4TechManpowerContractIncomeLine(models.Model):
         string="Amount", compute="_compute_amount", store=True, currency_field="currency_id",
     )
     invoice_id = fields.Many2one("account.move", string="Invoice", readonly=True, copy=False)
+    # CR2 G4 amendment A: pin the specific invoice_line the create action
+    # minted, so _sync_amount_from_move reads price_subtotal from that
+    # exact line — never the whole move.amount_untaxed (which would treat
+    # any extra discount/adjustment row on the invoice as "our" amount and
+    # silently corrupt price on the source-line).
+    invoice_line_id = fields.Many2one(
+        'account.move.line',
+        string='Invoice Line',
+        readonly=True, copy=False, ondelete='set null',
+        help='CR2 G4: the specific account.move.line minted by Create Invoice '
+             'on this row. Sync back-reads price_subtotal from this line, not '
+             'the whole invoice, so multi-line invoices stay consistent.',
+    )
     state = fields.Selection(
         [("draft", "Draft"), ("invoiced", "Invoiced")],
         default="draft", readonly=True, copy=False,
@@ -125,7 +138,12 @@ class Way4TechManpowerContractIncomeLine(models.Model):
             invoice = self.env["account.move"].create(move_vals)
             invoice.ref = contract._compose_reference_string(invoice=invoice)
             contract._apply_ksa_account_overrides(invoice)
-            line.write({"invoice_id": invoice.id, "state": "invoiced"})
+            # CR2 G4: pin the specific invoice_line for per-line sync-back.
+            line.write({
+                "invoice_id": invoice.id,
+                "invoice_line_id": invoice.invoice_line_ids[:1].id or False,
+                "state": "invoiced",
+            })
             contract.invoice_ids = [(4, invoice.id)]
         return {
             "type": "ir.actions.act_window",
@@ -135,3 +153,50 @@ class Way4TechManpowerContractIncomeLine(models.Model):
             "view_mode": "form",
             "target": "current",
         }
+
+    def action_view_invoice(self):
+        """CR2 G4: per-row 'View Invoice' button — parity with expense/
+        commission tabs that already have action_view_bill."""
+        self.ensure_one()
+        if not self.invoice_id:
+            raise UserError(_('No invoice linked to this income line yet.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Invoice'),
+            'res_model': 'account.move',
+            'res_id': self.invoice_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def _sync_amount_from_move(self, move):
+        """CR2 G4: pull the current price_subtotal of the linked invoice
+        LINE (not the whole move) back into this income line. Skip
+        silently if invoice_line_id is not pinned (legacy pre-G4 row) —
+        never guess amount from move.amount_untaxed on such rows
+        (skeptic amendment A: prevents multi-line data corruption)."""
+        self.ensure_one()
+        if move.move_type not in ('out_invoice', 'out_refund'):
+            return
+        if not self.invoice_line_id:
+            # Legacy row without pinned line — don't corrupt.
+            return
+        line_amount = self.invoice_line_id.price_subtotal or 0.0
+        qty = self.quantity or 1.0
+        new_price = line_amount / qty
+        if new_price != self.price:
+            self.with_context(way4tech_skip_move_sync=True).write({'price': new_price})
+
+    def unlink(self):
+        """CR2 G4 item 4/5: block deletion while linked invoice is POSTED.
+        Draft or cancelled invoices allow deletion (skeptic amendment E:
+        the 'must cancel first for even drafts' UX was too onerous)."""
+        for line in self:
+            move = line.invoice_id
+            if move and move.state == 'posted':
+                raise UserError(_(
+                    'Cannot delete this Project Income line — the linked '
+                    'invoice "%s" is POSTED. Reset the invoice to draft or '
+                    'cancel it from the Accounting menu first, then retry.'
+                ) % move.display_name)
+        return super().unlink()

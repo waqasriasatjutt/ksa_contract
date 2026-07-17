@@ -43,6 +43,14 @@ class Way4TechManpowerTimesheet(models.Model):
              'Way 2 (single date): hours × rate.',
     )
     invoice_id = fields.Many2one('account.move', string='Invoice', readonly=True, copy=False)
+    # CR2 G4 amendment A: pin the specific invoice_line for sync-back.
+    invoice_line_id = fields.Many2one(
+        'account.move.line',
+        string='Invoice Line',
+        readonly=True, copy=False, ondelete='set null',
+        help='CR2 G4: the account.move.line minted by Create Invoice on '
+             'this timesheet. Sync back-reads price_subtotal from this line.',
+    )
     state = fields.Selection(
         [('draft', 'Draft'), ('invoiced', 'Invoiced')],
         default='draft', readonly=True, copy=False,
@@ -175,7 +183,12 @@ class Way4TechManpowerTimesheet(models.Model):
             invoice = self.env['account.move'].create(move_vals)
             invoice.ref = contract._compose_reference_string(invoice=invoice)
             contract._apply_ksa_account_overrides(invoice)
-            line.write({'invoice_id': invoice.id, 'state': 'invoiced'})
+            # CR2 G4: pin the specific invoice_line for sync-back.
+            line.write({
+                'invoice_id': invoice.id,
+                'invoice_line_id': invoice.invoice_line_ids[:1].id or False,
+                'state': 'invoiced',
+            })
             contract.invoice_ids = [(4, invoice.id)]
         return {
             'type': 'ir.actions.act_window',
@@ -185,3 +198,53 @@ class Way4TechManpowerTimesheet(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def action_view_invoice(self):
+        """CR2 G4: per-row 'View Invoice' button (parity with expense tabs)."""
+        self.ensure_one()
+        if not self.invoice_id:
+            raise UserError(_('No invoice linked to this timesheet yet.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Invoice'),
+            'res_model': 'account.move',
+            'res_id': self.invoice_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def _sync_amount_from_move(self, move):
+        """CR2 G4 amendment A + B: pull price_subtotal from the pinned
+        invoice_line back into this timesheet by adjusting `rate`.
+        Skip when units are zero — user's zero-hours placeholder rows
+        are legitimate and must not be silently clobbered to hours=1
+        (skeptic amendment B). Skip legacy pre-G4 rows without the
+        pinned FK (skeptic amendment A: no guessing from amount_untaxed)."""
+        self.ensure_one()
+        if move.move_type not in ('out_invoice', 'out_refund'):
+            return
+        if not self.invoice_line_id:
+            return
+        if self.start_date and self.end_date and self.end_date >= self.start_date:
+            days = (self.end_date - self.start_date).days + 1
+            units = days * (self.per_day_hours or 0.0)
+        else:
+            units = self.hours or 0.0
+        if not units:
+            return
+        new_rate = (self.invoice_line_id.price_subtotal or 0.0) / units
+        if new_rate != self.rate:
+            self.with_context(way4tech_skip_move_sync=True).write({'rate': new_rate})
+
+    def unlink(self):
+        """CR2 G4 item 4/5: block deletion only when linked invoice is POSTED
+        (skeptic amendment E — draft/cancelled allow delete)."""
+        for line in self:
+            move = line.invoice_id
+            if move and move.state == 'posted':
+                raise UserError(_(
+                    'Cannot delete this Timesheet line — the linked invoice '
+                    '"%s" is POSTED. Reset the invoice to draft or cancel it '
+                    'from the Accounting menu first, then retry.'
+                ) % move.display_name)
+        return super().unlink()
