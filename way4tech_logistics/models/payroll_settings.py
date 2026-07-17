@@ -320,6 +320,23 @@ class PayrollSettings(models.Model):
              'Leave blank to use the default purchase journal.',
     )
 
+    # ── CR2 G3 (19.0.2.7.0) — Sales Person Commission Rules ───────────────
+    commission_expense_account_id = fields.Many2one(
+        'account.account',
+        string='Sales Person Commission Expense Account',
+        check_company=True,
+        help='GL expense account debited on the vendor bill created from a '
+             'Sales Person Commission line on a Manpower Contract.\n'
+             'Example: 620010 — Sales Commission Expense (Operating Exp).',
+    )
+    commission_template_ids = fields.One2many(
+        'way4tech.commission.template', 'settings_id',
+        string='Sales Person Commission Rules',
+        help='Per-employee commission rate table. One row per salesperson '
+             'per company. Referenced by manpower.contract._get_commission_amount() '
+             "to look up the rate for the picked commission_type on each contract.",
+    )
+
     # ── Employee Compliance Costs (KSA) ───────────────────────────────────────
     gosi_expense_account_id = fields.Many2one(
         'account.account',

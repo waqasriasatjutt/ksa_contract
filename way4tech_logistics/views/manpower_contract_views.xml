@@ -83,6 +83,8 @@
                                    help="Link to a Client PO. Invoices from this contract count against the PO balance."/>
                             <field name="salesperson_id"
                                    help="Internal HR employee acting as salesperson on this contract."/>
+                            <field name="commission_type"
+                                   help="CR2 G3 — how the salesperson earns commission on this contract. Rate is looked up on Payroll &amp; Accounting Setup → Sales Person Commission Rules by employee. Percentage modes are gated: Actual Profit must be &gt; 0 for a payout."/>
                             <!-- Hidden per client request (kept in view as invisible so any
                                  code that references them keeps working; underlying DB
                                  columns are preserved so no data is lost). -->
@@ -143,12 +145,14 @@
                             <field name="bs_total_actual_cost" readonly="1"/>
                             <field name="bs_remaining_budget" readonly="1"/>
                             <field name="bs_budget_variance" readonly="1"/>
+                            <field name="bs_sales_person_commission" readonly="1"/>
                         </group>
                         <group string="Project Profitability" colspan="2">
                             <field name="pp_gross_profit" readonly="1"/>
                             <field name="pp_net_profit" readonly="1"/>
                             <field name="pp_budgeted_profit" readonly="1"/>
                             <field name="pp_actual_profit" readonly="1"/>
+                            <field name="pp_profit_after_commission" readonly="1"/>
                         </group>
                         <group string="KPI %" colspan="2">
                             <field name="kpi_gross_margin" readonly="1" widget="percentage"/>
@@ -337,6 +341,54 @@
                                          re-renders this cell on every pick → focus bounce. -->
                                     <field name="month" column_invisible="1"/>
                                     <field name="date"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- 6. CR2 G3 (19.0.2.7.0): Sales Person Commission —
+                             one row per commission payout. Amount auto-computes
+                             via contract._get_commission_amount() honouring the
+                             contract's commission_type + the employee's rate on
+                             way4tech.commission.template. Percentage modes are
+                             gated on Actual Profit > 0. -->
+                        <page string="Sales Person Commission" name="sales_commission">
+                            <div class="alert alert-info" role="alert">
+                                <strong>Sales Person Commission lines:</strong>
+                                One row per commission payout. Amount is auto-computed
+                                from the contract's <em>Commission Type</em> and the
+                                salesperson's rate on <strong>Payroll &amp; Accounting
+                                Setup → Sales Person Commission Rules</strong>. Click
+                                <em>Create Bill</em> to post the vendor bill.
+                                <br/><strong>Note:</strong> percentage modes require
+                                <em>Actual Profit</em> above zero — no profit, no
+                                commission. Once the bill is posted the amount is
+                                frozen so it can't drift from the GL.
+                            </div>
+                            <field name="commission_line_ids"
+                                   readonly="state == 'cancelled'"
+                                   context="{'default_contract_id': id}">
+                                <list editable="bottom" decoration-muted="state == 'billed'">
+                                    <field name="date" string="Accounting Date"/>
+                                    <field name="bill_month" column_invisible="1"/>
+                                    <field name="expense_type" readonly="1"/>
+                                    <field name="tag_ids" widget="many2many_tags" optional="show"/>
+                                    <field name="employee_id"/>
+                                    <field name="description"/>
+                                    <field name="vendor_id"/>
+                                    <field name="account_id"
+                                           help="GL expense account for this commission. Auto-filled from Payroll &amp; Accounting Setup → Sales Person Commission Rules."/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-success="state == 'billed'"/>
+                                    <button name="action_create_bill" type="object"
+                                            string="Create Bill" icon="fa-file-text-o"
+                                            invisible="state == 'billed'"
+                                            class="btn-sm btn-secondary"/>
+                                    <button name="action_view_bill" type="object"
+                                            string="View Bill" icon="fa-eye"
+                                            invisible="state == 'draft'"
+                                            class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
                             </field>

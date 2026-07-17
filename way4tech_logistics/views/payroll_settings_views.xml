@@ -189,6 +189,38 @@
                                 analytic account — view the full project P&amp;L in
                                 <strong>Accounting → Reporting → Analytic Report</strong>.
                             </div>
+                            <!-- CR2 G3 (19.0.2.7.0): Sales Person Commission Rules. -->
+                            <group string="Sales Person Commission Rules (CR2 G3)"
+                                   colspan="4">
+                                <field name="commission_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Expense account debited on the vendor bill created from a Sales Person Commission line on a Manpower Contract. Example: 620010 — Sales Commission Expense."/>
+                                <field name="commission_template_ids"
+                                       nolabel="1" colspan="4"
+                                       context="{'default_settings_id': id, 'default_company_id': company_id}">
+                                    <list editable="bottom">
+                                        <field name="employee_id"/>
+                                        <field name="fix_rate"/>
+                                        <field name="gp_rate"/>
+                                        <field name="np_rate"/>
+                                        <field name="budgeted_rate"/>
+                                        <field name="actual_rate"/>
+                                        <field name="currency_id" column_invisible="1"/>
+                                        <field name="company_id" column_invisible="1"/>
+                                    </list>
+                                </field>
+                                <div class="alert alert-info" role="alert" colspan="4">
+                                    <strong>How commissions compute:</strong>
+                                    On a Manpower Contract, pick a <em>Commission Type</em>
+                                    next to the Salesperson. On the new
+                                    <em>Sales Person Commission</em> tab, add a payout line —
+                                    Amount auto-fills from this employee's rate for the
+                                    picked type. Percentage modes are gated:
+                                    <em>Actual Profit</em> must be &gt; 0 for any payout.
+                                    Missing template for an employee yields
+                                    <strong>zero</strong>; Create Bill raises a clear error.
+                                </div>
+                            </group>
                         </page>
 
                         <!-- HIDDEN Compliance Costs tab — remove invisible="1" to re-enable -->

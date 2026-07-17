@@ -34,3 +34,6 @@ from . import expense_category
 from . import settings_expense_account_map
 from . import manpower_contract_income_line
 from . import manpower_contract_budget_line
+# 2026-07-17 — CR2 G3 Sales Person Commission (19.0.2.7.0)
+from . import commission_template
+from . import manpower_commission_line

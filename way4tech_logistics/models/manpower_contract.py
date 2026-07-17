@@ -42,6 +42,30 @@ class Way4TechManpowerContract(models.Model):
         help='Internal HR employee acting as salesperson on this contract. '
              'One salesperson can hold multiple contracts.',
     )
+    # CR2 G3 (19.0.2.7.0): commission mode picker. Drives how
+    # _get_commission_amount() and the Sales Person Commission tab lines
+    # compute the payout for salesperson_id. Default 'none' preserves
+    # zero client-visible behaviour on pre-G3 contracts until opt-in.
+    commission_type = fields.Selection(
+        selection=[
+            ('none', 'None'),
+            ('fix', 'Fix Amount'),
+            ('gp', 'Project Gross Profit %'),
+            ('np', 'Project Net Profit %'),
+            ('budgeted', 'Budgeted Profit %'),
+            ('actual', 'Actual Profit %'),
+        ],
+        string='Commission Type',
+        default='none',
+        tracking=True,
+        help='CR2 G3 — how the salesperson_id earns on this contract.\n'
+             '  • None: no auto-computed commission\n'
+             '  • Fix Amount: template.fix_rate × posted-invoice-count in month\n'
+             '  • %-modes: template rate × profit_value_for_type, gated by '
+             'pp_actual_profit > 0 (no profit → no commission).\n'
+             'Rate looked up on Configuration → Payroll & Accounting Setup → '
+             'Sales Person Commission Rules by employee.',
+    )
     contract_type = fields.Selection(
         selection=[
             ('food_delivery', 'Food Delivery'),
@@ -204,6 +228,15 @@ class Way4TechManpowerContract(models.Model):
              'category is bucketed as Operating Exp. Feeds the Project '
              'Operating Exp tab and Billing Summary bs_total_project_exp.',
     )
+    # CR2 G3 (19.0.2.7.0): Sales Person Commission tab lines.
+    commission_line_ids = fields.One2many(
+        'way4tech.manpower.commission.line',
+        'contract_id',
+        string='Sales Person Commission Lines',
+        help='One row per commission payout on the Sales Person Commission '
+             "tab. Amount auto-computes via _get_commission_amount() from "
+             "the contract's commission_type + the employee's template rate.",
+    )
     income_line_ids = fields.One2many(
         'way4tech.manpower.contract.income.line',
         'contract_id',
@@ -285,6 +318,21 @@ class Way4TechManpowerContract(models.Model):
         string='Actual Profit', compute='_compute_kpi_summary',
         currency_field='currency_id',
     )
+    # -- CR2 G3 (19.0.2.7.0): sales-person commission summary ------------
+    bs_sales_person_commission = fields.Monetary(
+        string='Total Sales Person Commission', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+        help='Sum of commission-line amounts whose vendor bill has been '
+             "created (state='billed'). Mirrors the billed-only rule already "
+             'applied to CGS/OpEx per CR2 G7 item 2 — keeps summary tiles '
+             'numerically consistent with what actually posted to the GL.',
+    )
+    pp_profit_after_commission = fields.Monetary(
+        string='Profit After Commission', compute='_compute_kpi_summary',
+        currency_field='currency_id',
+        help='pp_actual_profit − bs_sales_person_commission. What the '
+             'company keeps on this contract after paying the salesperson.',
+    )
     kpi_gross_margin = fields.Float(
         string='Gross Margin %', compute='_compute_kpi_summary', digits=(6, 2),
     )
@@ -317,6 +365,8 @@ class Way4TechManpowerContract(models.Model):
         'project_expense_ids.category_id',
         'project_expense_ids.category_id.expense_type',
         'budget_line_ids', 'budget_line_ids.budget_amount', 'budget_line_ids.actual_amount',
+        # CR2 G3 (19.0.2.7.0): commission billed-only sum.
+        'commission_line_ids', 'commission_line_ids.amount', 'commission_line_ids.state',
     )
     def _compute_kpi_summary(self):
         """One pass per record — reads children once, computes all 19 boxes.
@@ -372,6 +422,14 @@ class Way4TechManpowerContract(models.Model):
             rec.pp_net_profit = net_profit
             rec.pp_budgeted_profit = budgeted_profit
             rec.pp_actual_profit = actual_profit
+            # CR2 G3 (19.0.2.7.0): billed-only sum, mirroring CGS/OpEx rule.
+            commission_total = sum(
+                l.amount or 0.0
+                for l in rec.commission_line_ids
+                if l.state == 'billed'
+            )
+            rec.bs_sales_person_commission = commission_total
+            rec.pp_profit_after_commission = actual_profit - commission_total
             rec.kpi_gross_margin = _pct(gross_profit, total_invoiced)
             rec.kpi_net_margin = _pct(net_profit, total_invoiced)
             rec.kpi_cogs_pct = _pct(cgs, total_invoiced)
@@ -609,6 +667,69 @@ class Way4TechManpowerContract(models.Model):
                 ):
                     if line.account_id != target:
                         line.account_id = target
+
+    def _get_commission_amount(self, employee, target_date=None):
+        """CR2 G3 — canonical commission calculation for the salesperson.
+
+        Called by way4tech.manpower.commission.line._compute_amount and by
+        action_create_bill. Returns a currency-scoped monetary value based
+        on the contract's commission_type + employee's template rate.
+
+        Rules
+        -----
+          - salesperson_id empty OR commission_type == 'none' → 0.0
+          - Missing template for employee → 0.0 + _logger.warning.
+            (Skeptic bug 1: NO message_post here — computes must be
+            side-effect-free. action_create_bill raises UserError so the
+            accountant sees the config gap at the moment they try to bill.)
+          - Fix mode: fix_rate × count(POSTED out_invoice with invoice_date
+            in target month). Drafts + refunds + cancelled excluded
+            (skeptic bug 2).
+          - %-modes: if pp_actual_profit <= 0 → 0.0 (hard gate)
+                    else max(0.0, rate/100.0 × profit_value_for_type)
+        """
+        self.ensure_one()
+        if not employee or not self.salesperson_id or self.commission_type == 'none':
+            return 0.0
+
+        template = self.env['way4tech.commission.template'].search([
+            ('employee_id', '=', employee.id),
+            ('company_id', '=', self.company_id.id),
+        ], limit=1)
+        if not template:
+            import logging
+            logging.getLogger(__name__).warning(
+                "No commission template for employee %s on company %s; "
+                "commission set to 0. Configure in Payroll & Accounting Setup.",
+                employee.display_name, self.company_id.display_name,
+            )
+            return 0.0
+
+        if self.commission_type == 'fix':
+            from datetime import date as _date
+            target = target_date or _date.today()
+            invoice_count = sum(
+                1 for inv in self.invoice_ids
+                if inv.state == 'posted'
+                and inv.move_type == 'out_invoice'
+                and inv.invoice_date
+                and inv.invoice_date.year == target.year
+                and inv.invoice_date.month == target.month
+            )
+            return (template.fix_rate or 0.0) * invoice_count
+
+        # Percentage modes — hard-gate on Actual Profit > 0.
+        if (self.pp_actual_profit or 0.0) <= 0.0:
+            return 0.0
+        rate_map = {
+            'gp': (template.gp_rate, self.pp_gross_profit),
+            'np': (template.np_rate, self.pp_net_profit),
+            'budgeted': (template.budgeted_rate, self.pp_budgeted_profit),
+            'actual': (template.actual_rate, self.pp_actual_profit),
+        }
+        rate, profit_value = rate_map.get(self.commission_type, (0.0, 0.0))
+        computed = (rate or 0.0) / 100.0 * (profit_value or 0.0)
+        return max(0.0, computed)
 
     def action_view_invoices(self):
         self.ensure_one()
