@@ -50,13 +50,34 @@ class ManpowerProjectExpense(models.Model):
         help='Vendor invoice date shown on the bill (bill_date). Defaults to '
              'today; DD/MM/YYYY display.',
     )
+    # CR2 G2: category_id is required so every line is bucketed into
+    # Direct Cost or Operating Exp via category.expense_type. Default is
+    # taken from the tab's context (category_bucket_default), letting each
+    # notebook page pre-select the "Miscellaneous" seed of that bucket.
     category_id = fields.Many2one(
         'way4tech.expense.category',
         string='Category',
-        help='One of the 15 KSA canonical expense categories. Selecting it '
-             'auto-fills the Expense Account from Payroll Settings → Expense '
-             'Category → GL Account map.',
+        required=True,
+        default=lambda self: self._default_category_id(),
+        help='KSA expense category. Selecting it auto-fills the Expense '
+             'Account from Payroll Settings → Expense Category → GL Account '
+             'map, and decides whether this line lives in Direct Cost or '
+             'Operating Exp tab via the category bucket.',
     )
+
+    @api.model
+    def _default_category_id(self):
+        """Pick a sensible default per tab context so keyboard-first entry
+        doesn't hit the required-field error on every new line."""
+        bucket = self.env.context.get('category_bucket_default')
+        if not bucket:
+            return False
+        Cat = self.env['way4tech.expense.category']
+        # Prefer 'Miscellaneous' if it's in this bucket, else first by sequence
+        return (
+            Cat.search([('expense_type', '=', bucket), ('code', '=', 'miscellaneous')], limit=1)
+            or Cat.search([('expense_type', '=', bucket)], order='sequence, name', limit=1)
+        )
     tag_ids = fields.Many2many(
         'way4tech.tag',
         'way4tech_project_expense_tag_rel',
@@ -208,17 +229,20 @@ class ManpowerProjectExpense(models.Model):
                 'Configuration → Payroll & Accounting Setup → Project Expenses, '
                 'or set it directly on this expense line.'
             ))
-        # P3 block rule: a project-expense bill's reference REQUIRES an
-        # invoice number to compile — refuse to create a bill until at
-        # least one customer invoice exists on the parent contract. (This
-        # does not affect Timesheet lines, which only create invoices.)
-        if not self.contract_id.invoice_ids:
+        # CR2 G2: invoice-first rule now applies ONLY to Direct Cost bills.
+        # Default-strict: if category_id is somehow missing (legacy row,
+        # data corruption), TREAT AS DIRECT to preserve pre-G2 behavior.
+        # Operating Exp bills post freely.
+        _is_direct = (not self.category_id) or self.category_id.expense_type == 'direct'
+        if _is_direct and not self.contract_id.invoice_ids:
             raise ValidationError(_(
-                'Cannot create a vendor bill for this project expense — the '
-                'parent contract has no customer invoice yet. Create the '
+                'Cannot create a vendor bill for this Direct Cost expense — '
+                'the parent contract has no customer invoice yet. Create the '
                 'customer invoice first (Project Income tab or the "Create '
-                'Invoice" contract-header button); the bill will then inherit '
-                'the invoice number as part of its Payment Reference.'
+                'Invoice" contract-header button); the Direct Cost bill will '
+                'then inherit the invoice number as part of its Payment '
+                'Reference. Operating Exp bills are not subject to this '
+                'restriction.'
             ))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
@@ -229,6 +253,23 @@ class ManpowerProjectExpense(models.Model):
             'price_unit': self.amount,
             'account_id': self.account_id.id,
         }
+        # CR2 G2: apply the category's Input VAT tax (if configured on the
+        # settings map row) to the bill line so the purchase-side VAT posts.
+        # Direct Cost REQUIRES an Input VAT tax to be configured — mirrors
+        # the hard-fail pattern used for Output VAT on Project Income
+        # invoices. Operating Exp missing tax silently skips (VAT-free).
+        _map_row = settings.manpower_expense_category_account_ids.filtered(
+            lambda m: m.category_id == self.category_id
+        )[:1]
+        if _map_row and _map_row.input_vat_tax_id:
+            bill_line_vals['tax_ids'] = [(6, 0, [_map_row.input_vat_tax_id.id])]
+        elif _is_direct:
+            raise UserError(_(
+                'No Input VAT tax configured for category "%s" (Direct Cost). '
+                'Configure it in Configuration → Payroll & Accounting Setup → '
+                'Manpower Contracts tab → Expense Category map, so the '
+                'purchase-side VAT posts correctly on this Direct Cost bill.'
+            ) % (self.category_id.name if self.category_id else '(none)'))
         # Reuse the contract's analytic distribution (multi-account) with
         # legacy single-analytic + company default as fallbacks. Same helper
         # used for customer-side invoices.

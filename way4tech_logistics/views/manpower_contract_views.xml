@@ -192,26 +192,31 @@
                                 </list>
                             </field>
                         </page>
-                        <!-- 2. Project Expenses — existing tab (unchanged). -->
-                        <page string="Project Expenses" name="project_expenses">
+                        <!-- 2a. CR2 G2: Project Direct Cost — was 'Project Expenses'.
+                             Kept the page name='project_expenses' so any downstream
+                             view inheriting via xpath //page[@name='project_expenses']
+                             still resolves. Direct Cost = COGS: worker wages, client
+                             commission, transportation, equipment rent, building
+                             rent, utility exp. Requires customer invoice first. -->
+                        <page string="Project Direct Cost" name="project_expenses">
                             <div class="alert alert-info" role="alert">
-                                <strong>Project Cost Tracking:</strong>
-                                Add each cost the company bears for this project — worker wages,
-                                accommodation, utilities, furniture, transport, or other.
-                                Each line creates a proper <strong>Vendor Bill</strong> (accounts payable)
-                                when you click <em>Create Vendor Bill</em> on the line.
-                                All bills are tagged with the contract's analytic distribution, project, and
-                                entry category so the full project P&amp;L is visible in
-                                <strong>Accounting → Reporting → Analytic Report</strong>.
+                                <strong>Direct Cost (COGS) lines:</strong>
+                                Worker wages, client commission, transportation, equipment rent,
+                                building rent, utility exp. Each line creates a
+                                <strong>Vendor Bill</strong> when you click <em>Create Bill</em>
+                                and posts to <strong>COGS</strong> on the Billing Summary.
+                                <br/><strong>Note:</strong> Direct Cost bills can only be
+                                posted after the contract has at least one customer invoice
+                                — the bill's Payment Reference is composed from the invoice number.
                             </div>
-                            <field name="project_expense_ids"
+                            <field name="direct_cost_line_ids"
                                    readonly="state == 'cancelled'"
-                                   context="{'default_contract_id': id}">
+                                   context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
                                 <list editable="bottom" decoration-muted="state == 'billed'">
                                     <field name="date" string="Accounting Date"/>
                                     <field name="bill_date"/>
-                                    <field name="expense_type"/>
-                                    <field name="category_id"/>
+                                    <field name="category_id"
+                                           domain="[('expense_type', '=', 'direct')]"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                     <field name="description"/>
                                     <field name="vendor_id"/>
@@ -220,24 +225,59 @@
                                     <field name="amount" sum="Total"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
-                                        decoration-success="state == 'billed'"
-                                    />
-                                    <button
-                                        name="action_create_bill"
-                                        type="object"
-                                        string="Create Bill"
-                                        icon="fa-file-text-o"
-                                        invisible="state == 'billed'"
-                                        class="btn-sm btn-secondary"
-                                    />
-                                    <button
-                                        name="action_view_bill"
-                                        type="object"
-                                        string="View Bill"
-                                        icon="fa-eye"
-                                        invisible="state == 'draft'"
-                                        class="btn-sm btn-secondary"
-                                    />
+                                        decoration-success="state == 'billed'"/>
+                                    <button name="action_create_bill" type="object"
+                                            string="Create Bill" icon="fa-file-text-o"
+                                            invisible="state == 'billed'"
+                                            class="btn-sm btn-secondary"/>
+                                    <button name="action_view_bill" type="object"
+                                            string="View Bill" icon="fa-eye"
+                                            invisible="state == 'draft'"
+                                            class="btn-sm btn-secondary"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- 2b. CR2 G2: Project Operating Exp — new sibling tab.
+                             OpEx: iqama, phone, fuel, refreshment, maintenance, safety,
+                             mob/demob, chamber, utility, misc. NO customer-invoice
+                             prerequisite; bills can be posted freely. -->
+                        <page string="Project Operating Exp" name="project_operating_exp">
+                            <div class="alert alert-info" role="alert">
+                                <strong>Operating Exp lines:</strong>
+                                Work permit &amp; iqama, telephone &amp; internet, fuel,
+                                refreshment, vehicle/building/equipment maintenance,
+                                uniform &amp; safety, mob &amp; demob, chamber, utility,
+                                miscellaneous. Each line creates a
+                                <strong>Vendor Bill</strong> when you click <em>Create Bill</em>
+                                and posts to <strong>OpEx</strong> on the Billing Summary.
+                                No customer-invoice prerequisite.
+                            </div>
+                            <field name="operating_exp_line_ids"
+                                   readonly="state == 'cancelled'"
+                                   context="{'default_contract_id': id, 'category_bucket_default': 'operating'}">
+                                <list editable="bottom" decoration-muted="state == 'billed'">
+                                    <field name="date" string="Accounting Date"/>
+                                    <field name="bill_date"/>
+                                    <field name="category_id"
+                                           domain="[('expense_type', '=', 'operating')]"/>
+                                    <field name="tag_ids" widget="many2many_tags" optional="show"/>
+                                    <field name="description"/>
+                                    <field name="vendor_id"/>
+                                    <field name="account_id"
+                                           help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-success="state == 'billed'"/>
+                                    <button name="action_create_bill" type="object"
+                                            string="Create Bill" icon="fa-file-text-o"
+                                            invisible="state == 'billed'"
+                                            class="btn-sm btn-secondary"/>
+                                    <button name="action_view_bill" type="object"
+                                            string="View Bill" icon="fa-eye"
+                                            invisible="state == 'draft'"
+                                            class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
                             </field>

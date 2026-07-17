@@ -170,8 +170,12 @@
                                        context="{'default_settings_id': id}">
                                     <list editable="bottom">
                                         <field name="category_id"/>
+                                        <field name="category_expense_type" string="Bucket" readonly="1"/>
                                         <field name="account_id"
                                                domain="[('company_ids', 'in', [parent.company_id])]"/>
+                                        <field name="input_vat_tax_id"
+                                               string="Input VAT Account"
+                                               domain="[('type_tax_use', '=', 'purchase'), ('company_id', '=', parent.company_id)]"/>
                                         <field name="company_id" column_invisible="1"/>
                                     </list>
                                 </field>

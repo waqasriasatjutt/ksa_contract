@@ -183,6 +183,27 @@ class Way4TechManpowerContract(models.Model):
         inverse_name='contract_id',
         string='Project Expenses',
     )
+    # CR2 G2: two view-level splits over the same underlying table, driven
+    # by category.expense_type. Both back a Manpower Contract notebook tab
+    # and feed the Billing Summary CGS vs OpEx compute respectively.
+    direct_cost_line_ids = fields.One2many(
+        comodel_name='way4tech.manpower.project.expense',
+        inverse_name='contract_id',
+        domain=[('category_id.expense_type', '=', 'direct')],
+        string='Project Direct Cost Lines',
+        help='CR2 G2: subset of project_expense_ids where the picked '
+             'category is bucketed as Direct Cost. Feeds the Project '
+             'Direct Cost tab and Billing Summary bs_total_project_cgs.',
+    )
+    operating_exp_line_ids = fields.One2many(
+        comodel_name='way4tech.manpower.project.expense',
+        inverse_name='contract_id',
+        domain=[('category_id.expense_type', '=', 'operating')],
+        string='Project Operating Exp Lines',
+        help='CR2 G2: subset of project_expense_ids where the picked '
+             'category is bucketed as Operating Exp. Feeds the Project '
+             'Operating Exp tab and Billing Summary bs_total_project_exp.',
+    )
     income_line_ids = fields.One2many(
         'way4tech.manpower.contract.income.line',
         'contract_id',
@@ -292,11 +313,20 @@ class Way4TechManpowerContract(models.Model):
     @api.depends(
         'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
         'project_expense_ids', 'project_expense_ids.amount',
-        'project_expense_ids.account_id.account_type',
+        'project_expense_ids.state',
+        'project_expense_ids.category_id',
+        'project_expense_ids.category_id.expense_type',
         'budget_line_ids', 'budget_line_ids.budget_amount', 'budget_line_ids.actual_amount',
     )
     def _compute_kpi_summary(self):
-        """One pass per record — reads children once, computes all 19 boxes."""
+        """One pass per record — reads children once, computes all 19 boxes.
+
+        CR2 G2 (19.0.2.6.0): CGS/OpEx split is now driven by the tab a
+        line belongs to (category.expense_type), not by
+        account.account.account_type. Only confirmed (state='billed')
+        lines contribute — draft lines are excluded per CR2 G7 item 2 so
+        the client's month-end numbers match what was actually posted.
+        """
         def _pct(numerator, denominator):
             """Guard against divide-by-zero: return 0.0 if denominator is 0.
             Return value is a FRACTION (0.425 for 42.5%) — Odoo's
@@ -308,14 +338,16 @@ class Way4TechManpowerContract(models.Model):
         for rec in self:
             # Billing Summary
             total_invoiced = sum(rec.invoice_ids.mapped('amount_untaxed'))
-            cgs = 0.0
-            opex = 0.0
-            for line in rec.project_expense_ids:
-                atype = line.account_id.account_type if line.account_id else ''
-                if atype == 'expense_direct_cost':
-                    cgs += line.amount or 0.0
-                elif atype == 'expense':
-                    opex += line.amount or 0.0
+            cgs = sum(
+                l.amount or 0.0
+                for l in rec.direct_cost_line_ids
+                if l.state == 'billed'
+            )
+            opex = sum(
+                l.amount or 0.0
+                for l in rec.operating_exp_line_ids
+                if l.state == 'billed'
+            )
             total_budget = sum(rec.budget_line_ids.mapped('budget_amount'))
             total_actual = sum(rec.budget_line_ids.mapped('actual_amount'))
             remaining = total_budget - total_actual
@@ -372,10 +404,17 @@ class Way4TechManpowerContract(models.Model):
             rec.total_employee_cost = 0.0
             rec.billing_margin = 0.0
 
-    @api.depends('project_expense_ids.amount', 'total_invoiced')
+    @api.depends('project_expense_ids.amount', 'project_expense_ids.state', 'total_invoiced')
     def _compute_project_margin(self):
+        """CR2 G2: only confirmed (state='billed') expense lines contribute.
+        Keeps this tile numerically consistent with Billing Summary
+        (bs_total_project_cgs + bs_total_project_exp) which also filters
+        to billed-only per CR2 G7 item 2 — no unexplained delta between
+        the two summary cards when draft lines are pending."""
         for rec in self:
-            rec.total_project_expenses = sum(rec.project_expense_ids.mapped('amount'))
+            rec.total_project_expenses = sum(
+                l.amount or 0.0 for l in rec.project_expense_ids if l.state == 'billed'
+            )
             rec.project_margin = rec.total_invoiced - rec.total_project_expenses
 
     # ── Reference auto-generation (P3) ──────────────────────────────────────
