@@ -58,6 +58,28 @@ class AccountMoveWay4Tech(models.Model):
              'Contract Tags (users can also create tags on the fly here).',
     )
 
+    # ── Vehicles (aggregated from lines) ──────────────────────────────────────
+    # vehicle_id lives on account.move.line (per line). To bring Vehicle to
+    # Contract Tags parity — filterable + custom-filterable at the header —
+    # aggregate the distinct vehicles from lines into an M2M on the header.
+    # Stored + computed so it appears in "Add Custom Filter" builders on
+    # Journal Entries, Customer Invoices, and Vendor Bills.
+    way4tech_vehicle_ids = fields.Many2many(
+        'fleet.vehicle',
+        'way4tech_move_vehicle_rel', 'move_id', 'vehicle_id',
+        string='Vehicles',
+        compute='_compute_way4tech_vehicle_ids',
+        store=True,
+        help='Distinct vehicles referenced on this entry lines. Aggregated '
+             'from line_ids.vehicle_id so users can filter journal entries + '
+             'invoices by Vehicle from the header (parity with Contract Tags).',
+    )
+
+    @api.depends('line_ids.vehicle_id')
+    def _compute_way4tech_vehicle_ids(self):
+        for move in self:
+            move.way4tech_vehicle_ids = move.line_ids.vehicle_id
+
     # ── Invoice Month (auto from Accounting Date) ─────────────────────────────
     way4tech_inv_month = fields.Char(
         string='INV Month',

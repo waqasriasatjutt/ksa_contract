@@ -20,7 +20,10 @@ class ManpowerProjectExpense(models.Model):
     _name = 'way4tech.manpower.project.expense'
     _description = 'Manpower Project Expense'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'date desc, id desc'
+    # See income-line comment: sorting by an editable date field causes a
+    # row-position resort on every date pick in editable inline lists,
+    # which re-renders + re-focuses → picker reopen loop. id desc only.
+    _order = 'id desc'
     _rec_name = 'description'
 
     contract_id = fields.Many2one(

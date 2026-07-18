@@ -13,7 +13,9 @@ from odoo import api, fields, models
 class Way4TechManpowerContractBudgetLine(models.Model):
     _name = "way4tech.manpower.contract.budget.line"
     _description = "Manpower Contract — Project Budget Line"
-    _order = "date desc, id desc"
+    # See income-line comment: date in _order causes row resort on every
+    # date pick in editable inline lists → picker reopen loop. id desc only.
+    _order = "id desc"
 
     contract_id = fields.Many2one(
         "way4tech.manpower.contract", required=True, ondelete="cascade",

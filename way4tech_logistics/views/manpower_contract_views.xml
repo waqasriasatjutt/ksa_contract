@@ -217,12 +217,13 @@
                                    domain="[('accounting_date', '&gt;=', report_date_from), ('accounting_date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'invoiced'">
-                                    <field name="accounting_date"/>
-                                    <!-- inv_month hidden from list (2026-07-17): the non-stored
-                                         compute re-rendered this neighbor cell on every accounting_date
-                                         pick → row re-render bounced focus back into the picker → loop. -->
-                                    <field name="inv_month" column_invisible="1"/>
-                                    <field name="invoice_date"/>
+                                    <!-- inv_month removed entirely (2026-07-18 v11.0):
+                                         column_invisible=1 wasn't enough — the compute still fired
+                                         on every accounting_date pick, and the field being present
+                                         in the list schema caused row-cell recomputes on save,
+                                         re-focusing the picker. Field stays on the model + form. -->
+                                    <field name="accounting_date" widget="date"/>
+                                    <field name="invoice_date" widget="date"/>
                                     <field name="description"/>
                                     <field name="tag_ids" widget="many2many_tags"/>
                                     <field name="sale_account_id"/>
@@ -267,8 +268,8 @@
                                    domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
-                                    <field name="date" string="Accounting Date"/>
-                                    <field name="bill_date"/>
+                                    <field name="date" string="Accounting Date" widget="date"/>
+                                    <field name="bill_date" widget="date"/>
                                     <field name="category_id"
                                            domain="[('expense_type', '=', 'direct')]"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
@@ -312,8 +313,8 @@
                                    domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'operating'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
-                                    <field name="date" string="Accounting Date"/>
-                                    <field name="bill_date"/>
+                                    <field name="date" string="Accounting Date" widget="date"/>
+                                    <field name="bill_date" widget="date"/>
                                     <field name="category_id"
                                            domain="[('expense_type', '=', 'operating')]"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
@@ -347,15 +348,15 @@
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'invoiced'">
                                     <!-- Way 2: single date -->
-                                    <field name="date"/>
+                                    <field name="date" widget="date"/>
                                     <!-- Way 1: range. Cross-readonly attrs were removed
                                          (were: readonly="start_date or end_date" etc.) — the
                                          attr recomputed on every onchange, and mid-edit
                                          readonly toggles bounced the date-picker into an
                                          infinite reopen loop. Mode-exclusivity is enforced
                                          at save time via _check_one_mode + onchange clears. -->
-                                    <field name="start_date"/>
-                                    <field name="end_date"/>
+                                    <field name="start_date" widget="date"/>
+                                    <field name="end_date" widget="date"/>
                                     <field name="employee_id"/>
                                     <field name="description"/>
                                     <field name="hours" sum="Total Hours"/>
@@ -407,11 +408,10 @@
                                             string="Reset" icon="fa-undo"
                                             invisible="state == 'draft'"
                                             class="btn-sm btn-secondary"/>
-                                    <!-- month hidden from list (2026-07-17): same picker-loop
-                                         pattern as inv_month above — non-stored compute on date
-                                         re-renders this cell on every pick → focus bounce. -->
-                                    <field name="month" column_invisible="1"/>
-                                    <field name="date"/>
+                                    <!-- month removed from list entirely (2026-07-18 v11.0):
+                                         even column_invisible=1 didn't cut the row-recompute
+                                         cascade. Field stays on model for form/report use. -->
+                                    <field name="date" widget="date"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </list>
                             </field>
@@ -440,8 +440,9 @@
                                    domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'billed'">
-                                    <field name="date" string="Accounting Date"/>
-                                    <field name="bill_month" column_invisible="1"/>
+                                    <!-- bill_month removed from list (2026-07-18 v11.0):
+                                         same picker-loop mitigation as inv_month/month. -->
+                                    <field name="date" string="Accounting Date" widget="date"/>
                                     <field name="expense_type" readonly="1"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                     <field name="employee_id"/>

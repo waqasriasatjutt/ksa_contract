@@ -5,7 +5,9 @@ from odoo.exceptions import UserError, ValidationError
 class Way4TechManpowerTimesheet(models.Model):
     _name = 'way4tech.manpower.timesheet'
     _description = 'Manpower Contract Timesheet'
-    _order = 'contract_id, date desc, id desc'
+    # date dropped from _order — see income-line comment: sort by an editable
+    # date field in inline lists re-orders rows on every pick → picker loop.
+    _order = 'contract_id, id desc'
 
     contract_id = fields.Many2one(
         comodel_name='way4tech.manpower.contract',

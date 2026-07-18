@@ -36,7 +36,9 @@ _logger = logging.getLogger(__name__)
 class Way4TechManpowerCommissionLine(models.Model):
     _name = 'way4tech.manpower.commission.line'
     _description = 'Manpower Contract — Sales Person Commission Line'
-    _order = 'date desc, id desc'
+    # date dropped from _order — sort by editable date in inline lists
+    # re-orders rows on every pick → picker loop. See income-line comment.
+    _order = 'id desc'
 
     contract_id = fields.Many2one(
         'way4tech.manpower.contract', required=True, ondelete='cascade',

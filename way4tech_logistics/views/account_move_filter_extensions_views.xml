@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <!-- Customer Invoice + Vendor Bill list search — expose Contract Tags
-         (stored M2M on account.move) and Vehicle (on account.move.line,
-         pierced via invoice_line_ids) so users can build custom filters
-         on either. Odoo 19 uses the same account.view_account_invoice_filter
-         for both Customer Invoice and Vendor Bill list actions; the
-         customer/vendor split is done by the action's move_type filter. -->
+         + Vehicles (both stored M2M on account.move header) so users can
+         build custom filters on either. Odoo 19 uses the same
+         account.view_account_invoice_filter for both Customer Invoice and
+         Vendor Bill list actions; the customer/vendor split is done by the
+         action's move_type filter. -->
     <record id="view_account_invoice_filter_way4tech" model="ir.ui.view">
         <field name="name">account.view.account.invoice.filter.way4tech.logistics</field>
         <field name="model">account.move</field>
@@ -13,8 +13,37 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <field name="way4tech_tag_ids"/>
-                <field name="invoice_line_ids" string="Vehicle"
-                       filter_domain="[('invoice_line_ids.vehicle_id', 'ilike', self)]"/>
+                <field name="way4tech_vehicle_ids" string="Vehicle"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Journal Entries (account.move header list at Accounting →
+         Accounting → Journal Entries) — expose Contract Tags + Vehicles as
+         toggleable columns AND as filterable search fields.
+         Reference is Contract Tags parity; Vehicle now behaves the same. -->
+    <record id="view_move_tree_way4tech_dims" model="ir.ui.view">
+        <field name="name">account.move.tree.way4tech.dimensions</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="way4tech_tag_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}" optional="hide"/>
+                <field name="way4tech_vehicle_ids" widget="many2many_tags"
+                       string="Vehicles" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_move_filter_way4tech_dims" model="ir.ui.view">
+        <field name="name">account.move.search.way4tech.dimensions</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_move_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="way4tech_tag_ids"/>
+                <field name="way4tech_vehicle_ids" string="Vehicle"/>
             </xpath>
         </field>
     </record>

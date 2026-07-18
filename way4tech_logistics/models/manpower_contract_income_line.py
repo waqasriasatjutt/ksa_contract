@@ -12,7 +12,12 @@ from odoo.exceptions import UserError
 class Way4TechManpowerContractIncomeLine(models.Model):
     _name = "way4tech.manpower.contract.income.line"
     _description = "Manpower Contract — Project Income Line"
-    _order = "accounting_date desc, id desc"
+    # _order does NOT include accounting_date: sorting by an editable date
+    # field means every date pick triggers a row-position resort in the
+    # inline editable list, which re-renders the row and re-focuses the
+    # picker → infinite reopen loop. Sort by id desc (newest first) instead.
+    # Users see chronological order via list-header click when needed.
+    _order = "id desc"
 
     contract_id = fields.Many2one(
         "way4tech.manpower.contract", required=True, ondelete="cascade",
