@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- CR2 G5 (19.0.2.9.0) — Contract Statement (Draft Snapshot).
+         Renders all 6 tabs' current draft data. Excludes Billing Summary /
+         Profitability / KPI per client spec — this is a DRAFT snapshot for
+         signature, not the final P&L. -->
+
+    <record id="action_report_manpower_contract_statement" model="ir.actions.report">
+        <field name="name">Contract Statement (Draft Snapshot)</field>
+        <field name="model">way4tech.manpower.contract</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_manpower_contract_statement_doc</field>
+        <field name="report_file">way4tech_logistics.report_manpower_contract_statement_doc</field>
+        <field name="binding_model_id" ref="model_way4tech_manpower_contract"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_manpower_contract_statement_doc">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+
+                        <div class="row mb-3">
+                            <div class="col-8">
+                                <h2>Contract Statement (Draft Snapshot)</h2>
+                                <p class="text-muted mb-0">
+                                    <strong>Contract:</strong> <t t-esc="o.name"/> —
+                                    <strong>Client:</strong> <t t-esc="o.client_id.name"/> —
+                                    <strong>Reference:</strong> <t t-esc="o.reference or '—'"/>
+                                </p>
+                            </div>
+                            <div class="col-4 text-right">
+                                <span class="badge bg-secondary" style="font-size:12px;padding:6px 10px">DRAFT SNAPSHOT</span>
+                            </div>
+                        </div>
+
+                        <t t-if="o.income_line_ids">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">1. Project Income</h4>
+                            <table class="table table-sm table-bordered" style="font-size:11px">
+                                <thead style="background:#003366;color:#fff">
+                                    <tr>
+                                        <th>Date</th><th>Invoice Date</th><th>Description</th>
+                                        <th>Sale Account</th><th class="text-right">Qty</th>
+                                        <th class="text-right">Price</th><th class="text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.income_line_ids" t-as="l">
+                                        <tr>
+                                            <td><t t-esc="l.accounting_date"/></td>
+                                            <td><t t-esc="l.invoice_date or '—'"/></td>
+                                            <td><t t-esc="l.description or '—'"/></td>
+                                            <td><t t-esc="l.sale_account_id.display_name or '—'"/></td>
+                                            <td class="text-right"><t t-esc="'%.2f' % (l.quantity or 0)"/></td>
+                                            <td class="text-right"><t t-esc="'%.2f' % (l.price or 0)"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="l.amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <t t-if="o.direct_cost_line_ids">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">2. Project Direct Cost</h4>
+                            <table class="table table-sm table-bordered" style="font-size:11px">
+                                <thead style="background:#003366;color:#fff">
+                                    <tr><th>Date</th><th>Type</th><th>Vendor</th><th class="text-right">Amount</th></tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.direct_cost_line_ids" t-as="l">
+                                        <tr>
+                                            <td><t t-esc="l.date"/></td>
+                                            <td><t t-esc="l.category_id.name or '—'"/></td>
+                                            <td><t t-esc="l.vendor_id.name or '—'"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="l.amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <t t-if="o.operating_exp_line_ids">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">3. Project Operating Exp</h4>
+                            <table class="table table-sm table-bordered" style="font-size:11px">
+                                <thead style="background:#003366;color:#fff">
+                                    <tr><th>Date</th><th>Type</th><th>Vendor</th><th class="text-right">Amount</th></tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.operating_exp_line_ids" t-as="l">
+                                        <tr>
+                                            <td><t t-esc="l.date"/></td>
+                                            <td><t t-esc="l.category_id.name or '—'"/></td>
+                                            <td><t t-esc="l.vendor_id.name or '—'"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="l.amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <t t-if="o.timesheet_ids">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">4. Timesheets</h4>
+                            <table class="table table-sm table-bordered" style="font-size:11px">
+                                <thead style="background:#003366;color:#fff">
+                                    <tr>
+                                        <th>Date</th><th>Employee</th>
+                                        <th class="text-right">Hours</th><th class="text-right">Rate</th>
+                                        <th class="text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.timesheet_ids" t-as="l">
+                                        <tr>
+                                            <td><t t-esc="l.date or l.start_date or '—'"/></td>
+                                            <td><t t-esc="l.employee_id.name or '—'"/></td>
+                                            <td class="text-right"><t t-esc="'%.2f' % (l.hours or 0)"/></td>
+                                            <td class="text-right"><t t-esc="'%.2f' % (l.rate or 0)"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="l.amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <t t-if="o.budget_line_ids">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">5. Project Budget</h4>
+                            <table class="table table-sm table-bordered" style="font-size:11px">
+                                <thead style="background:#003366;color:#fff">
+                                    <tr>
+                                        <th>Type</th><th class="text-right">Budget</th>
+                                        <th class="text-right">Actual</th><th class="text-right">Remaining</th>
+                                        <th>State</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.budget_line_ids" t-as="l">
+                                        <tr>
+                                            <td><t t-esc="l.category_id.name or '—'"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="l.budget_amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                            <td class="text-right">
+                                                <t t-esc="l.actual_amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                            <td class="text-right">
+                                                <t t-esc="l.remaining" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                            <td><t t-esc="l.state_display"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <t t-if="o.commission_line_ids">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">6. Sales Person Commission</h4>
+                            <table class="table table-sm table-bordered" style="font-size:11px">
+                                <thead style="background:#003366;color:#fff">
+                                    <tr><th>Employee</th><th class="text-right">Amount</th></tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.commission_line_ids" t-as="l">
+                                        <tr>
+                                            <td><t t-esc="l.employee_id.name or '—'"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="l.amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

@@ -257,6 +257,31 @@ class Way4TechManpowerContract(models.Model):
         string='Total Vendor Bills', compute='_compute_bill_aggregates',
         currency_field='currency_id',
     )
+    # ── CR2 G5 (19.0.2.9.0): monthly signature-approval workflow ─────────
+    signature_request_ids = fields.One2many(
+        'way4tech.manpower.contract.signature.request',
+        'contract_id',
+        string='Signature Requests',
+        help='CR2 G5: one record per (contract, month) approval cycle. '
+             'Create/Confirm actions on the 6 line-tabs are gated on '
+             "state='approved' for the line's month via "
+             '_require_month_approval() below.',
+    )
+    has_pending_approval = fields.Boolean(
+        string='Approval Pending?',
+        compute='_compute_has_pending_approval',
+        help='CR2 G5: True when any signature request is state=pending. '
+             'Used only to hide the header Send for Signature button; the '
+             'tab lock has been dropped per skeptic amendment 4 (whole-'
+             'contract lock during a single-month cycle was too broad).',
+    )
+
+    @api.depends('signature_request_ids.state')
+    def _compute_has_pending_approval(self):
+        for rec in self:
+            rec.has_pending_approval = any(
+                r.state == 'pending' for r in rec.signature_request_ids
+            )
     income_line_ids = fields.One2many(
         'way4tech.manpower.contract.income.line',
         'contract_id',
@@ -379,12 +404,14 @@ class Way4TechManpowerContract(models.Model):
     )
 
     @api.depends(
-        'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
+        'invoice_ids', 'invoice_ids.amount_untaxed',
+        'invoice_ids.state',  # CR2 G5: required by posted-only filter
         'project_expense_ids', 'project_expense_ids.amount',
         'project_expense_ids.state',
         'project_expense_ids.category_id',
         'project_expense_ids.category_id.expense_type',
         'budget_line_ids', 'budget_line_ids.budget_amount', 'budget_line_ids.actual_amount',
+        'budget_line_ids.state',  # CR2 G5: required by confirmed-only filter
         # CR2 G3 (19.0.2.7.0): commission billed-only sum.
         'commission_line_ids', 'commission_line_ids.amount', 'commission_line_ids.state',
     )
@@ -407,7 +434,12 @@ class Way4TechManpowerContract(models.Model):
 
         for rec in self:
             # Billing Summary
-            total_invoiced = sum(rec.invoice_ids.mapped('amount_untaxed'))
+            # CR2 G5: posted-only. Draft invoices no longer leak into
+            # Billing Summary while pending signature approval.
+            total_invoiced = sum(
+                inv.amount_untaxed for inv in rec.invoice_ids
+                if inv.state == 'posted'
+            )
             cgs = sum(
                 l.amount or 0.0
                 for l in rec.direct_cost_line_ids
@@ -418,8 +450,16 @@ class Way4TechManpowerContract(models.Model):
                 for l in rec.operating_exp_line_ids
                 if l.state == 'billed'
             )
-            total_budget = sum(rec.budget_line_ids.mapped('budget_amount'))
-            total_actual = sum(rec.budget_line_ids.mapped('actual_amount'))
+            # CR2 G5: confirmed-only. Both budget AND actual filter together
+            # so partial-confirm can't produce a bogus variance.
+            total_budget = sum(
+                l.budget_amount or 0.0 for l in rec.budget_line_ids
+                if l.state == 'confirmed'
+            )
+            total_actual = sum(
+                l.actual_amount or 0.0 for l in rec.budget_line_ids
+                if l.state == 'confirmed'
+            )
             remaining = total_budget - total_actual
             variance = total_actual - total_budget
 
@@ -469,11 +509,16 @@ class Way4TechManpowerContract(models.Model):
             if analytic:
                 self.analytic_account_id = analytic
 
-    @api.depends('invoice_ids', 'invoice_ids.amount_untaxed')
+    @api.depends('invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state')
     def _compute_invoice_count(self):
+        """CR2 G5: total_invoiced now posted-only (matches bs_total_invoiced
+        after the same leak-plug)."""
         for rec in self:
             rec.invoice_count = len(rec.invoice_ids)
-            rec.total_invoiced = sum(rec.invoice_ids.mapped('amount_untaxed'))
+            rec.total_invoiced = sum(
+                inv.amount_untaxed for inv in rec.invoice_ids
+                if inv.state == 'posted'
+            )
 
     @api.depends('timesheet_ids.hours')
     def _compute_totals(self):
@@ -558,8 +603,56 @@ class Way4TechManpowerContract(models.Model):
         self.ensure_one()
         self.state = 'draft'
 
+    # ── CR2 G5 (19.0.2.9.0): signature-approval gate ──────────────────────
+    def _require_month_approval(self, target_date):
+        """CR2 G5 gate: raise UserError unless this contract has an approved
+        Signature Request for target_date's MM/YYYY bucket. Simplification:
+        approval merely unlocks the tab for that month — we do NOT restore
+        from snapshot. Once approved for month M, any subsequent edits to
+        lines dated M are the accountant's responsibility (visible in
+        chatter via tracking=True)."""
+        self.ensure_one()
+        if not target_date:
+            target_date = fields.Date.context_today(self)
+        month = target_date.strftime('%m/%Y')
+        approved = self.env['way4tech.manpower.contract.signature.request'].search([
+            ('contract_id', '=', self.id),
+            ('month', '=', month),
+            ('state', '=', 'approved'),
+        ], limit=1)
+        if not approved:
+            raise UserError(_(
+                'Cannot post accounting documents for contract "%s" — no '
+                'approved Signature Request exists for month %s. Open the '
+                'Approvals tab, click "Send for Signature", then have the '
+                'manager approve the request before creating invoices/bills.'
+            ) % (self.name, month))
+        return approved
+
+    def action_send_for_signature(self):
+        """CR2 G5: open a NEW Signature Request in draft, pre-filled with
+        the current month. Accountant reviews tabs (still writable in
+        draft), clicks 'Send for Signature' on the request itself."""
+        self.ensure_one()
+        month = fields.Date.context_today(self).strftime('%m/%Y')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('New Signature Request'),
+            'res_model': 'way4tech.manpower.contract.signature.request',
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                'default_contract_id': self.id,
+                'default_month': month,
+            },
+        }
+
     def action_create_invoice(self):
         self.ensure_one()
+        # CR2 G5 skeptic amendment 2: use context_today, NOT self.start_date
+        # (start_date is contract kickoff, not the invoicing period — using
+        # it here means only the FIRST month ever needs approval).
+        self._require_month_approval(fields.Date.context_today(self))
         if self.billing_type == 'fixed':
             amount = self.fixed_amount
             description = 'Fixed Price - %s' % self.name

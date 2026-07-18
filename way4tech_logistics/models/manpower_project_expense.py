@@ -231,6 +231,8 @@ class ManpowerProjectExpense(models.Model):
             raise UserError(_('A vendor bill already exists for this expense.'))
         if not self.vendor_id:
             raise UserError(_('Please set a vendor before creating the bill.'))
+        # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
+        self.contract_id._require_month_approval(self.date)
         if not self.account_id:
             raise UserError(_(
                 'No expense account set. Please configure the account in '

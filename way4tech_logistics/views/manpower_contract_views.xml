@@ -24,6 +24,14 @@
                         class="btn-primary"
                         invisible="state != 'active'"
                     />
+                    <!-- CR2 G5 (19.0.2.9.0): Send for Signature button -->
+                    <button
+                        name="action_send_for_signature"
+                        type="object"
+                        string="Send for Signature"
+                        class="btn-secondary"
+                        invisible="state == 'cancelled' or has_pending_approval"
+                        help="Open a new monthly Signature Request. Manager must approve before Create Invoice / Create Bill will run for that month."/>
                     <button
                         name="action_complete"
                         type="object"
@@ -55,6 +63,9 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,active,completed,cancelled"/>
                 </header>
                 <sheet>
+                    <!-- CR2 G5 (19.0.2.9.0): expose has_pending_approval as
+                         invisible so header button's invisible attr resolves. -->
+                    <field name="has_pending_approval" invisible="1"/>
                     <div class="oe_button_box" name="button_box">
                         <button
                             name="action_view_invoices"
@@ -366,6 +377,19 @@
                                     <field name="actual_amount" sum="Total Actual"/>
                                     <field name="remaining" sum="Total Remaining"/>
                                     <field name="status"/>
+                                    <!-- CR2 G5: draft/confirmed approval state -->
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-success="state == 'confirmed'"/>
+                                    <button name="action_confirm" type="object"
+                                            string="Confirm" icon="fa-check"
+                                            invisible="state == 'confirmed'"
+                                            class="btn-sm btn-secondary"
+                                            help="CR2 G5: promote from draft — line will contribute to Total Budget / Actual on Billing Summary."/>
+                                    <button name="action_reset_draft" type="object"
+                                            string="Reset" icon="fa-undo"
+                                            invisible="state == 'draft'"
+                                            class="btn-sm btn-secondary"/>
                                     <!-- month hidden from list (2026-07-17): same picker-loop
                                          pattern as inv_month above — non-stored compute on date
                                          re-renders this cell on every pick → focus bounce. -->
@@ -420,6 +444,30 @@
                                             invisible="state == 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- 7. CR2 G5 (19.0.2.9.0): monthly Signature Approvals -->
+                        <page string="Approvals" name="signature_approvals">
+                            <div class="alert alert-info" role="alert">
+                                <strong>Monthly signature workflow:</strong>
+                                click <em>Send for Signature</em> above to create a draft
+                                request. Confirm the draft (state=pending) → manager approves
+                                (state=approved) → the month's Create-Invoice / Create-Bill
+                                buttons unlock for that month. Approval is per-month; other
+                                months remain unaffected.
+                            </div>
+                            <field name="signature_request_ids">
+                                <list decoration-info="state == 'draft'"
+                                      decoration-warning="state == 'pending'"
+                                      decoration-success="state == 'approved'"
+                                      decoration-muted="state == 'cancelled'">
+                                    <field name="month"/>
+                                    <field name="state" widget="badge"/>
+                                    <field name="signed_by"/>
+                                    <field name="signed_date"/>
+                                    <field name="create_uid" string="Submitted By"/>
+                                    <field name="create_date"/>
                                 </list>
                             </field>
                         </page>

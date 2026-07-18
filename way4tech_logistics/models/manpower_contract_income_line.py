@@ -89,6 +89,8 @@ class Way4TechManpowerContractIncomeLine(models.Model):
         for line in self:
             if line.invoice_id:
                 raise UserError(_("This income line has already been invoiced."))
+            # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
+            line.contract_id._require_month_approval(line.accounting_date)
             contract = line.contract_id
             settings = self.env["way4tech.payroll.settings"].get_for_company(contract.company_id.id)
             distribution = contract._resolve_analytic_distribution(settings)

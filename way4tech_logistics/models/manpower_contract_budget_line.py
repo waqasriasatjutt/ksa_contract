@@ -44,6 +44,20 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         compute="_compute_status",
         help="✅ On Budget when Remaining ≥ 0, ⛔ Over when < 0.",
     )
+    # CR2 G5 (19.0.2.9.0): draft/confirmed gate. Only 'confirmed' budget
+    # lines contribute to bs_total_budget_cost / bs_total_actual_cost;
+    # 'draft' lines are proposals awaiting sign-off.
+    state = fields.Selection(
+        selection=[('draft', 'Draft'), ('confirmed', 'Confirmed')],
+        string='Approval State', default='draft', copy=False,
+        help='Draft budget lines do NOT count toward Total Budget / Total '
+             'Actual on the Billing Summary. Use action_confirm to promote.',
+    )
+    state_display = fields.Char(
+        string='State (Display)', compute='_compute_state_display',
+        help='CR2 G5 skeptic amendment 5: readable label for QWeb PDF '
+             '(avoids reaching into _fields.selection from templates).',
+    )
     # store=False to avoid the row-rerender loop when the user picks Date
     # in the inline list. See the same fix on income line.inv_month.
     month = fields.Char(string="Month", compute="_compute_month")
@@ -131,3 +145,23 @@ class Way4TechManpowerContractBudgetLine(models.Model):
     def _compute_month(self):
         for line in self:
             line.month = line.date.strftime("%m/%Y") if line.date else False
+
+    @api.depends('state')
+    def _compute_state_display(self):
+        labels = dict(self._fields['state'].selection)
+        for line in self:
+            line.state_display = labels.get(line.state, line.state or '')
+
+    # CR2 G5 (19.0.2.9.0): approval transitions.
+    def action_confirm(self):
+        """draft → confirmed. Line now contributes to KPI totals."""
+        for line in self:
+            if line.state != 'confirmed':
+                line.state = 'confirmed'
+        return True
+
+    def action_reset_draft(self):
+        """confirmed → draft. Line drops out of KPI totals."""
+        for line in self:
+            line.state = 'draft'
+        return True

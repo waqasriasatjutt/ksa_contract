@@ -184,6 +184,8 @@ class Way4TechManpowerCommissionLine(models.Model):
         self.ensure_one()
         if self.bill_id:
             raise UserError(_('A vendor bill already exists for this commission line.'))
+        # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
+        self.contract_id._require_month_approval(self.date)
         if not self.vendor_id:
             raise UserError(_(
                 'No vendor could be resolved for salesperson "%s".\n'
