@@ -20,7 +20,6 @@ import json
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
-from odoo.tools import sql
 
 
 class Way4TechManpowerContractSignatureRequest(models.Model):
@@ -99,15 +98,10 @@ class Way4TechManpowerContractSignatureRequest(models.Model):
         """Create a partial unique index enforcing one active request per
         (contract, month) at the DB layer. @api.constrains is python-only
         and racy under concurrent transactions; this index is the real
-        guard (skeptic amendment 3)."""
-        sql.create_index(
-            self.env.cr,
-            'way4tech_signature_req_uniq_active',
-            self._table,
-            ["contract_id", "month"],
-            "state <> 'cancelled'",
-        ) if hasattr(sql, 'create_index') else None
-        # Fallback for older Odoo tool signatures:
+        guard (skeptic amendment 3). Raw SQL used deliberately — Odoo 19's
+        ``sql.create_index()`` signature (columns positional list, then
+        method/where/unique kwargs) previously misinterpreted the WHERE
+        clause as the USING method and produced a syntax error."""
         self.env.cr.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS way4tech_signature_req_uniq_active "
             "ON %s (contract_id, month) WHERE state <> 'cancelled'" % self._table
