@@ -97,13 +97,25 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         return list(ids)
 
     def _compute_actual_amount(self):
+        """CR2 G7 (2026-07-18): actual pulls from confirmed vendor-bill
+        journal-items whose analytic_distribution matches the contract's
+        analytic AND whose posting date falls in the SAME MONTH as this
+        budget line's date. am.state='posted' guarantees confirmation-only.
+        This makes Total Project Expenses == Total Actual Cost auto-
+        reconcile once fixes G2 (billed-only source) + this month-scoped
+        query are both in place — no separate reconciliation logic needed
+        (per CR2 G7 item 4)."""
         for line in self:
             actual = 0.0
             analytic_ids = line._get_analytic_account_ids()
-            if line.expense_account_id and analytic_ids:
-                # Match any journal-item whose analytic_distribution JSON
-                # contains a key referring to one of the contract's analytics.
-                # Use SQL for correctness with JSONB.
+            if line.expense_account_id and analytic_ids and line.date:
+                # Month bucket: [1st of month, 1st of next month)
+                d = line.date
+                if d.month == 12:
+                    next_month = d.replace(year=d.year + 1, month=1, day=1)
+                else:
+                    next_month = d.replace(month=d.month + 1, day=1)
+                month_start = d.replace(day=1)
                 self.env.cr.execute(
                     """
                     SELECT COALESCE(SUM(aml.debit - aml.credit), 0)
@@ -111,6 +123,7 @@ class Way4TechManpowerContractBudgetLine(models.Model):
                     JOIN account_move am ON am.id = aml.move_id
                     WHERE aml.account_id = %s
                       AND am.state = 'posted'
+                      AND am.date >= %s AND am.date < %s
                       AND EXISTS (
                           SELECT 1
                           FROM jsonb_object_keys(COALESCE(aml.analytic_distribution, '{}'::jsonb)) AS k
@@ -121,7 +134,7 @@ class Way4TechManpowerContractBudgetLine(models.Model):
                           )
                       )
                     """,
-                    (line.expense_account_id.id, analytic_ids),
+                    (line.expense_account_id.id, month_start, next_month, analytic_ids),
                 )
                 result = self.env.cr.fetchone()
                 if result:

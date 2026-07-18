@@ -275,6 +275,73 @@ class Way4TechManpowerContract(models.Model):
              'tab lock has been dropped per skeptic amendment 4 (whole-'
              'contract lock during a single-month cycle was too broad).',
     )
+    # ── CR2 G6 (19.0.2.10.0): Report Period filter ──────────────────────
+    # Non-stored, per-open display preference. Drives KPI computes AND
+    # tab O2M domains. Default 'all' — otherwise historical contracts
+    # would open with all KPI cards = 0 and empty tabs (skeptic HIGH risk
+    # UX landmine). Users opt into a period; they don't get auto-scoped.
+    # 'all' populates sentinel bounds so tab domains stay well-formed.
+    report_period = fields.Selection(
+        selection=[
+            ('all', 'All Time'),
+            ('this_month', 'This Month'),
+            ('last_month', 'Last Month'),
+            ('this_year', 'This Year'),
+            ('custom', 'Custom Range'),
+        ],
+        string='Report Period', default='all', store=False,
+        help='CR2 G6: date window applied to Billing Summary, KPI cards '
+             'and each notebook-tab line list. Pick Custom to type your '
+             'own dates.',
+    )
+    report_date_from = fields.Date(
+        string='From', compute='_compute_report_dates', readonly=False, store=False,
+    )
+    report_date_to = fields.Date(
+        string='To', compute='_compute_report_dates', readonly=False, store=False,
+    )
+
+    @api.depends('report_period')
+    def _compute_report_dates(self):
+        """Map report_period → (from, to). 'custom' is a no-op so user
+        edits the pickers directly. 'all' uses sentinels (1900/2999) so
+        downstream domains stay well-formed with a single unconditional
+        expression."""
+        from datetime import date as _date
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if rec.report_period == 'this_month':
+                rec.report_date_from = today.replace(day=1)
+                if today.month == 12:
+                    nxt = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    nxt = today.replace(month=today.month + 1, day=1)
+                rec.report_date_to = fields.Date.add(nxt, days=-1)
+            elif rec.report_period == 'last_month':
+                first_this = today.replace(day=1)
+                last_prev = fields.Date.add(first_this, days=-1)
+                rec.report_date_from = last_prev.replace(day=1)
+                rec.report_date_to = last_prev
+            elif rec.report_period == 'this_year':
+                rec.report_date_from = today.replace(month=1, day=1)
+                rec.report_date_to = today.replace(month=12, day=31)
+            elif rec.report_period == 'all':
+                rec.report_date_from = _date(1900, 1, 1)
+                rec.report_date_to = _date(2999, 12, 31)
+            # 'custom': leave whatever the user typed.
+
+    def _filter_by_report_period(self, records, date_field):
+        """CR2 G6 helper: return subset of `records` whose `date_field`
+        value falls in [self.report_date_from, self.report_date_to].
+        Records with False date are excluded (KPI cannot bucket an
+        undated line). If either bound is unset, no filter is applied."""
+        self.ensure_one()
+        d_from, d_to = self.report_date_from, self.report_date_to
+        if not d_from or not d_to:
+            return records
+        return records.filtered(
+            lambda r: r[date_field] and d_from <= r[date_field] <= d_to
+        )
 
     @api.depends('signature_request_ids.state')
     def _compute_has_pending_approval(self):
@@ -405,15 +472,20 @@ class Way4TechManpowerContract(models.Model):
 
     @api.depends(
         'invoice_ids', 'invoice_ids.amount_untaxed',
-        'invoice_ids.state',  # CR2 G5: required by posted-only filter
+        'invoice_ids.state',           # CR2 G5: required by posted-only filter
+        'invoice_ids.invoice_date',    # CR2 G6: required by date-scope filter
         'project_expense_ids', 'project_expense_ids.amount',
         'project_expense_ids.state',
+        'project_expense_ids.date',    # CR2 G6
         'project_expense_ids.category_id',
         'project_expense_ids.category_id.expense_type',
         'budget_line_ids', 'budget_line_ids.budget_amount', 'budget_line_ids.actual_amount',
-        'budget_line_ids.state',  # CR2 G5: required by confirmed-only filter
+        'budget_line_ids.state',       # CR2 G5: required by confirmed-only filter
+        'budget_line_ids.date',        # CR2 G6
         # CR2 G3 (19.0.2.7.0): commission billed-only sum.
         'commission_line_ids', 'commission_line_ids.amount', 'commission_line_ids.state',
+        'commission_line_ids.date',    # CR2 G6
+        'report_date_from', 'report_date_to',  # CR2 G6 filter state
     )
     def _compute_kpi_summary(self):
         """One pass per record — reads children once, computes all 19 boxes.
@@ -433,32 +505,24 @@ class Way4TechManpowerContract(models.Model):
             return numerator / denominator
 
         for rec in self:
-            # Billing Summary
-            # CR2 G5: posted-only. Draft invoices no longer leak into
-            # Billing Summary while pending signature approval.
+            # CR2 G6: scope every source by the header Report Period.
+            invs = rec._filter_by_report_period(rec.invoice_ids, 'invoice_date')
+            dc_lines = rec._filter_by_report_period(rec.direct_cost_line_ids, 'date')
+            op_lines = rec._filter_by_report_period(rec.operating_exp_line_ids, 'date')
+            bud_lines = rec._filter_by_report_period(rec.budget_line_ids, 'date')
+            com_lines = rec._filter_by_report_period(rec.commission_line_ids, 'date')
+
+            # Billing Summary — state filters chained on top of date scope.
             total_invoiced = sum(
-                inv.amount_untaxed for inv in rec.invoice_ids
-                if inv.state == 'posted'
+                inv.amount_untaxed for inv in invs if inv.state == 'posted'
             )
-            cgs = sum(
-                l.amount or 0.0
-                for l in rec.direct_cost_line_ids
-                if l.state == 'billed'
-            )
-            opex = sum(
-                l.amount or 0.0
-                for l in rec.operating_exp_line_ids
-                if l.state == 'billed'
-            )
-            # CR2 G5: confirmed-only. Both budget AND actual filter together
-            # so partial-confirm can't produce a bogus variance.
+            cgs = sum(l.amount or 0.0 for l in dc_lines if l.state == 'billed')
+            opex = sum(l.amount or 0.0 for l in op_lines if l.state == 'billed')
             total_budget = sum(
-                l.budget_amount or 0.0 for l in rec.budget_line_ids
-                if l.state == 'confirmed'
+                l.budget_amount or 0.0 for l in bud_lines if l.state == 'confirmed'
             )
             total_actual = sum(
-                l.actual_amount or 0.0 for l in rec.budget_line_ids
-                if l.state == 'confirmed'
+                l.actual_amount or 0.0 for l in bud_lines if l.state == 'confirmed'
             )
             remaining = total_budget - total_actual
             variance = total_actual - total_budget
@@ -482,11 +546,9 @@ class Way4TechManpowerContract(models.Model):
             rec.pp_net_profit = net_profit
             rec.pp_budgeted_profit = budgeted_profit
             rec.pp_actual_profit = actual_profit
-            # CR2 G3 (19.0.2.7.0): billed-only sum, mirroring CGS/OpEx rule.
+            # CR2 G3+G6: billed-only sum, scoped by Report Period.
             commission_total = sum(
-                l.amount or 0.0
-                for l in rec.commission_line_ids
-                if l.state == 'billed'
+                l.amount or 0.0 for l in com_lines if l.state == 'billed'
             )
             rec.bs_sales_person_commission = commission_total
             rec.pp_profit_after_commission = actual_profit - commission_total
@@ -509,15 +571,18 @@ class Way4TechManpowerContract(models.Model):
             if analytic:
                 self.analytic_account_id = analytic
 
-    @api.depends('invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state')
+    @api.depends(
+        'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
+        'invoice_ids.invoice_date',
+        'report_date_from', 'report_date_to',
+    )
     def _compute_invoice_count(self):
-        """CR2 G5: total_invoiced now posted-only (matches bs_total_invoiced
-        after the same leak-plug)."""
+        """CR2 G5: posted-only. CR2 G6: scoped by Report Period."""
         for rec in self:
-            rec.invoice_count = len(rec.invoice_ids)
+            invs = rec._filter_by_report_period(rec.invoice_ids, 'invoice_date')
+            rec.invoice_count = len(invs)
             rec.total_invoiced = sum(
-                inv.amount_untaxed for inv in rec.invoice_ids
-                if inv.state == 'posted'
+                inv.amount_untaxed for inv in invs if inv.state == 'posted'
             )
 
     @api.depends('timesheet_ids.hours')
@@ -527,16 +592,19 @@ class Way4TechManpowerContract(models.Model):
             rec.total_employee_cost = 0.0
             rec.billing_margin = 0.0
 
-    @api.depends('project_expense_ids.amount', 'project_expense_ids.state', 'total_invoiced')
+    @api.depends(
+        'project_expense_ids.amount', 'project_expense_ids.state',
+        'project_expense_ids.date',
+        'total_invoiced',
+        'report_date_from', 'report_date_to',
+    )
     def _compute_project_margin(self):
-        """CR2 G2: only confirmed (state='billed') expense lines contribute.
-        Keeps this tile numerically consistent with Billing Summary
-        (bs_total_project_cgs + bs_total_project_exp) which also filters
-        to billed-only per CR2 G7 item 2 — no unexplained delta between
-        the two summary cards when draft lines are pending."""
+        """CR2 G2 billed-only + CR2 G6 date-scoped. Keeps this tile
+        numerically consistent with bs_total_project_cgs+opex."""
         for rec in self:
+            exp = rec._filter_by_report_period(rec.project_expense_ids, 'date')
             rec.total_project_expenses = sum(
-                l.amount or 0.0 for l in rec.project_expense_ids if l.state == 'billed'
+                l.amount or 0.0 for l in exp if l.state == 'billed'
             )
             rec.project_margin = rec.total_invoiced - rec.total_project_expenses
 

@@ -5,7 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 class Way4TechManpowerTimesheet(models.Model):
     _name = 'way4tech.manpower.timesheet'
     _description = 'Manpower Contract Timesheet'
-    _order = 'contract_id, date, id'
+    _order = 'contract_id, date desc, id desc'
 
     contract_id = fields.Many2one(
         comodel_name='way4tech.manpower.contract',
