@@ -53,12 +53,17 @@
                         class="btn-secondary"
                         invisible="state == 'draft' or state == 'completed'"
                     />
+                    <!-- CR3 P8 (v12.1): "View Invoices" header button hidden per client
+                         request — redundant with the "Invoiced" smart button in the
+                         oe_button_box below, which calls the SAME method
+                         action_view_invoices. The method stays in code so this button
+                         can be restored later if needed. -->
                     <button
                         name="action_view_invoices"
                         type="object"
                         string="View Invoices"
                         class="btn-secondary"
-                        invisible="invoice_count == 0"
+                        invisible="1"
                     />
                     <field name="state" widget="statusbar" statusbar_visible="draft,active,completed,cancelled"/>
                 </header>
@@ -135,6 +140,10 @@
                             <field name="billing_type" invisible="1"/>
                             <field name="fixed_amount" invisible="1"/>
                             <field name="hourly_rate" invisible="1"/>
+                            <!-- CR3 P3 (v13.0): Contract-level Per Day Allowed Hours master.
+                                 Wins over employee-level default; line stays overwritable. -->
+                            <field name="default_per_day_allowed_hours"
+                                   help="Default Per Day Allowed Hours for timesheet rows on this contract. When an employee is picked on a timesheet row and that row's per_day_hours is still blank, this value fills it (falling back to the employee's own default if this is blank). The row remains editable."/>
                         </group>
                         <group string="Period &amp; Settings">
                             <!-- CR3 P1 (v12.0): Accounting Date is the primary date of the
@@ -288,6 +297,10 @@
                                     <field name="vendor_id"/>
                                     <field name="account_id"
                                            help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>
+                                    <!-- CR3 P9 (v13.0): Qty + Price. Amount auto = Qty × Price.
+                                         Legacy amount-only lines keep working (price=0 → skip). -->
+                                    <field name="quantity"/>
+                                    <field name="price"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
@@ -333,6 +346,10 @@
                                     <field name="vendor_id"/>
                                     <field name="account_id"
                                            help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>
+                                    <!-- CR3 P9 (v13.0): Qty + Price. Amount auto = Qty × Price.
+                                         Legacy amount-only lines keep working (price=0 → skip). -->
+                                    <field name="quantity"/>
+                                    <field name="price"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
@@ -521,20 +538,34 @@
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
             <list string="Manpower Contracts">
+                <!-- CR3 P4 (v13.0): monthly-record dashboard columns.
+                     Only STORED fields can be sum= / group-rollup / pivot-measure
+                     in Odoo. Stored KPIs available: total_hours, total_project_expenses,
+                     project_margin. Non-stored KPIs (total_invoiced, pp_net_profit,
+                     pp_profit_after_commission) stay on the record header — see
+                     memory for the design tradeoff. -->
                 <field name="name"/>
                 <field name="client_id"/>
+                <field name="accounting_date" optional="show"
+                       string="Month" widget="date"/>
                 <field name="salesperson_id" optional="show"/>
-                <field name="contract_type"/>
-                <field name="billing_type"/>
-                <field name="start_date"/>
-                <field name="end_date"/>
-                <field name="total_hours" sum="Total Hours"/>
+                <field name="way4tech_project_id" optional="hide"/>
+                <field name="contract_type" optional="hide"/>
+                <field name="billing_type" optional="hide"/>
+                <field name="start_date" optional="hide"/>
+                <field name="end_date" optional="hide"/>
+                <field name="total_hours" sum="Total Hours" optional="show"/>
+                <field name="total_project_expenses" sum="Total Expenses" optional="show"/>
+                <field name="project_margin" sum="Project Margin" optional="show"/>
+                <field name="due_date" optional="hide"/>
+                <field name="reference" optional="hide"/>
                 <field name="state" widget="badge"
                     decoration-info="state == 'draft'"
                     decoration-success="state == 'active'"
                     decoration-primary="state == 'completed'"
                     decoration-danger="state == 'cancelled'"
                 />
+                <field name="currency_id" column_invisible="1"/>
             </list>
         </field>
     </record>
@@ -559,6 +590,8 @@
                 <field name="tag_ids"/>
                 <field name="po_id"/>
                 <field name="start_date"/>
+                <field name="accounting_date"/>
+                <field name="due_date"/>
                 <separator/>
                 <filter string="My Contracts" name="my_contracts"
                         domain="[('salesperson_id.user_id', '=', uid)]"/>
@@ -571,15 +604,23 @@
                 <filter string="Food Delivery" name="food_delivery" domain="[('contract_type','=','food_delivery')]"/>
                 <filter string="Project Based" name="project" domain="[('contract_type','=','project')]"/>
                 <separator/>
-                <!-- CR2 G6: date-range shortcuts on start_date -->
-                <filter string="Started This Month" name="this_month"
+                <!-- CR3 P4 (v13.0): date-range shortcuts on accounting_date (was start_date).
+                     Old start_date filters kept below (they still work because start_date
+                     mirrors accounting_date on new records) for backward navigation. -->
+                <filter string="This Month" name="this_accounting_month"
+                        domain="[('accounting_date', '&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
+                <filter string="This Year" name="this_accounting_year"
+                        domain="[('accounting_date', '&gt;=', (context_today()).strftime('%Y-01-01'))]"/>
+                <filter string="Started This Month (legacy)" name="this_month"
                         domain="[('start_date', '&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
-                <filter string="Started This Year" name="this_year"
+                <filter string="Started This Year (legacy)" name="this_year"
                         domain="[('start_date', '&gt;=', (context_today()).strftime('%Y-01-01'))]"/>
                 <separator/>
                 <filter string="Client" name="group_client" context="{'group_by': 'client_id'}"/>
                 <filter string="Salesperson" name="group_salesperson" context="{'group_by': 'salesperson_id'}"/>
                 <filter string="State" name="group_state" context="{'group_by': 'state'}"/>
+                <filter string="Accounting Month" name="group_accounting_month"
+                        context="{'group_by': 'accounting_date:month'}"/>
                 <filter string="Start Month" name="group_start_month" context="{'group_by': 'start_date:month'}"/>
                 <filter string="Project" name="group_project" context="{'group_by': 'way4tech_project_id'}"/>
                 <filter string="Entry Category" name="group_category" context="{'group_by': 'way4tech_category_id'}"/>
@@ -598,13 +639,18 @@
         <field name="name">way4tech.manpower.contract.pivot</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
+            <!-- CR3 P4 (v13.0): pivot now uses only STORED measures. The
+                 previous total_invoiced measure was non-stored → Odoo pivot
+                 couldn't aggregate it, silently showing zeros / broken UI.
+                 Swapped for stored equivalents. Column axis flipped from
+                 start_date to accounting_date (monthly-record era). -->
             <pivot string="Manpower Contract Analysis">
                 <field name="client_id" type="row"/>
-                <field name="salesperson_id" type="row"/>
-                <field name="contract_type" type="row"/>
-                <field name="start_date" type="col" interval="month"/>
+                <field name="way4tech_project_id" type="row"/>
+                <field name="accounting_date" type="col" interval="month"/>
                 <field name="total_hours" type="measure"/>
-                <field name="total_invoiced" type="measure"/>
+                <field name="total_project_expenses" type="measure"/>
+                <field name="project_margin" type="measure"/>
             </pivot>
         </field>
     </record>
@@ -632,6 +678,10 @@
         <field name="res_model">way4tech.manpower.contract</field>
         <field name="view_mode">list,pivot,graph,form</field>
         <field name="search_view_id" ref="view_manpower_contract_search"/>
+        <!-- CR3 P4 (v13.0): default Group By Client so monthly records for
+             the same client nest together on open. Users can drop the group
+             from the search bar to see a flat list. -->
+        <field name="context">{'search_default_group_client': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create your first Manpower Contract

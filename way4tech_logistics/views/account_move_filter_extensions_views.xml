@@ -14,6 +14,15 @@
             <xpath expr="//field[@name='name']" position="after">
                 <field name="way4tech_tag_ids"/>
                 <field name="way4tech_vehicle_ids" string="Vehicle"/>
+                <!-- CR3 P4 (v13.0): enterprise-grade filtering — expose project,
+                     entry category, invoice month, salesperson as first-class
+                     search fields on the Customer Invoice + Vendor Bill list.
+                     All are stored (way4tech_inv_month is a Char store compute;
+                     invoice_user_id is stock Odoo; the two m2os are stored). -->
+                <field name="way4tech_project_id" string="Project"/>
+                <field name="way4tech_category_id" string="Entry Category"/>
+                <field name="way4tech_inv_month" string="INV Month"/>
+                <field name="invoice_user_id" string="Salesperson"/>
             </xpath>
         </field>
     </record>
@@ -44,6 +53,21 @@
             <xpath expr="//search" position="inside">
                 <field name="way4tech_tag_ids"/>
                 <field name="way4tech_vehicle_ids" string="Vehicle"/>
+                <!-- CR3 P4 parity: same enterprise-grade filter set on the
+                     Journal Entries search. -->
+                <field name="way4tech_project_id" string="Project"/>
+                <field name="way4tech_category_id" string="Entry Category"/>
+                <field name="way4tech_inv_month" string="INV Month"/>
+                <field name="invoice_user_id" string="Salesperson"/>
+                <separator/>
+                <filter string="Project" name="group_way4tech_project"
+                        context="{'group_by': 'way4tech_project_id'}"/>
+                <filter string="Entry Category" name="group_way4tech_category"
+                        context="{'group_by': 'way4tech_category_id'}"/>
+                <filter string="INV Month" name="group_inv_month"
+                        context="{'group_by': 'way4tech_inv_month'}"/>
+                <filter string="Salesperson" name="group_invoice_user"
+                        context="{'group_by': 'invoice_user_id'}"/>
             </xpath>
         </field>
     </record>

@@ -129,12 +129,58 @@ class ManpowerProjectExpense(models.Model):
              'Auto-filled from Payroll & Accounting Setup based on expense type. '
              'Override here if needed for this specific expense.',
     )
+    # ── CR3 P9 (v13.0): Quantity + Price columns on expense tabs ────────────
+    # Mirrors the Project Income line pattern (qty × price = amount). Kept
+    # writable (readonly=False) so legacy rows that only had `amount` can
+    # still be edited freely; also so the back-sync from `bill_line_id`
+    # (_sync_amount_from_move below) can write `amount` directly without
+    # tripping a computed-field guard. Default qty = 1.0 matches
+    # bill_line quantity default at action_create_bill.
+    quantity = fields.Float(
+        string='Quantity',
+        default=1.0,
+        digits='Product Unit of Measure',
+        help='Quantity for the vendor bill line. Amount auto-computes as '
+             'Quantity × Price. Defaults to 1.',
+    )
+    price = fields.Monetary(
+        string='Price',
+        currency_field='currency_id',
+        help='Unit price for the vendor bill line. Amount auto-computes as '
+             'Quantity × Price.',
+    )
     amount = fields.Monetary(
         string='Amount',
         currency_field='currency_id',
         required=True,
         tracking=True,
+        compute='_compute_amount_from_qty_price',
+        store=True,
+        readonly=False,
+        help='Auto-computed as Quantity × Price (P9). Editable — a manual '
+             'value stays until Quantity or Price is next edited, at which '
+             'point the compute recalculates. Post-billing back-sync from '
+             'the vendor bill line still overrides via context flag.',
     )
+
+    # CR3 P9: recompute amount = qty × price only when qty or price is set;
+    # skip when both are default (qty=1, price=0) OR when the back-sync
+    # from bill_line_id is running (context flag). Guarantees legacy
+    # amount-only rows (price=0, qty=1) aren't zeroed on -u.
+    @api.depends('quantity', 'price')
+    def _compute_amount_from_qty_price(self):
+        for rec in self:
+            if rec.env.context.get('way4tech_skip_move_sync'):
+                continue
+            # Data-safety guard: if price is 0 (legacy row / user hasn't
+            # touched the new columns yet), don't zero the existing amount.
+            if not rec.price:
+                # Keep whatever amount already had (either legacy user-input
+                # or zero for genuinely new empty rows).
+                if not rec.amount:
+                    rec.amount = 0.0
+                continue
+            rec.amount = (rec.quantity or 0.0) * (rec.price or 0.0)
     currency_id = fields.Many2one(
         comodel_name='res.currency',
         related='contract_id.currency_id',
@@ -260,10 +306,20 @@ class ManpowerProjectExpense(models.Model):
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
 
+        # CR3 P9: if Quantity + Price were used (price > 0), carry them to
+        # the bill line. Legacy rows with only amount populated fall back
+        # to qty=1 × price_unit=amount (backwards compat, matches pre-P9
+        # behaviour so existing flows are unbroken).
+        if self.price:
+            bl_quantity = self.quantity or 1.0
+            bl_price = self.price
+        else:
+            bl_quantity = 1.0
+            bl_price = self.amount
         bill_line_vals = {
             'name': self.description,
-            'quantity': 1.0,
-            'price_unit': self.amount,
+            'quantity': bl_quantity,
+            'price_unit': bl_price,
             'account_id': self.account_id.id,
         }
         # CR2 G2: apply the category's Input VAT tax (if configured on the

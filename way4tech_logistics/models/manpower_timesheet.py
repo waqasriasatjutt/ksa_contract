@@ -22,6 +22,10 @@ class Way4TechManpowerTimesheet(models.Model):
     # side is disabled via readonly attrs in the view.
     start_date = fields.Date(string='Start Date')
     end_date = fields.Date(string='End Date')
+    # CR3 P3 (v13.0): per_day_hours now defaults from a priority chain —
+    # Contract's default_per_day_allowed_hours → Employee's
+    # default_per_day_allowed_hours → line-level (this field). Line stays
+    # editable as the final override. See _onchange_employee_id below.
     per_day_hours = fields.Float(string='Per Day Allowed Hours', digits=(16, 2))
     employee_id = fields.Many2one(comodel_name='hr.employee', string='Employee')
     description = fields.Char(string='Description')
@@ -122,17 +126,31 @@ class Way4TechManpowerTimesheet(models.Model):
 
     @api.onchange('employee_id')
     def _onchange_employee_id(self):
-        """Auto-fill employee hourly rate from hr.contract if available."""
+        """Auto-fill employee hourly rate from hr.contract if available.
+
+        CR3 P3 (v13.0): Also auto-fills per_day_hours via the priority chain
+        Contract → Employee → line (line already has a value = don't touch).
+        """
+        # Existing: employee hourly rate seed
         if self.employee_id and not self.employee_hourly_rate:
-            if 'hr.contract' not in self.env:
-                return
-            contract = self.env['hr.contract'].search([
-                ('employee_id', '=', self.employee_id.id),
-                ('state', '=', 'open'),
-            ], limit=1)
-            if contract and contract.wage:
-                # Convert monthly wage to hourly rate (KSA: 30 days × 8 hours)
-                self.employee_hourly_rate = contract.wage / (30.0 * 8.0)
+            if 'hr.contract' in self.env:
+                contract = self.env['hr.contract'].search([
+                    ('employee_id', '=', self.employee_id.id),
+                    ('state', '=', 'open'),
+                ], limit=1)
+                if contract and contract.wage:
+                    # Convert monthly wage to hourly rate (KSA: 30 days × 8 hours)
+                    self.employee_hourly_rate = contract.wage / (30.0 * 8.0)
+        # CR3 P3 priority chain: only seed if line is still blank (never
+        # overwrite an operator's manual override).
+        if self.employee_id and not self.per_day_hours:
+            src = None
+            if self.contract_id and self.contract_id.default_per_day_allowed_hours:
+                src = self.contract_id.default_per_day_allowed_hours
+            elif self.employee_id.default_per_day_allowed_hours:
+                src = self.employee_id.default_per_day_allowed_hours
+            if src:
+                self.per_day_hours = src
 
     def action_create_invoice(self):
         """P6: per-line Create Invoice. Reuses the contract's income
@@ -159,10 +177,25 @@ class Way4TechManpowerTimesheet(models.Model):
             if not vat_tax:
                 raise UserError(_('No 15% sales tax configured for this company.'))
             desc = line.description or _('Timesheet %s') % (line.date or line.start_date or '')
+            # CR3 P3 (v13.0): invoice line reads Hours × Rate, not 1 × Amount.
+            # Range way: qty = calendar_days × per_day_hours, price = rate.
+            # Single way: qty = hours, price = rate.
+            # Falls back to (1 × amount) if rate is 0 (legacy rows) so old
+            # rows don't get zero-priced invoice lines.
+            if line.rate:
+                if line.start_date and line.end_date and line.end_date >= line.start_date:
+                    days = (line.end_date - line.start_date).days + 1
+                    inv_qty = days * (line.per_day_hours or 0.0)
+                else:
+                    inv_qty = line.hours or 0.0
+                inv_price = line.rate
+            else:
+                inv_qty = 1.0
+                inv_price = line.amount or 0.0
             line_vals = {
                 'name': desc,
-                'quantity': 1.0,
-                'price_unit': line.amount or 0.0,
+                'quantity': inv_qty,
+                'price_unit': inv_price,
                 'account_id': sale_account.id,
                 'tax_ids': [(6, 0, [vat_tax.id])],
             }

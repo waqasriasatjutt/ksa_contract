@@ -8,7 +8,11 @@ class Way4TechManpowerContract(models.Model):
     _name = 'way4tech.manpower.contract'
     _description = 'Manpower Billing Contract'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'start_date desc, name'
+    # CR3 P4 (v13.0): sort by accounting_date desc (monthly-record era) —
+    # falls back to start_date desc for legacy rows that have no
+    # accounting_date. Both fields are populated on new records (mirror), so
+    # accounting_date NULLS FIRST/LAST doesn't matter in practice.
+    _order = 'accounting_date desc, start_date desc, id desc'
 
     name = fields.Char(string='Contract Name', required=True, tracking=True)
     # PRO/YYYY/MM/NNNN — auto-minted on create, monthly-reset counter.
@@ -91,6 +95,20 @@ class Way4TechManpowerContract(models.Model):
     hourly_rate = fields.Monetary(
         string='Hourly Rate',
         currency_field='currency_id',
+    )
+    # CR3 P3 (v13.0): Per Day Allowed Hours — CONTRACT master.
+    # Priority chain when a timesheet line loads: Contract → Employee → line
+    # override. Contract is the most specific (per client + month), wins
+    # over the employee default. Kept as a plain Float; label deliberately
+    # distinct from the timesheet's `per_day_hours` per feedback rule
+    # [[feedback_search_existing_field_labels_before_adding]].
+    default_per_day_allowed_hours = fields.Float(
+        string='Default Per Day Allowed Hours',
+        digits=(16, 2),
+        help='Per-day allowed hours for timesheet rows on this contract. '
+             'Auto-fills timesheet.per_day_hours when an employee is picked '
+             '(only when the timesheet row is still blank). Overrides the '
+             'employee-level default; line-level override still wins.',
     )
     start_date = fields.Date(string='Start Date', required=True)
     end_date = fields.Date(string='End Date')
@@ -751,6 +769,43 @@ class Way4TechManpowerContract(models.Model):
                     ir_sequence_date=seq_date,
                 ).next_by_code('way4tech.manpower.contract.pro') or '/'
         return super().create(vals_list)
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_check_active_documents(self):
+        """CR3 P4 (v13.0): monthly-record delete protection.
+
+        Blocks unlink when the contract has posted invoices, posted bills,
+        or non-draft signature requests attached — user must cancel/reset
+        those first. Mirrors the spirit of the existing line-level unlink
+        guards on income/expense/commission lines.
+        """
+        for rec in self:
+            # Any customer invoice minted from this contract's income lines?
+            posted_inv = self.env['account.move'].search_count([
+                ('id', 'in', rec.income_line_ids.mapped('invoice_id').ids +
+                             rec.timesheet_ids.mapped('invoice_id').ids +
+                             rec.invoice_ids.ids),
+                ('state', '!=', 'cancel'),
+            ])
+            if posted_inv:
+                raise UserError(_(
+                    'Cannot delete "%(name)s" — it has %(n)d non-cancelled '
+                    'customer invoice(s) attached. Cancel those first, or '
+                    'change the contract state to Cancelled to archive it.'
+                ) % {'name': rec.display_name, 'n': posted_inv})
+            # Any non-cancelled vendor bills from expense / commission lines?
+            posted_bill_ids = (
+                rec.direct_cost_line_ids.mapped('bill_id') |
+                rec.operating_exp_line_ids.mapped('bill_id') |
+                rec.commission_line_ids.mapped('bill_id')
+            )
+            posted_bill = posted_bill_ids.filtered(lambda m: m.state != 'cancel')
+            if posted_bill:
+                raise UserError(_(
+                    'Cannot delete "%(name)s" — it has %(n)d non-cancelled '
+                    'vendor bill(s) attached. Cancel those first, or set '
+                    'the contract state to Cancelled to archive it.'
+                ) % {'name': rec.display_name, 'n': len(posted_bill)})
 
     def write(self, vals):
         # CR3 P1: keep start_date populated when accounting_date is set on

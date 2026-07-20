@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- CR2 G5 (19.0.2.9.0) — Contract Statement (Draft Snapshot).
-         Renders all 6 tabs' current draft data. Excludes Billing Summary /
-         Profitability / KPI per client spec — this is a DRAFT snapshot for
-         signature, not the final P&L. -->
+    <!-- CR2 G5 (19.0.2.9.0) — Contract Statement.
+         CR3 P6 (v13.0): the template already iterates live O2Ms per contract
+         with NO period filter — with monthly records (P1) each contract IS a
+         single month, so "all lines" == "that month's lines" by construction.
+         Only the label needed refresh to reflect it's live data (not a
+         frozen draft snapshot), and the header now surfaces the record's
+         Accounting Date so the reader sees which month this covers. -->
 
     <record id="action_report_manpower_contract_statement" model="ir.actions.report">
-        <field name="name">Contract Statement (Draft Snapshot)</field>
+        <field name="name">Contract Statement</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">way4tech_logistics.report_manpower_contract_statement_doc</field>
@@ -23,15 +26,18 @@
 
                         <div class="row mb-3">
                             <div class="col-8">
-                                <h2>Contract Statement (Draft Snapshot)</h2>
+                                <h2>Contract Statement</h2>
                                 <p class="text-muted mb-0">
                                     <strong>Contract:</strong> <t t-esc="o.name"/> —
                                     <strong>Client:</strong> <t t-esc="o.client_id.name"/> —
                                     <strong>Reference:</strong> <t t-esc="o.reference or '—'"/>
+                                    <t t-if="o.accounting_date">
+                                        — <strong>Month:</strong> <t t-esc="o.accounting_date.strftime('%m/%Y')"/>
+                                    </t>
                                 </p>
                             </div>
                             <div class="col-4 text-right">
-                                <span class="badge bg-secondary" style="font-size:12px;padding:6px 10px">DRAFT SNAPSHOT</span>
+                                <span class="badge bg-primary" style="font-size:12px;padding:6px 10px">MONTHLY STATEMENT</span>
                             </div>
                         </div>
 

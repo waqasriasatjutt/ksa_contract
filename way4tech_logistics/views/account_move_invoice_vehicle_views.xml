@@ -15,4 +15,27 @@
             </xpath>
         </field>
     </record>
+
+    <!-- CR3 P7 (v13.0): expose Vehicle + Contract Tags on the SINGLE Journal
+         Entry's Journal Items table (the O2M inside the account.move form
+         under the "Journal Items" tab). Odoo Enterprise's account_fleet
+         already adds vehicle_id BUT gates it with
+         column_invisible="parent.move_type not in ('in_invoice','in_refund')"
+         — so on a pure JE (move_type='entry') the optional-columns dropdown
+         hides it entirely. We add a fresh unrestricted entry after
+         account_id so the column is togglable on JEs too, and pair it with
+         way4tech_tag_ids for parity. -->
+    <record id="view_move_form_jitems_vehicle_tags" model="ir.ui.view">
+        <field name="name">account.move.form.jitems.vehicle.tags</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@id='aml_tab']//field[@name='line_ids']/list//field[@name='account_id']" position="after">
+                <field name="vehicle_id" optional="hide" string="Vehicle"/>
+                <field name="way4tech_tag_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}" optional="hide"
+                       string="Contract Tags"/>
+            </xpath>
+        </field>
+    </record>
 </odoo>
