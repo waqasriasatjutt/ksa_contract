@@ -137,10 +137,21 @@
                             <field name="hourly_rate" invisible="1"/>
                         </group>
                         <group string="Period &amp; Settings">
-                            <field name="start_date" readonly="state != 'draft'"
-                                   help="Contract start date. Informational — does not restrict when invoices can be created."/>
-                            <field name="end_date" readonly="state in ('completed', 'cancelled')"
-                                   help="Contract end date. When reached, manually click 'Complete' to close the contract. Leave blank for open-ended contracts."/>
+                            <!-- CR3 P1 (v12.0): Accounting Date is the primary date of the
+                                 monthly record. Placed FIRST. start_date + end_date hidden
+                                 (kept in model — start_date auto-mirrors accounting_date via
+                                 create/write override so all 7 code readers keep working). -->
+                            <field name="accounting_date" readonly="state != 'draft'"
+                                   help="Primary date of this monthly record. Drives the auto-name (Client + Month), the uniqueness key, and the due date default."/>
+                            <field name="due_date"
+                                   help="Auto-set to Accounting Date + 45 days on creation. Overwritable — never auto-recomputed on later date edits."/>
+                            <field name="contract_month" readonly="1" force_save="1"
+                                   invisible="1"
+                                   help="First day of accounting_date's month. Uniqueness key; not for display."/>
+                            <field name="start_date" invisible="1"
+                                   help="Hidden (CR3 P1). Auto-mirrored from accounting_date on create/write for backend compat."/>
+                            <field name="end_date" invisible="1"
+                                   help="Hidden (CR3 P1). Kept in model but unused under the monthly-record design."/>
                             <field name="analytic_distribution"
                                    widget="analytic_distribution"
                                    options="{'account_field': 'account_id'}"

@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
 
-from odoo import api, fields, models, _
+from odoo import api, fields, models, tools, _
 from odoo.exceptions import UserError, ValidationError
 
 
@@ -94,6 +94,46 @@ class Way4TechManpowerContract(models.Model):
     )
     start_date = fields.Date(string='Start Date', required=True)
     end_date = fields.Date(string='End Date')
+
+    # ── CR3 P1: Monthly-record model (v12.0) ───────────────────────────────
+    # accounting_date is the PRIMARY DATE of the record under the monthly
+    # model (one record = one client-month). It is NOT required at the DB
+    # layer — old rows keep NULL forever so `-u module` doesn't backfill
+    # them with today's date and trip uniqueness. New rows get today via
+    # `default=`; create() also `setdefault`s it as belt-and-suspenders for
+    # programmatic callers that would otherwise leave it None. The
+    # ValidationError below enforces "must be set once the contract goes
+    # active" so it's effectively required for the business flow while
+    # remaining safe at the schema layer.
+    accounting_date = fields.Date(
+        string='Accounting Date',
+        default=fields.Date.context_today,
+        index=True,
+        tracking=True,
+        help='Primary date of this monthly record. Drives the auto-name '
+             '(client + month), the uniqueness key, and the due-date default. '
+             'Old records may have this blank; new records get today.',
+    )
+    # First-day-of-month normalisation of accounting_date. Stored + indexed
+    # so it can back the DB-level partial unique index built in _auto_init.
+    contract_month = fields.Date(
+        string='Month',
+        compute='_compute_contract_month',
+        store=True,
+        index=True,
+        help='First day of accounting_date\'s month. Used as the uniqueness '
+             'key together with client and project.',
+    )
+    # Plain Date with a create-time default — NOT a stored compute. A
+    # compute+store+readonly=False+depends=accounting_date is the canonical
+    # Odoo trap: it would silently overwrite the user\'s manual override on
+    # any future accounting_date edit (AR aging would go wrong with no
+    # warning). Keep manual, seed via create() from accounting_date+45d.
+    due_date = fields.Date(
+        string='Due Date',
+        help='Auto-set to Accounting Date + 45 days on record creation. '
+             'Manually overwritable — never auto-recomputed on later date edits.',
+    )
     po_id = fields.Many2one(
         'way4tech.client.po', string='Client PO',
         tracking=True,
@@ -608,17 +648,123 @@ class Way4TechManpowerContract(models.Model):
             )
             rec.project_margin = rec.total_invoiced - rec.total_project_expenses
 
+    # ── CR3 P1 computes ────────────────────────────────────────────────────
+
+    @api.depends('accounting_date')
+    def _compute_contract_month(self):
+        for rec in self:
+            # Guarded — old rows with NULL accounting_date stay NULL.
+            rec.contract_month = (
+                rec.accounting_date.replace(day=1) if rec.accounting_date else False
+            )
+
+    # ── CR3 P1 monthly uniqueness — DB partial unique index ─────────────────
+    # Race-safe uniqueness. @api.constrains alone is search-then-check with
+    # no row lock → two concurrent creates can slip past. The partial index
+    # guarantees hard uniqueness even under concurrency. WHERE clause skips
+    # legacy rows (contract_month IS NULL) so `-u module` on a DB with
+    # existing contracts doesn't retroactively enforce.
+    def _auto_init(self):
+        res = super()._auto_init()
+        tools.create_index(
+            self.env.cr,
+            'way4tech_manpower_contract_month_unique_idx',
+            self._table,
+            [
+                'client_id',
+                'contract_month',
+                "COALESCE(way4tech_project_id, 0)",
+            ],
+            where="state IN ('active', 'completed') AND contract_month IS NOT NULL",
+            unique=True,
+        )
+        return res
+
+    # ── CR3 P1 Python-side uniqueness (nicer error than IntegrityError) ────
+    @api.constrains(
+        'client_id', 'contract_month', 'way4tech_project_id', 'state',
+    )
+    def _check_monthly_unique(self):
+        for rec in self:
+            # Skip legacy rows and draft/cancelled — matches partial index scope.
+            if rec.state not in ('active', 'completed'):
+                continue
+            if not rec.contract_month:
+                continue
+            if not rec.client_id:
+                continue
+            dup = self.search([
+                ('id', '!=', rec.id),
+                ('client_id', '=', rec.client_id.id),
+                ('contract_month', '=', rec.contract_month),
+                ('way4tech_project_id', '=', rec.way4tech_project_id.id or False),
+                ('state', 'in', ('active', 'completed')),
+            ], limit=1)
+            if dup:
+                raise ValidationError(_(
+                    'A monthly contract already exists for this client + '
+                    'month + project — %(dup)s.\n\n'
+                    'One record = one client-month-project. If you need a '
+                    'second contract for the same slot, cancel the existing '
+                    'one first, or pick a different Accounting Date, '
+                    'Client, or Project.'
+                ) % {'dup': dup.display_name or dup.reference or dup.id})
+
     # ── Reference auto-generation (P3) ──────────────────────────────────────
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # --- CR3 P1: seed accounting_date, mirror to start_date, auto-name ---
+            # setdefault(accounting_date) BEFORE anything else so programmatic
+            # callers like create({'client_id': X}) get a valid date instead
+            # of hitting our downstream logic with None. The default is the
+            # same value fields.Date.context_today would supply on UI create.
+            if not vals.get('accounting_date'):
+                vals['accounting_date'] = fields.Date.context_today(self)
+            # Mirror accounting_date -> start_date on new rows so the 7 code
+            # readers of start_date (reference sequence date-range, _order,
+            # wizard domain, list/search/pivot filters, PDF report header)
+            # keep seeing a valid date without any of them needing change.
+            # Guard 2 from the CR3 spec.
+            if not vals.get('start_date'):
+                vals['start_date'] = vals['accounting_date']
+            # Auto-name: Client + Month (e.g. "ALFANAR — 06/2026"). Only when
+            # name is empty — existing records loaded via db_load / import
+            # with a pre-picked name are left alone.
+            if not vals.get('name') and vals.get('client_id') and vals.get('accounting_date'):
+                client = self.env['res.partner'].browse(vals['client_id'])
+                acc = fields.Date.to_date(vals['accounting_date'])
+                if client and acc:
+                    vals['name'] = '%s — %s' % (client.name, acc.strftime('%m/%Y'))
+            # Due Date: Accounting Date + 45 days (user-overwritable). Only
+            # set on create — never auto-recomputed after (avoids overriding
+            # manual client-specific due-date agreements).
+            if not vals.get('due_date') and vals.get('accounting_date'):
+                acc = fields.Date.to_date(vals['accounting_date'])
+                if acc:
+                    vals['due_date'] = acc + timedelta(days=45)
+            # ------------------------------------------------------------
             if not vals.get('reference'):
                 seq_date = vals.get('start_date') or date.today()
                 vals['reference'] = self.env['ir.sequence'].with_context(
                     ir_sequence_date=seq_date,
                 ).next_by_code('way4tech.manpower.contract.pro') or '/'
         return super().create(vals_list)
+
+    def write(self, vals):
+        # CR3 P1: keep start_date populated when accounting_date is set on
+        # a legacy row that was migrated with start_date=False, or when a
+        # programmatic path clears start_date. Only mirrors if start_date
+        # would be empty AFTER the write — never overwrites an existing
+        # user-picked start_date (protects old records).
+        if 'accounting_date' in vals and vals.get('accounting_date'):
+            for rec in self:
+                effective_start = vals.get('start_date', rec.start_date)
+                if not effective_start:
+                    vals['start_date'] = vals['accounting_date']
+                    break  # one write() call = one vals dict, mirror once
+        return super().write(vals)
 
     def _compose_reference_string(self, invoice=None):
         """Build the composite reference string used on generated documents.
