@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 from odoo import api, fields, models, tools, _
 from odoo.exceptions import UserError, ValidationError
@@ -8,13 +8,20 @@ class Way4TechManpowerContract(models.Model):
     _name = 'way4tech.manpower.contract'
     _description = 'Manpower Billing Contract'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    # CR3 P4 (v13.0): sort by accounting_date desc (monthly-record era) —
-    # falls back to start_date desc for legacy rows that have no
-    # accounting_date. Both fields are populated on new records (mirror), so
-    # accounting_date NULLS FIRST/LAST doesn't matter in practice.
-    _order = 'accounting_date desc, start_date desc, id desc'
+    # CR3-FINAL P1: Start Date is the record's period start and the primary
+    # date of the monthly record. accounting_date is kept in the model and
+    # mirrored FROM start_date (see create/write) purely so external readers
+    # and legacy data keep resolving — it is no longer the driver.
+    _order = 'start_date desc, id desc'
 
-    name = fields.Char(string='Contract Name', required=True, tracking=True)
+    # CR3-FINAL P8: no longer required — auto-generated as "Client — MM/YYYY"
+    # from client_id + start_date's month in create(). Left writable so a user
+    # can still override, and existing names are never touched.
+    name = fields.Char(
+        string='Contract Name', tracking=True,
+        help='Auto-generated as "Client — MM/YYYY" from the Client and the '
+             'Start Date month when left blank. Existing names are preserved.',
+    )
     # PRO/YYYY/MM/NNNN — auto-minted on create, monthly-reset counter.
     reference = fields.Char(
         string='Reference',
@@ -88,13 +95,18 @@ class Way4TechManpowerContract(models.Model):
         default='fixed',
         tracking=True,
     )
+    # CR3-FINAL P5: aggregator=None keeps these OUT of the pivot's Measures
+    # dropdown. They are per-record settings/rates, not summable totals —
+    # summing "Hourly Rate" across contracts is meaningless.
     fixed_amount = fields.Monetary(
         string='Fixed Monthly Amount',
         currency_field='currency_id',
+        aggregator=None,
     )
     hourly_rate = fields.Monetary(
         string='Hourly Rate',
         currency_field='currency_id',
+        aggregator=None,
     )
     # CR3 P3 (v13.0): Per Day Allowed Hours — CONTRACT master.
     # Priority chain when a timesheet line loads: Contract → Employee → line
@@ -105,13 +117,34 @@ class Way4TechManpowerContract(models.Model):
     default_per_day_allowed_hours = fields.Float(
         string='Default Per Day Allowed Hours',
         digits=(16, 2),
+        # CR3-FINAL P5: a per-record setting, not a summable total.
+        aggregator=None,
         help='Per-day allowed hours for timesheet rows on this contract. '
              'Auto-fills timesheet.per_day_hours when an employee is picked '
              '(only when the timesheet row is still blank). Overrides the '
              'employee-level default; line-level override still wins.',
     )
-    start_date = fields.Date(string='Start Date', required=True)
-    end_date = fields.Date(string='End Date')
+    # ── CR3-FINAL P1: Start/End Date are THE header period of the record ──
+    # The record's month (auto-name, PRO reference series, uniqueness key)
+    # all derive from start_date's month. Line-level dates are untouched —
+    # every Income / Expense / Timesheet / Budget / Commission row keeps its
+    # own date, and month grouping in reports uses the LINE/invoice date,
+    # never this header.
+    start_date = fields.Date(
+        string='Start Date', required=True,
+        default=fields.Date.context_today,
+        index=True,
+        tracking=True,
+        help="Start of this record's period. Drives the auto-name "
+             '(Client — MM/YYYY), the PRO/YYYY/MM/NNNN reference series and '
+             'the one-record-per-client-month-project uniqueness rule.',
+    )
+    end_date = fields.Date(
+        string='End Date',
+        tracking=True,
+        help="End of this record's period. Display/reporting only — it does "
+             'not affect the month key or the reference series.',
+    )
 
     # ── CR3 P1: Monthly-record model (v12.0) ───────────────────────────────
     # accounting_date is the PRIMARY DATE of the record under the monthly
@@ -123,34 +156,37 @@ class Way4TechManpowerContract(models.Model):
     # ValidationError below enforces "must be set once the contract goes
     # active" so it's effectively required for the business flow while
     # remaining safe at the schema layer.
+    # CR3-FINAL P1: DEMOTED. Removed from the form header (Start/End Date
+    # replaced it) but kept in the model and mirrored FROM start_date in
+    # create()/write() so every existing reader — the optional list column,
+    # the search filters, external references and legacy rows — keeps
+    # resolving without a data migration. Never drives anything now.
     accounting_date = fields.Date(
-        string='Accounting Date',
-        default=fields.Date.context_today,
+        string='Accounting Date (legacy)',
         index=True,
         tracking=True,
-        help='Primary date of this monthly record. Drives the auto-name '
-             '(client + month), the uniqueness key, and the due-date default. '
-             'Old records may have this blank; new records get today.',
+        help='Legacy mirror of Start Date, kept for backwards compatibility '
+             'with existing filters and saved views. The header period is now '
+             'Start Date + End Date.',
     )
-    # First-day-of-month normalisation of accounting_date. Stored + indexed
-    # so it can back the DB-level partial unique index built in _auto_init.
+    # First-day-of-month normalisation of START DATE (CR3-FINAL P1 re-key).
+    # Stored + indexed so it can back the DB-level partial unique index built
+    # in _auto_init.
     contract_month = fields.Date(
         string='Month',
         compute='_compute_contract_month',
         store=True,
         index=True,
-        help='First day of accounting_date\'s month. Used as the uniqueness '
-             'key together with client and project.',
+        help="First day of Start Date's month. Used as the uniqueness key "
+             'together with client and project.',
     )
-    # Plain Date with a create-time default — NOT a stored compute. A
-    # compute+store+readonly=False+depends=accounting_date is the canonical
-    # Odoo trap: it would silently overwrite the user\'s manual override on
-    # any future accounting_date edit (AR aging would go wrong with no
-    # warning). Keep manual, seed via create() from accounting_date+45d.
+    # CR3-FINAL P1: the +45-day auto-fill is REMOVED per client instruction.
+    # Field retained (never dropped — "hide" means remove from the view only)
+    # so historical values stay readable and no column is destroyed.
     due_date = fields.Date(
-        string='Due Date',
-        help='Auto-set to Accounting Date + 45 days on record creation. '
-             'Manually overwritable — never auto-recomputed on later date edits.',
+        string='Due Date (legacy)',
+        help='Legacy field. The automatic Accounting Date + 45 days default '
+             'was removed in CR3-FINAL P1; existing values are preserved.',
     )
     po_id = fields.Many2one(
         'way4tech.client.po', string='Client PO',
@@ -436,188 +472,331 @@ class Way4TechManpowerContract(models.Model):
     )
     notes = fields.Text(string='Notes')
 
-    # ── P8 (2026-07-15): Billing Summary + Project Profitability + KPI% ──
-    # 19 read-only aggregates, all computed from live invoice_ids /
-    # project_expense_ids / budget_line_ids. Non-stored — recompute on every
-    # read; the parent record already invalidates itself when children change.
+    # ══ CR3-FINAL P2/P3/P4/P5: Billing Summary + Project Profitability + KPI%
+    #
+    # P5 (client's core demand): every box below is now STORED so it appears
+    # in the pivot's Measures dropdown and can be grouped/rolled up. Values
+    # are computed ONCE here at contract level; the pivot, list, statement and
+    # PDF only DISPLAY them — nothing recalculates downstream.
+    #
+    # KPI % fields hold a PERCENTAGE NUMBER (18.10 == 18.10%), not a fraction,
+    # and carry no widget="percentage". That is deliberate: widget=percentage
+    # renders a 0.181 fraction as "18.10%" on the form while the pivot would
+    # show the raw 0.18 — breaking the master rule that record value must
+    # equal pivot value must equal list value. Storing the percentage number
+    # makes all three read 18.10.
+    #
+    # Two compute methods, NOT one — this is a hard requirement, not style.
+    # way4tech.manpower.commission.line._compute_amount depends on
+    # contract.pp_gross_profit / pp_net_profit / pp_budgeted_profit /
+    # pp_actual_profit. If the commission totals were computed in the SAME
+    # method as those profits, storing them would create a dependency cycle
+    # (commission amount → contract profit → commission total → …) and Odoo
+    # would recurse. Group 1 below therefore depends only on invoices,
+    # expenses and budget; group 2 depends on commission lines plus group 1.
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # Map of KPI% field → (numerator field, denominator field). Drives the
+    # group-level recalculation in _read_group so a percentage is never
+    # summed across a group (P5 aggregation rule).
+    PERCENT_MEASURES = {
+        'kpi_gross_margin': ('pp_gross_profit', 'bs_total_invoiced'),
+        'kpi_net_margin': ('pp_net_profit', 'bs_total_invoiced'),
+        'kpi_cogs_pct': ('bs_total_project_cgs', 'bs_total_invoiced'),
+        'kpi_opex_pct': ('bs_total_project_exp', 'bs_total_invoiced'),
+        'kpi_total_cost_pct': ('bs_total_project_exp_all', 'bs_total_invoiced'),
+        'kpi_roc': ('pp_net_profit', 'bs_total_project_exp_all'),
+        'kpi_budget_variance_pct': ('bs_budget_variance', 'bs_total_budget_cost'),
+        'kpi_budget_usage_pct': ('bs_total_actual_cost', 'bs_total_budget_cost'),
+        'kpi_net_return_on_cost_after_commission': (
+            'pp_profit_after_commission', 'bs_total_project_exp_all',
+        ),
+    }
+
+    # ── Group 1: Billing Summary + Profitability (no commission input) ─────
     bs_total_invoiced = fields.Monetary(
         string='Total Invoiced', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        store=True, currency_field='currency_id',
+        help='Sum of untaxed amounts on POSTED customer invoices linked to '
+             'this contract.',
     )
     bs_total_project_cgs = fields.Monetary(
         string='Total Project CGS', compute='_compute_kpi_summary',
-        currency_field='currency_id',
-        help='Sum of Project Expense line amounts whose expense account type '
-             'is Cost of Revenue (account.account.account_type = expense_direct_cost).',
+        store=True, currency_field='currency_id',
+        help='Direct Cost (COGS): sum of billed Project Expense lines whose '
+             'category is bucketed as Direct Cost.',
     )
     bs_total_project_exp = fields.Monetary(
         string='Total Project Expenses', compute='_compute_kpi_summary',
-        currency_field='currency_id',
-        help='Sum of Project Expense line amounts whose expense account type '
-             'is Operating Expense (account.account.account_type = expense).',
+        store=True, currency_field='currency_id',
+        help='Operating Expenses: sum of billed Project Expense lines whose '
+             'category is bucketed as Operating Exp.',
+    )
+    # ── CR3-FINAL P3: new field ───────────────────────────────────────────
+    bs_total_project_exp_all = fields.Monetary(
+        string='Total Project Exp', compute='_compute_kpi_summary',
+        store=True, currency_field='currency_id',
+        help='Total Project Exp = Total Direct Cost (COGS) + Total Operating '
+             'Expenses. Example: 3,000 + 800 = 3,800.',
     )
     bs_total_budget_cost = fields.Monetary(
         string='Total Budget Cost', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        store=True, currency_field='currency_id',
     )
     bs_total_actual_cost = fields.Monetary(
         string='Total Actual Cost', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        store=True, currency_field='currency_id',
     )
     bs_remaining_budget = fields.Monetary(
         string='Remaining Budget', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        store=True, currency_field='currency_id',
     )
     bs_budget_variance = fields.Monetary(
         string='Budget Variance', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        store=True, currency_field='currency_id',
     )
     pp_gross_profit = fields.Monetary(
-        string='Project Gross Profit', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        string='Gross Profit', compute='_compute_kpi_summary',
+        store=True, currency_field='currency_id',
+        help='Gross Profit = Income − COGS.',
     )
     pp_net_profit = fields.Monetary(
-        string='Project Net Profit', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        string='Net Profit', compute='_compute_kpi_summary',
+        store=True, currency_field='currency_id',
+        help='Net Profit = Gross Profit − Operating Expenses.',
     )
+    # CR3-FINAL P2 fix 1. Field NAME kept (commission model depends on it and
+    # renaming the column would be destructive); label + formula corrected.
     pp_budgeted_profit = fields.Monetary(
-        string='Budgeted Profit', compute='_compute_kpi_summary',
-        currency_field='currency_id',
+        string='Profit After Budget', compute='_compute_kpi_summary',
+        store=True, currency_field='currency_id',
+        help='Profit After Budget = Income − COGS − Budget Cost '
+             '(= Gross Profit − Budget Cost). Operating Expenses are NOT '
+             'subtracted here. Example: 5,000 − 3,000 − 1,000 = 1,000.',
     )
+    # CR3-FINAL P2 fix 2.
     pp_actual_profit = fields.Monetary(
-        string='Actual Profit', compute='_compute_kpi_summary',
-        currency_field='currency_id',
-    )
-    # -- CR2 G3 (19.0.2.7.0): sales-person commission summary ------------
-    bs_sales_person_commission = fields.Monetary(
-        string='Total Sales Person Commission', compute='_compute_kpi_summary',
-        currency_field='currency_id',
-        help='Sum of commission-line amounts whose vendor bill has been '
-             "created (state='billed'). Mirrors the billed-only rule already "
-             'applied to CGS/OpEx per CR2 G7 item 2 — keeps summary tiles '
-             'numerically consistent with what actually posted to the GL.',
-    )
-    pp_profit_after_commission = fields.Monetary(
-        string='Profit After Commission', compute='_compute_kpi_summary',
-        currency_field='currency_id',
-        help='pp_actual_profit − bs_sales_person_commission. What the '
-             'company keeps on this contract after paying the salesperson.',
+        string='Profit After Actual Cost', compute='_compute_kpi_summary',
+        store=True, currency_field='currency_id',
+        help='Profit After Actual Cost = Income − COGS − Actual Cost '
+             '(= Gross Profit − Actual Cost). Operating Expenses are NOT '
+             'subtracted here. Example: 5,000 − 3,000 − 800 = 1,200.',
     )
     kpi_gross_margin = fields.Float(
-        string='Gross Margin %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Gross Margin %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_net_margin = fields.Float(
-        string='Net Margin %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Net Margin %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_cogs_pct = fields.Float(
-        string='COGS %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='COGS %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_opex_pct = fields.Float(
-        string='Operating Expense %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Operating Expense %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_total_cost_pct = fields.Float(
-        string='Total Cost %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Total Cost %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_roc = fields.Float(
-        string='Profit to Cost (ROC) %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Profit to Cost (ROC) %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_budget_variance_pct = fields.Float(
-        string='Budget Variance %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Budget Variance %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
     kpi_budget_usage_pct = fields.Float(
-        string='Budget Usage %', compute='_compute_kpi_summary', digits=(6, 2),
+        string='Budget Usage %', compute='_compute_kpi_summary',
+        store=True, digits=(6, 2),
     )
+
+    # ── Group 2: commission-derived boxes (depend on group 1 + commission) ─
+    bs_sales_person_commission = fields.Monetary(
+        string='Total Salesperson Commission',
+        compute='_compute_commission_kpis',
+        store=True, currency_field='currency_id',
+        help='Sum of commission-line amounts whose vendor bill has been '
+             "created (state='billed') — consistent with the billed-only "
+             'rule applied to CGS/OpEx, so the tiles match the GL.',
+    )
+    # CR3-FINAL P2 fix 3: base is NET PROFIT (not Profit After Actual Cost).
+    pp_profit_after_commission = fields.Monetary(
+        string='Net Profit After Salesperson Commission',
+        compute='_compute_commission_kpis',
+        store=True, currency_field='currency_id',
+        help='Net Profit After Salesperson Commission = Net Profit − '
+             'Commission. Example: 1,200 − 512 = 688.',
+    )
+    # ── CR3-FINAL P4: new KPI ─────────────────────────────────────────────
+    kpi_net_return_on_cost_after_commission = fields.Float(
+        string='Net Return on Cost After Commission %',
+        compute='_compute_commission_kpis', store=True, digits=(6, 2),
+        help='Net Profit After Commission ÷ (Total Direct Cost + Total '
+             'Operating Expenses), as a percentage. Example: '
+             '688 ÷ 3,800 ≈ 18.11%. Zero cost → 0%.',
+    )
+
+    @staticmethod
+    def _kpi_pct(numerator, denominator):
+        """Percentage NUMBER (18.10 for 18.10%), divide-by-zero → 0.0."""
+        if not denominator:
+            return 0.0
+        return (numerator / denominator) * 100.0
 
     @api.depends(
-        'invoice_ids', 'invoice_ids.amount_untaxed',
-        'invoice_ids.state',           # CR2 G5: required by posted-only filter
-        'invoice_ids.invoice_date',    # CR2 G6: required by date-scope filter
+        'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
+        # Depend on the UNDOMAINED o2m + the discriminator, then split in
+        # Python below. Depending on the domained direct_cost_line_ids /
+        # operating_exp_line_ids instead would make stored-field invalidation
+        # unreliable — Odoo does not re-evaluate an o2m domain when the
+        # category's expense_type changes on an existing line.
         'project_expense_ids', 'project_expense_ids.amount',
         'project_expense_ids.state',
-        'project_expense_ids.date',    # CR2 G6
         'project_expense_ids.category_id',
         'project_expense_ids.category_id.expense_type',
-        'budget_line_ids', 'budget_line_ids.budget_amount', 'budget_line_ids.actual_amount',
-        'budget_line_ids.state',       # CR2 G5: required by confirmed-only filter
-        'budget_line_ids.date',        # CR2 G6
-        # CR2 G3 (19.0.2.7.0): commission billed-only sum.
-        'commission_line_ids', 'commission_line_ids.amount', 'commission_line_ids.state',
-        'commission_line_ids.date',    # CR2 G6
-        'report_date_from', 'report_date_to',  # CR2 G6 filter state
+        'budget_line_ids', 'budget_line_ids.budget_amount',
+        'budget_line_ids.actual_amount', 'budget_line_ids.state',
     )
     def _compute_kpi_summary(self):
-        """One pass per record — reads children once, computes all 19 boxes.
+        """Group 1 — one pass per record over invoices / expenses / budget.
 
-        CR2 G2 (19.0.2.6.0): CGS/OpEx split is now driven by the tab a
-        line belongs to (category.expense_type), not by
-        account.account.account_type. Only confirmed (state='billed')
-        lines contribute — draft lines are excluded per CR2 G7 item 2 so
-        the client's month-end numbers match what was actually posted.
+        Only POSTED invoices, BILLED expense lines and CONFIRMED budget lines
+        contribute, so the month-end figures always match what reached the GL.
         """
-        def _pct(numerator, denominator):
-            """Guard against divide-by-zero: return 0.0 if denominator is 0.
-            Return value is a FRACTION (0.425 for 42.5%) — Odoo's
-            widget='percentage' does the ×100 + '%' on display."""
-            if not denominator:
-                return 0.0
-            return numerator / denominator
-
         for rec in self:
-            # CR2 G6: scope every source by the header Report Period.
-            invs = rec._filter_by_report_period(rec.invoice_ids, 'invoice_date')
-            dc_lines = rec._filter_by_report_period(rec.direct_cost_line_ids, 'date')
-            op_lines = rec._filter_by_report_period(rec.operating_exp_line_ids, 'date')
-            bud_lines = rec._filter_by_report_period(rec.budget_line_ids, 'date')
-            com_lines = rec._filter_by_report_period(rec.commission_line_ids, 'date')
-
-            # Billing Summary — state filters chained on top of date scope.
             total_invoiced = sum(
-                inv.amount_untaxed for inv in invs if inv.state == 'posted'
+                inv.amount_untaxed for inv in rec.invoice_ids
+                if inv.state == 'posted'
             )
-            cgs = sum(l.amount or 0.0 for l in dc_lines if l.state == 'billed')
-            opex = sum(l.amount or 0.0 for l in op_lines if l.state == 'billed')
+            cgs = opex = 0.0
+            for line in rec.project_expense_ids:
+                if line.state != 'billed':
+                    continue
+                bucket = line.category_id.expense_type
+                if bucket == 'direct':
+                    cgs += line.amount or 0.0
+                elif bucket == 'operating':
+                    opex += line.amount or 0.0
             total_budget = sum(
-                l.budget_amount or 0.0 for l in bud_lines if l.state == 'confirmed'
+                l.budget_amount or 0.0 for l in rec.budget_line_ids
+                if l.state == 'confirmed'
             )
             total_actual = sum(
-                l.actual_amount or 0.0 for l in bud_lines if l.state == 'confirmed'
+                l.actual_amount or 0.0 for l in rec.budget_line_ids
+                if l.state == 'confirmed'
             )
-            remaining = total_budget - total_actual
-            variance = total_actual - total_budget
-
-            # Profitability
-            gross_profit = total_invoiced - cgs
-            net_profit = gross_profit - opex
-            budgeted_profit = net_profit - total_budget
-            actual_profit = net_profit - total_actual
-
             total_cost = cgs + opex
+
+            # ── CR3-FINAL P2: corrected profitability formulas ──
+            gross_profit = total_invoiced - cgs            # Income − COGS
+            net_profit = gross_profit - opex               # GP − OpEx
+            profit_after_budget = gross_profit - total_budget   # GP − Budget
+            profit_after_actual = gross_profit - total_actual   # GP − Actual
 
             rec.bs_total_invoiced = total_invoiced
             rec.bs_total_project_cgs = cgs
             rec.bs_total_project_exp = opex
+            rec.bs_total_project_exp_all = total_cost       # P3
             rec.bs_total_budget_cost = total_budget
             rec.bs_total_actual_cost = total_actual
-            rec.bs_remaining_budget = remaining
-            rec.bs_budget_variance = variance
+            rec.bs_remaining_budget = total_budget - total_actual
+            rec.bs_budget_variance = total_actual - total_budget
             rec.pp_gross_profit = gross_profit
             rec.pp_net_profit = net_profit
-            rec.pp_budgeted_profit = budgeted_profit
-            rec.pp_actual_profit = actual_profit
-            # CR2 G3+G6: billed-only sum, scoped by Report Period.
-            commission_total = sum(
-                l.amount or 0.0 for l in com_lines if l.state == 'billed'
-            )
-            rec.bs_sales_person_commission = commission_total
-            rec.pp_profit_after_commission = actual_profit - commission_total
+            rec.pp_budgeted_profit = profit_after_budget
+            rec.pp_actual_profit = profit_after_actual
+
+            _pct = self._kpi_pct
             rec.kpi_gross_margin = _pct(gross_profit, total_invoiced)
             rec.kpi_net_margin = _pct(net_profit, total_invoiced)
             rec.kpi_cogs_pct = _pct(cgs, total_invoiced)
             rec.kpi_opex_pct = _pct(opex, total_invoiced)
             rec.kpi_total_cost_pct = _pct(total_cost, total_invoiced)
             rec.kpi_roc = _pct(net_profit, total_cost)
-            rec.kpi_budget_variance_pct = _pct(variance, total_budget)
+            rec.kpi_budget_variance_pct = _pct(
+                total_actual - total_budget, total_budget,
+            )
             rec.kpi_budget_usage_pct = _pct(total_actual, total_budget)
+
+    @api.depends(
+        'commission_line_ids', 'commission_line_ids.amount',
+        'commission_line_ids.state',
+        'pp_net_profit', 'bs_total_project_exp_all',
+    )
+    def _compute_commission_kpis(self):
+        """Group 2 — commission total and everything derived from it.
+
+        Kept separate from group 1 to break the dependency cycle with
+        way4tech.manpower.commission.line._compute_amount (see the block
+        comment above the field definitions).
+        """
+        for rec in self:
+            commission_total = sum(
+                l.amount or 0.0 for l in rec.commission_line_ids
+                if l.state == 'billed'
+            )
+            # CR3-FINAL P2 fix 3: NET profit is the base, not actual profit.
+            after_commission = rec.pp_net_profit - commission_total
+            rec.bs_sales_person_commission = commission_total
+            rec.pp_profit_after_commission = after_commission
+            # CR3-FINAL P4.
+            rec.kpi_net_return_on_cost_after_commission = self._kpi_pct(
+                after_commission, rec.bs_total_project_exp_all,
+            )
+
+    # ── CR3-FINAL P5: correct percentage aggregation at group level ────────
+    def _read_group(self, domain, groupby=(), aggregates=(), having=(),
+                    offset=0, limit=None, order=None):
+        """Recalculate KPI % measures from the GROUP's summed amounts.
+
+        Odoo aggregates a stored Float measure with SUM. Summing percentages
+        is meaningless (three contracts at 20% do not make 60%), and the
+        client's P5 rule is explicit: percentages must be recalculated at
+        every level from the group's own numerator and denominator. So when
+        a caller (pivot, list group rollup, graph) asks for a KPI% aggregate,
+        we transparently also fetch its numerator and denominator sums and
+        substitute numerator ÷ denominator × 100 into the result.
+
+        Amount measures are untouched and keep aggregating by sum.
+        """
+        pct_specs = {}          # position in `aggregates` → (num spec, den spec)
+        for index, spec in enumerate(aggregates):
+            fname, _sep, func = spec.partition(':')
+            if fname in self.PERCENT_MEASURES and func in ('sum', ''):
+                num, den = self.PERCENT_MEASURES[fname]
+                pct_specs[index] = ('%s:sum' % num, '%s:sum' % den)
+        if not pct_specs:
+            return super()._read_group(
+                domain, groupby, aggregates, having, offset, limit, order,
+            )
+
+        # Append whatever numerator/denominator sums are not already requested.
+        extended = list(aggregates)
+        for num_spec, den_spec in pct_specs.values():
+            for spec in (num_spec, den_spec):
+                if spec not in extended:
+                    extended.append(spec)
+        rows = super()._read_group(
+            domain, groupby, tuple(extended), having, offset, limit, order,
+        )
+
+        base = len(groupby)                       # aggregates start after groupby
+        pos = {spec: base + i for i, spec in enumerate(extended)}
+        keep = base + len(aggregates)             # drop our helper columns
+        patched = []
+        for row in rows:
+            row = list(row)
+            for index, (num_spec, den_spec) in pct_specs.items():
+                numerator = row[pos[num_spec]] or 0.0
+                denominator = row[pos[den_spec]] or 0.0
+                row[base + index] = self._kpi_pct(numerator, denominator)
+            patched.append(tuple(row[:keep]))
+        return patched
 
     @api.onchange('client_id')
     def _onchange_client_id(self):
@@ -631,16 +810,15 @@ class Way4TechManpowerContract(models.Model):
 
     @api.depends(
         'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
-        'invoice_ids.invoice_date',
-        'report_date_from', 'report_date_to',
     )
     def _compute_invoice_count(self):
-        """CR2 G5: posted-only. CR2 G6: scoped by Report Period."""
+        """CR2 G5: posted-only. CR3-FINAL P1: Report Period scoping removed
+        along with the header block — a monthly record IS the period."""
         for rec in self:
-            invs = rec._filter_by_report_period(rec.invoice_ids, 'invoice_date')
-            rec.invoice_count = len(invs)
+            rec.invoice_count = len(rec.invoice_ids)
             rec.total_invoiced = sum(
-                inv.amount_untaxed for inv in invs if inv.state == 'posted'
+                inv.amount_untaxed for inv in rec.invoice_ids
+                if inv.state == 'posted'
             )
 
     @api.depends('timesheet_ids.hours')
@@ -652,28 +830,41 @@ class Way4TechManpowerContract(models.Model):
 
     @api.depends(
         'project_expense_ids.amount', 'project_expense_ids.state',
-        'project_expense_ids.date',
-        'total_invoiced',
-        'report_date_from', 'report_date_to',
+        'invoice_ids', 'invoice_ids.amount_untaxed', 'invoice_ids.state',
     )
     def _compute_project_margin(self):
-        """CR2 G2 billed-only + CR2 G6 date-scoped. Keeps this tile
-        numerically consistent with bs_total_project_cgs+opex."""
+        """CR2 G2 billed-only. CR3-FINAL P1: Report Period scoping removed.
+
+        Depends on invoice_ids directly rather than on the non-stored
+        total_invoiced — a stored field must not depend on a non-stored one
+        or its invalidation becomes unreliable.
+        """
         for rec in self:
-            exp = rec._filter_by_report_period(rec.project_expense_ids, 'date')
             rec.total_project_expenses = sum(
-                l.amount or 0.0 for l in exp if l.state == 'billed'
+                l.amount or 0.0 for l in rec.project_expense_ids
+                if l.state == 'billed'
             )
-            rec.project_margin = rec.total_invoiced - rec.total_project_expenses
+            posted_invoiced = sum(
+                inv.amount_untaxed for inv in rec.invoice_ids
+                if inv.state == 'posted'
+            )
+            rec.project_margin = posted_invoiced - rec.total_project_expenses
 
     # ── CR3 P1 computes ────────────────────────────────────────────────────
 
-    @api.depends('accounting_date')
+    @api.depends('start_date')
     def _compute_contract_month(self):
+        """CR3-FINAL P1: the record's month now derives from START DATE.
+
+        Verified safe against live data before the re-key: on devnew there
+        are zero (client, start-month, project) collisions among
+        active/completed contracts, so populating contract_month from
+        start_date cannot violate the partial unique index below.
+        """
         for rec in self:
-            # Guarded — old rows with NULL accounting_date stay NULL.
+            # Guarded — rows with no start_date stay NULL (index skips them).
             rec.contract_month = (
-                rec.accounting_date.replace(day=1) if rec.accounting_date else False
+                rec.start_date.replace(day=1) if rec.start_date else False
             )
 
     # ── CR3 P1 monthly uniqueness — DB partial unique index ─────────────────
@@ -724,7 +915,7 @@ class Way4TechManpowerContract(models.Model):
                     'month + project — %(dup)s.\n\n'
                     'One record = one client-month-project. If you need a '
                     'second contract for the same slot, cancel the existing '
-                    'one first, or pick a different Accounting Date, '
+                    'one first, or pick a different Start Date, '
                     'Client, or Project.'
                 ) % {'dup': dup.display_name or dup.reference or dup.id})
 
@@ -733,35 +924,30 @@ class Way4TechManpowerContract(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            # --- CR3 P1: seed accounting_date, mirror to start_date, auto-name ---
-            # setdefault(accounting_date) BEFORE anything else so programmatic
+            # --- CR3-FINAL P1/P8: start_date is the driver; mirror it back
+            # onto the demoted accounting_date; auto-name from its month. ---
+            # setdefault(start_date) BEFORE anything else so programmatic
             # callers like create({'client_id': X}) get a valid date instead
-            # of hitting our downstream logic with None. The default is the
-            # same value fields.Date.context_today would supply on UI create.
-            if not vals.get('accounting_date'):
-                vals['accounting_date'] = fields.Date.context_today(self)
-            # Mirror accounting_date -> start_date on new rows so the 7 code
-            # readers of start_date (reference sequence date-range, _order,
-            # wizard domain, list/search/pivot filters, PDF report header)
-            # keep seeing a valid date without any of them needing change.
-            # Guard 2 from the CR3 spec.
+            # of hitting the downstream logic with None. Same value the UI
+            # default (fields.Date.context_today) would supply.
             if not vals.get('start_date'):
-                vals['start_date'] = vals['accounting_date']
-            # Auto-name: Client + Month (e.g. "ALFANAR — 06/2026"). Only when
-            # name is empty — existing records loaded via db_load / import
-            # with a pre-picked name are left alone.
-            if not vals.get('name') and vals.get('client_id') and vals.get('accounting_date'):
+                vals['start_date'] = fields.Date.context_today(self)
+            # Mirror start_date -> accounting_date so the legacy readers that
+            # still reference accounting_date (optional list column, search
+            # filters, saved views) keep resolving. Reverse of the v12.0
+            # direction: start_date now leads.
+            if not vals.get('accounting_date'):
+                vals['accounting_date'] = vals['start_date']
+            # CR3-FINAL P8 auto-name: "Client — MM/YYYY" from the START DATE
+            # month. Only when name is empty — records imported with a
+            # pre-picked name are left alone (old records: display, never modify).
+            if not vals.get('name') and vals.get('client_id') and vals.get('start_date'):
                 client = self.env['res.partner'].browse(vals['client_id'])
-                acc = fields.Date.to_date(vals['accounting_date'])
-                if client and acc:
-                    vals['name'] = '%s — %s' % (client.name, acc.strftime('%m/%Y'))
-            # Due Date: Accounting Date + 45 days (user-overwritable). Only
-            # set on create — never auto-recomputed after (avoids overriding
-            # manual client-specific due-date agreements).
-            if not vals.get('due_date') and vals.get('accounting_date'):
-                acc = fields.Date.to_date(vals['accounting_date'])
-                if acc:
-                    vals['due_date'] = acc + timedelta(days=45)
+                sd = fields.Date.to_date(vals['start_date'])
+                if client and sd:
+                    vals['name'] = '%s — %s' % (client.name, sd.strftime('%m/%Y'))
+            # CR3-FINAL P1: the Due Date = Accounting Date + 45 days auto-fill
+            # is REMOVED per client instruction. Nothing seeds due_date now.
             # ------------------------------------------------------------
             if not vals.get('reference'):
                 seq_date = vals.get('start_date') or date.today()
@@ -808,18 +994,26 @@ class Way4TechManpowerContract(models.Model):
                 ) % {'name': rec.display_name, 'n': len(posted_bill)})
 
     def write(self, vals):
-        # CR3 P1: keep start_date populated when accounting_date is set on
-        # a legacy row that was migrated with start_date=False, or when a
-        # programmatic path clears start_date. Only mirrors if start_date
-        # would be empty AFTER the write — never overwrites an existing
-        # user-picked start_date (protects old records).
-        if 'accounting_date' in vals and vals.get('accounting_date'):
+        # CR3-FINAL P1: start_date leads — keep the demoted accounting_date
+        # mirroring it so legacy filters/saved views stay consistent when the
+        # user edits the header period. Only mirrors when the caller did not
+        # explicitly set accounting_date in the same write.
+        if vals.get('start_date') and 'accounting_date' not in vals:
+            vals['accounting_date'] = vals['start_date']
+        res = super().write(vals)
+        # CR3-FINAL P8: backfill the auto-name for records still unnamed once
+        # both ingredients exist (e.g. client picked after an initial save).
+        # Never renames a record that already has a name — old records are
+        # display-only.
+        if {'client_id', 'start_date'} & set(vals):
             for rec in self:
-                effective_start = vals.get('start_date', rec.start_date)
-                if not effective_start:
-                    vals['start_date'] = vals['accounting_date']
-                    break  # one write() call = one vals dict, mirror once
-        return super().write(vals)
+                if not rec.name and rec.client_id and rec.start_date:
+                    super(Way4TechManpowerContract, rec).write({
+                        'name': '%s — %s' % (
+                            rec.client_id.name, rec.start_date.strftime('%m/%Y'),
+                        ),
+                    })
+        return res
 
     def _compose_reference_string(self, invoice=None):
         """Build the composite reference string used on generated documents.

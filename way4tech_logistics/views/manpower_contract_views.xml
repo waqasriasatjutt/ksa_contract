@@ -71,18 +71,13 @@
                     <!-- CR2 G5 (19.0.2.9.0): expose has_pending_approval as
                          invisible so header button's invisible attr resolves. -->
                     <field name="has_pending_approval" invisible="1"/>
-                    <!-- CR2 G6 (19.0.2.10.0): Report Period filter block.
-                         Non-stored per-open display state that drives KPI
-                         cards + notebook-tab O2M domains together. Hidden on
-                         brand-new records so first-time create is uncluttered. -->
-                    <group string="Report Period" invisible="not id" col="6">
-                        <field name="report_period" colspan="2"
-                               help="CR2 G6: date window applied to Billing Summary, KPI cards, and every notebook-tab line list below. Pick Custom Range to type your own dates."/>
-                        <field name="report_date_from" colspan="2"
-                               readonly="report_period != 'custom'"/>
-                        <field name="report_date_to" colspan="2"
-                               readonly="report_period != 'custom'"/>
-                    </group>
+                    <!-- CR3-FINAL P1 (1): the Report Period block is REMOVED
+                         from the form. A monthly record IS its own period, so
+                         a second date window on top of it was redundant and
+                         made the same number read differently in different
+                         places. report_period / report_date_from /
+                         report_date_to remain on the model (hide = view only)
+                         but no longer scope any figure. -->
                     <div class="oe_button_box" name="button_box">
                         <button
                             name="action_view_invoices"
@@ -115,7 +110,11 @@
                     </div>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Contract Name"/>
+                            <!-- CR3-FINAL P8: no longer required. Left blank it
+                                 auto-generates as "Client — MM/YYYY" from the
+                                 Client and the Start Date month on save. -->
+                            <field name="name"
+                                   placeholder="Auto-generated from Client + Start Date month"/>
                         </h1>
                         <h4>
                             <field name="reference" readonly="1" nolabel="1"
@@ -146,21 +145,27 @@
                                    help="Default Per Day Allowed Hours for timesheet rows on this contract. When an employee is picked on a timesheet row and that row's per_day_hours is still blank, this value fills it (falling back to the employee's own default if this is blank). The row remains editable."/>
                         </group>
                         <group string="Period &amp; Settings">
-                            <!-- CR3 P1 (v12.0): Accounting Date is the primary date of the
-                                 monthly record. Placed FIRST. start_date + end_date hidden
-                                 (kept in model — start_date auto-mirrors accounting_date via
-                                 create/write override so all 7 code readers keep working). -->
-                            <field name="accounting_date" readonly="state != 'draft'"
-                                   help="Primary date of this monthly record. Drives the auto-name (Client + Month), the uniqueness key, and the due date default."/>
-                            <field name="due_date"
-                                   help="Auto-set to Accounting Date + 45 days on creation. Overwritable — never auto-recomputed on later date edits."/>
+                            <!-- CR3-FINAL P1 (3): Start Date + End Date ARE the
+                                 record's period and sit first. The record month
+                                 (auto-name, PRO reference series, duplicate
+                                 constraint) all key off Start Date's month.
+                                 Line-level dates are untouched — each Income /
+                                 Expense / Timesheet row keeps its own date, and
+                                 month grouping in reports uses the line/invoice
+                                 date, never this header.
+                                 accounting_date + due_date are hidden here (kept
+                                 in the model); the +45-day Due Date rule is gone. -->
+                            <field name="start_date" readonly="state != 'draft'"
+                                   help="Start of this record's period. Drives the auto-name (Client — MM/YYYY), the PRO/YYYY/MM/NNNN reference series, and the one-record-per-client-month-project rule."/>
+                            <field name="end_date"
+                                   help="End of this record's period. Display and reporting only."/>
                             <field name="contract_month" readonly="1" force_save="1"
                                    invisible="1"
-                                   help="First day of accounting_date's month. Uniqueness key; not for display."/>
-                            <field name="start_date" invisible="1"
-                                   help="Hidden (CR3 P1). Auto-mirrored from accounting_date on create/write for backend compat."/>
-                            <field name="end_date" invisible="1"
-                                   help="Hidden (CR3 P1). Kept in model but unused under the monthly-record design."/>
+                                   help="First day of Start Date's month. Uniqueness key; not for display."/>
+                            <field name="accounting_date" invisible="1"
+                                   help="Legacy mirror of Start Date (CR3-FINAL P1). Kept for backwards compatibility with existing filters and saved views."/>
+                            <field name="due_date" invisible="1"
+                                   help="Legacy. The Accounting Date + 45 days auto-fill was removed in CR3-FINAL P1; existing values preserved."/>
                             <field name="analytic_distribution"
                                    widget="analytic_distribution"
                                    options="{'account_field': 'account_id'}"
@@ -181,51 +186,58 @@
                             <field name="currency_id" invisible="1"/>
                         </group>
                     </group>
-                    <group>
-                        <group string="Billing Summary">
-                            <field name="total_hours" readonly="1"
-                                   invisible="billing_type != 'hourly'"
-                                   help="Sum of all hours logged in the Timesheets tab. Used for Hourly Rate billing: invoice amount = total_hours × hourly_rate. Read-only."/>
-                            <field name="total_invoiced" readonly="1"
-                                   help="Sum of untaxed amounts across all invoices linked to this contract (ex-VAT). Read-only — updated automatically as invoices are created."/>
-                        </group>
-                        <group string="Project Profitability" invisible="contract_type != 'project'">
-                            <field name="total_project_expenses" readonly="1"
-                                   help="Sum of all project expense lines (wages, accommodation, utilities, furniture, transport, other). Updated automatically."/>
-                            <field name="project_margin" readonly="1" class="o_field_highlight"
-                                   help="Project Margin = Total Invoiced − Total Project Expenses. Positive means the project is profitable. For full P&amp;L including individual employee salary costs tagged to this project, check the Analytic Report."/>
-                        </group>
-                    </group>
-                    <!-- P8 (2026-07-15): three read-only summary cards.
-                         All figures computed live from invoice_ids +
-                         project_expense_ids + budget_line_ids. -->
-                    <group col="6" class="oe_edit_only">
+                    <!-- CR3-FINAL P1 (2): the small duplicate Billing Summary /
+                         Project Profitability pair that used to sit here has
+                         been REMOVED. The single detailed dashboard below is
+                         now the only place these figures appear on the form,
+                         so there is one number in one place.
+                         CR3-FINAL P5: class="oe_edit_only" also dropped — the
+                         dashboard was previously invisible in read mode, which
+                         is exactly when the client wants to read it.
+                         Every field below is stored and is available as a Pivot
+                         measure under the SAME name and the SAME value. -->
+                    <group col="6" name="way4tech_dashboard">
                         <group string="Billing Summary" colspan="2">
                             <field name="bs_total_invoiced" readonly="1"/>
                             <field name="bs_total_project_cgs" readonly="1"/>
                             <field name="bs_total_project_exp" readonly="1"/>
+                            <!-- CR3-FINAL P3: Direct Cost + Operating Exp -->
+                            <field name="bs_total_project_exp_all" readonly="1"
+                                   class="o_field_highlight"
+                                   help="Total Project Exp = Total Direct Cost (COGS) + Total Operating Expenses."/>
                             <field name="bs_total_budget_cost" readonly="1"/>
                             <field name="bs_total_actual_cost" readonly="1"/>
                             <field name="bs_remaining_budget" readonly="1"/>
                             <field name="bs_budget_variance" readonly="1"/>
                             <field name="bs_sales_person_commission" readonly="1"/>
+                            <field name="total_hours" readonly="1"
+                                   help="Sum of all hours logged in the Timesheets tab."/>
                         </group>
                         <group string="Project Profitability" colspan="2">
                             <field name="pp_gross_profit" readonly="1"/>
                             <field name="pp_net_profit" readonly="1"/>
+                            <!-- CR3-FINAL P2: both key off GROSS profit -->
                             <field name="pp_budgeted_profit" readonly="1"/>
                             <field name="pp_actual_profit" readonly="1"/>
-                            <field name="pp_profit_after_commission" readonly="1"/>
+                            <field name="pp_profit_after_commission" readonly="1"
+                                   class="o_field_highlight"/>
                         </group>
+                        <!-- CR3-FINAL P5: values are percentage NUMBERS
+                             (18.10 == 18.10%), deliberately without
+                             widget="percentage" so the form, the list and the
+                             pivot all display the identical figure. -->
                         <group string="KPI %" colspan="2">
-                            <field name="kpi_gross_margin" readonly="1" widget="percentage"/>
-                            <field name="kpi_net_margin" readonly="1" widget="percentage"/>
-                            <field name="kpi_cogs_pct" readonly="1" widget="percentage"/>
-                            <field name="kpi_opex_pct" readonly="1" widget="percentage"/>
-                            <field name="kpi_total_cost_pct" readonly="1" widget="percentage"/>
-                            <field name="kpi_roc" readonly="1" widget="percentage"/>
-                            <field name="kpi_budget_variance_pct" readonly="1" widget="percentage"/>
-                            <field name="kpi_budget_usage_pct" readonly="1" widget="percentage"/>
+                            <field name="kpi_gross_margin" readonly="1"/>
+                            <field name="kpi_net_margin" readonly="1"/>
+                            <field name="kpi_cogs_pct" readonly="1"/>
+                            <field name="kpi_opex_pct" readonly="1"/>
+                            <field name="kpi_total_cost_pct" readonly="1"/>
+                            <field name="kpi_roc" readonly="1"/>
+                            <field name="kpi_budget_variance_pct" readonly="1"/>
+                            <field name="kpi_budget_usage_pct" readonly="1"/>
+                            <!-- CR3-FINAL P4 -->
+                            <field name="kpi_net_return_on_cost_after_commission"
+                                   readonly="1" class="o_field_highlight"/>
                         </group>
                     </group>
                     <notebook>
@@ -234,7 +246,6 @@
                              the contract's analytic + project + category + tags + PRO reference. -->
                         <page string="Project Income" name="project_income">
                             <field name="income_line_ids" readonly="state == 'cancelled'"
-                                   domain="[('accounting_date', '&gt;=', report_date_from), ('accounting_date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'invoiced'">
                                     <!-- inv_month removed entirely (2026-07-18 v11.0):
@@ -285,7 +296,6 @@
                             </div>
                             <field name="direct_cost_line_ids"
                                    readonly="state == 'cancelled'"
-                                   domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
                                     <field name="date" string="Accounting Date" widget="date"/>
@@ -334,7 +344,6 @@
                             </div>
                             <field name="operating_exp_line_ids"
                                    readonly="state == 'cancelled'"
-                                   domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'operating'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
                                     <field name="date" string="Accounting Date" widget="date"/>
@@ -372,7 +381,6 @@
                         <page string="Timesheets" name="timesheets">
                             <field name="timesheet_ids"
                                    readonly="state in ('completed', 'cancelled')"
-                                   domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'invoiced'">
                                     <!-- Way 2: single date -->
@@ -413,7 +421,6 @@
                              analytic AND this line's expense_account. Status: ✅ / ⛔. -->
                         <page string="Project Budget" name="project_budget">
                             <field name="budget_line_ids" readonly="state == 'cancelled'"
-                                   domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id}">
                                 <list editable="top">
                                     <field name="category_id" string="Expense Type"/>
@@ -465,7 +472,6 @@
                             </div>
                             <field name="commission_line_ids"
                                    readonly="state == 'cancelled'"
-                                   domain="[('date', '&gt;=', report_date_from), ('date', '&lt;=', report_date_to)]"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'billed'">
                                     <!-- bill_month removed from list (2026-07-18 v11.0):
@@ -538,25 +544,55 @@
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
             <list string="Manpower Contracts">
-                <!-- CR3 P4 (v13.0): monthly-record dashboard columns.
-                     Only STORED fields can be sum= / group-rollup / pivot-measure
-                     in Odoo. Stored KPIs available: total_hours, total_project_expenses,
-                     project_margin. Non-stored KPIs (total_invoiced, pp_net_profit,
-                     pp_profit_after_commission) stay on the record header — see
-                     memory for the design tradeoff. -->
+                <!-- CR3-FINAL P5: every Billing Summary / Profitability / KPI%
+                     box is now STORED, so all of them roll up here with sum=
+                     and appear as Pivot measures. The values shown are the
+                     SAME values computed on the record — nothing is
+                     recalculated in this view.
+                     KPI% columns carry no sum= : a summed percentage is
+                     meaningless. Group rollups for them are recalculated from
+                     the group's own amounts by _read_group on the model. -->
                 <field name="name"/>
                 <field name="client_id"/>
-                <field name="accounting_date" optional="show"
+                <field name="start_date" optional="show"
                        string="Month" widget="date"/>
+                <field name="end_date" optional="hide"/>
                 <field name="salesperson_id" optional="show"/>
                 <field name="way4tech_project_id" optional="hide"/>
                 <field name="contract_type" optional="hide"/>
                 <field name="billing_type" optional="hide"/>
-                <field name="start_date" optional="hide"/>
-                <field name="end_date" optional="hide"/>
-                <field name="total_hours" sum="Total Hours" optional="show"/>
-                <field name="total_project_expenses" sum="Total Expenses" optional="show"/>
-                <field name="project_margin" sum="Project Margin" optional="show"/>
+                <field name="accounting_date" optional="hide" string="Accounting Date (legacy)"/>
+                <!-- Billing Summary -->
+                <field name="bs_total_invoiced" sum="Total Invoiced" optional="show"/>
+                <field name="bs_total_project_cgs" sum="Total CGS" optional="hide"/>
+                <field name="bs_total_project_exp" sum="Total Operating Exp" optional="hide"/>
+                <field name="bs_total_project_exp_all" sum="Total Project Exp" optional="show"/>
+                <field name="bs_total_budget_cost" sum="Total Budget" optional="hide"/>
+                <field name="bs_total_actual_cost" sum="Total Actual" optional="hide"/>
+                <field name="bs_remaining_budget" sum="Remaining Budget" optional="hide"/>
+                <field name="bs_budget_variance" sum="Budget Variance" optional="hide"/>
+                <field name="bs_sales_person_commission" sum="Total Commission" optional="hide"/>
+                <!-- Project Profitability -->
+                <field name="pp_gross_profit" sum="Gross Profit" optional="hide"/>
+                <field name="pp_net_profit" sum="Net Profit" optional="show"/>
+                <field name="pp_budgeted_profit" sum="Profit After Budget" optional="hide"/>
+                <field name="pp_actual_profit" sum="Profit After Actual Cost" optional="hide"/>
+                <field name="pp_profit_after_commission"
+                       sum="Net Profit After Commission" optional="show"/>
+                <!-- KPI % — no sum=, recalculated per group by _read_group -->
+                <field name="kpi_gross_margin" optional="hide"/>
+                <field name="kpi_net_margin" optional="hide"/>
+                <field name="kpi_cogs_pct" optional="hide"/>
+                <field name="kpi_opex_pct" optional="hide"/>
+                <field name="kpi_total_cost_pct" optional="hide"/>
+                <field name="kpi_roc" optional="hide"/>
+                <field name="kpi_budget_variance_pct" optional="hide"/>
+                <field name="kpi_budget_usage_pct" optional="hide"/>
+                <field name="kpi_net_return_on_cost_after_commission" optional="hide"/>
+                <!-- Legacy stored aggregates, kept for continuity -->
+                <field name="total_hours" sum="Total Hours" optional="hide"/>
+                <field name="total_project_expenses" sum="Total Expenses" optional="hide"/>
+                <field name="project_margin" sum="Project Margin" optional="hide"/>
                 <field name="due_date" optional="hide"/>
                 <field name="reference" optional="hide"/>
                 <field name="state" widget="badge"
@@ -604,24 +640,25 @@
                 <filter string="Food Delivery" name="food_delivery" domain="[('contract_type','=','food_delivery')]"/>
                 <filter string="Project Based" name="project" domain="[('contract_type','=','project')]"/>
                 <separator/>
-                <!-- CR3 P4 (v13.0): date-range shortcuts on accounting_date (was start_date).
-                     Old start_date filters kept below (they still work because start_date
-                     mirrors accounting_date on new records) for backward navigation. -->
-                <filter string="This Month" name="this_accounting_month"
-                        domain="[('accounting_date', '&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
-                <filter string="This Year" name="this_accounting_year"
-                        domain="[('accounting_date', '&gt;=', (context_today()).strftime('%Y-01-01'))]"/>
-                <filter string="Started This Month (legacy)" name="this_month"
+                <!-- CR3-FINAL P1: date shortcuts key off Start Date, which is
+                     now the record's period. The accounting_date variants are
+                     kept (mirrored on save) so saved filters keep resolving. -->
+                <filter string="This Month" name="this_month"
                         domain="[('start_date', '&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
-                <filter string="Started This Year (legacy)" name="this_year"
+                <filter string="This Year" name="this_year"
                         domain="[('start_date', '&gt;=', (context_today()).strftime('%Y-01-01'))]"/>
+                <filter string="This Month (Accounting Date, legacy)" name="this_accounting_month"
+                        domain="[('accounting_date', '&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
+                <filter string="This Year (Accounting Date, legacy)" name="this_accounting_year"
+                        domain="[('accounting_date', '&gt;=', (context_today()).strftime('%Y-01-01'))]"/>
                 <separator/>
                 <filter string="Client" name="group_client" context="{'group_by': 'client_id'}"/>
                 <filter string="Salesperson" name="group_salesperson" context="{'group_by': 'salesperson_id'}"/>
                 <filter string="State" name="group_state" context="{'group_by': 'state'}"/>
-                <filter string="Accounting Month" name="group_accounting_month"
+                <filter string="Month" name="group_start_month"
+                        context="{'group_by': 'start_date:month'}"/>
+                <filter string="Accounting Month (legacy)" name="group_accounting_month"
                         context="{'group_by': 'accounting_date:month'}"/>
-                <filter string="Start Month" name="group_start_month" context="{'group_by': 'start_date:month'}"/>
                 <filter string="Project" name="group_project" context="{'group_by': 'way4tech_project_id'}"/>
                 <filter string="Entry Category" name="group_category" context="{'group_by': 'way4tech_category_id'}"/>
                 <filter string="Tags" name="group_tags" context="{'group_by': 'tag_ids'}"/>
@@ -639,18 +676,27 @@
         <field name="name">way4tech.manpower.contract.pivot</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
-            <!-- CR3 P4 (v13.0): pivot now uses only STORED measures. The
-                 previous total_invoiced measure was non-stored → Odoo pivot
-                 couldn't aggregate it, silently showing zeros / broken UI.
-                 Swapped for stored equivalents. Column axis flipped from
-                 start_date to accounting_date (monthly-record era). -->
+            <!-- CR3-FINAL P5 (client's core demand): the COMPLETE dashboard is
+                 available in the Measures dropdown — all 9 Billing Summary
+                 amounts, all 5 Profitability amounts and all 9 KPI %, because
+                 every one of them is now a stored field on the model.
+
+                 The four measures listed below are only the DEFAULT selection;
+                 the user adds any of the rest from Measures. Rows follow the
+                 client's suggested layout: Client → Month → Salesperson.
+
+                 Amounts aggregate by sum. KPI % are NOT summed — the model's
+                 _read_group recalculates each one from the group's own summed
+                 numerator and denominator, so a percentage is correct at every
+                 level of the pivot including the grand total. -->
             <pivot string="Manpower Contract Analysis">
                 <field name="client_id" type="row"/>
-                <field name="way4tech_project_id" type="row"/>
-                <field name="accounting_date" type="col" interval="month"/>
-                <field name="total_hours" type="measure"/>
-                <field name="total_project_expenses" type="measure"/>
-                <field name="project_margin" type="measure"/>
+                <field name="start_date" type="row" interval="month"/>
+                <field name="salesperson_id" type="row"/>
+                <field name="bs_total_invoiced" type="measure"/>
+                <field name="bs_total_project_exp_all" type="measure"/>
+                <field name="pp_net_profit" type="measure"/>
+                <field name="pp_profit_after_commission" type="measure"/>
             </pivot>
         </field>
     </record>
@@ -662,10 +708,13 @@
         <field name="name">way4tech.manpower.contract.graph</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
+            <!-- CR3-FINAL P5: total_invoiced is non-stored and cannot be
+                 aggregated (the graph silently rendered zeros). Swapped for
+                 the stored bs_total_invoiced, which holds the same value. -->
             <graph string="Manpower Revenue by Client" type="bar">
                 <field name="client_id" type="row"/>
-                <field name="total_invoiced" type="measure"/>
-                <field name="total_hours" type="measure"/>
+                <field name="bs_total_invoiced" type="measure"/>
+                <field name="pp_net_profit" type="measure"/>
             </graph>
         </field>
     </record>

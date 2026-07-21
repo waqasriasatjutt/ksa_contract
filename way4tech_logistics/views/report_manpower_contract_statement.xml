@@ -31,8 +31,17 @@
                                     <strong>Contract:</strong> <t t-esc="o.name"/> —
                                     <strong>Client:</strong> <t t-esc="o.client_id.name"/> —
                                     <strong>Reference:</strong> <t t-esc="o.reference or '—'"/>
-                                    <t t-if="o.accounting_date">
-                                        — <strong>Month:</strong> <t t-esc="o.accounting_date.strftime('%m/%Y')"/>
+                                    <!-- CR3-FINAL P1: the record's month now comes from
+                                         Start Date. accounting_date kept as a fallback for
+                                         legacy rows that predate the re-key. -->
+                                    <t t-if="o.start_date or o.accounting_date">
+                                        — <strong>Month:</strong>
+                                        <t t-esc="(o.start_date or o.accounting_date).strftime('%m/%Y')"/>
+                                    </t>
+                                    <t t-if="o.start_date and o.end_date">
+                                        — <strong>Period:</strong>
+                                        <t t-esc="o.start_date.strftime('%d/%m/%Y')"/> to
+                                        <t t-esc="o.end_date.strftime('%d/%m/%Y')"/>
                                     </t>
                                 </p>
                             </div>
