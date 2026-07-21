@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         CR3-FINAL P12 — Send for Signature popup.
+         Opens as a dialog (target="new") from the contract header with the
+         Month pre-filled. Confirm creates the request already Pending, so it
+         shows up in the contract's Approvals tab with no manual line entry.
+         Approving is deliberately NOT possible here.
+         ================================================================ -->
+    <record id="view_manpower_signature_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.manpower.signature.wizard.form</field>
+        <field name="model">way4tech.manpower.signature.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send for Signature">
+                <group>
+                    <field name="contract_id" invisible="1"/>
+                    <field name="month"/>
+                    <field name="notes" placeholder="Optional note for the approver…"/>
+                </group>
+                <div class="alert alert-info" role="alert">
+                    The request goes to <strong>Manpower → Approvals</strong> for a
+                    Logistics Manager to approve. Create Invoice and Create Bill
+                    stay locked for this month until it is approved.
+                </div>
+                <footer>
+                    <button name="action_confirm" type="object"
+                            string="Send for Signature" class="btn-primary"
+                            data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

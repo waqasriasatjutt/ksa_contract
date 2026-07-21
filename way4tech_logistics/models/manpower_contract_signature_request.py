@@ -119,6 +119,19 @@ class Way4TechManpowerContractSignatureRequest(models.Model):
         return True
 
     def action_approve(self):
+        """CR3-FINAL P12: approval is a MANAGER action, enforced server-side.
+
+        The view-level ``groups=`` on the button only hides it; this check is
+        what actually separates duties, since a non-manager could otherwise
+        call the method over RPC. Approving is also not reachable from the
+        contract form at all — only from the Manpower → Approvals area.
+        """
+        if not self.env.user.has_group('way4tech_logistics.group_logistics_manager'):
+            raise UserError(_(
+                'Only a Logistics Manager can approve a signature request. '
+                'Ask an authorised approver to review it in '
+                'Manpower → Approvals.'
+            ))
         for rec in self:
             if rec.state != 'pending':
                 raise UserError(_(

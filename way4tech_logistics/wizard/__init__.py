@@ -12,3 +12,5 @@ from . import employee_margin_report_wizard
 # ── Fleet / Maintenance Excel wizards (BRD v3 feedback) ──────────────────────
 from . import fleet_excel_export
 from . import maintenance_excel_wizard
+# ── CR3-FINAL P12: Send for Signature popup ──────────────────────────────────
+from . import manpower_signature_wizard

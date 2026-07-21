@@ -100,16 +100,30 @@
         </field>
     </record>
 
+    <!-- CR3-FINAL P12: THE approval area. Separate from the contract on
+         purpose — the contract can only send a request and read its status;
+         approving happens here, by a Logistics Manager. Opens on Pending so
+         the approver sees their queue immediately. -->
     <record id="action_manpower_contract_signature_request" model="ir.actions.act_window">
-        <field name="name">Signature Requests</field>
+        <field name="name">Approvals</field>
         <field name="res_model">way4tech.manpower.contract.signature.request</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_manpower_contract_signature_request_search"/>
+        <field name="context">{'search_default_f_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing waiting for approval</p>
+            <p>
+                Monthly approval requests sent from Manpower Contracts land here.
+                Approving one unlocks that contract-month's Create Invoice and
+                Create Bill actions.
+            </p>
+        </field>
     </record>
 
     <menuitem id="menu_manpower_signature_request"
-              name="Signature Requests"
+              name="Approvals"
               parent="menu_way4tech_manpower"
               action="action_manpower_contract_signature_request"
+              groups="way4tech_logistics.group_logistics_manager"
               sequence="45"/>
 </odoo>

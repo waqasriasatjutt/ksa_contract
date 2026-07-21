@@ -29,7 +29,19 @@ class Way4TechManpowerTimesheet(models.Model):
     per_day_hours = fields.Float(string='Per Day Allowed Hours', digits=(16, 2))
     employee_id = fields.Many2one(comodel_name='hr.employee', string='Employee')
     description = fields.Char(string='Description')
-    hours = fields.Float(string='Hours', digits=(16, 2))
+    # CR3-FINAL P9: in range mode the Hours column used to sit at 0 while the
+    # Amount was right (48 × 20 = 960 shown against "Hours 0.00"), which made
+    # the grid and the Contract Statement unreadable. Hours is now a stored
+    # compute that fills itself with days × per-day-hours in range mode, and
+    # stays a plain user input in single-day mode (readonly=False). Amount is
+    # then uniformly Hours × Rate, and the same total carries to the invoice
+    # as Quantity.
+    hours = fields.Float(
+        string='Hours', digits=(16, 2),
+        compute='_compute_hours', store=True, readonly=False,
+        help='Single-day mode: type the hours worked. Range mode: computed '
+             'automatically as calendar days × Per Day Allowed Hours.',
+    )
     rate = fields.Monetary(
         string='Rate',
         currency_field='currency_id',
@@ -86,18 +98,39 @@ class Way4TechManpowerTimesheet(models.Model):
         for line in self:
             line.employee_cost = line.hours * line.employee_hourly_rate
 
-    @api.depends('date', 'hours', 'rate', 'start_date', 'end_date', 'per_day_hours')
-    def _compute_amount(self):
-        """P6 dual-mode amount. Uses range mode if BOTH start_date + end_date
-        are set; otherwise single-date mode. Calendar-day count is INCLUSIVE
-        of both endpoints AND weekends (per spec)."""
+    def _range_days(self):
+        """Inclusive calendar-day count of the Start/End range (weekends
+        included, per spec), or 0 when the line is not in range mode."""
+        self.ensure_one()
+        if self.start_date and self.end_date and self.end_date >= self.start_date:
+            return (self.end_date - self.start_date).days + 1
+        return 0
+
+    @api.depends('start_date', 'end_date', 'per_day_hours')
+    def _compute_hours(self):
+        """CR3-FINAL P9: fill Hours from the range, leave it alone otherwise.
+
+        Re-asserting ``line.hours = line.hours`` in the single-day branch is
+        deliberate: a stored compute must assign every record in the set, and
+        re-assigning the current value is what preserves the operator's typed
+        hours (same technique used for the Accounting Date fix in
+        account_move_extension).
+        """
         for line in self:
-            rate = line.rate or 0.0
-            if line.start_date and line.end_date and line.end_date >= line.start_date:
-                days = (line.end_date - line.start_date).days + 1
-                line.amount = days * (line.per_day_hours or 0.0) * rate
+            days = line._range_days()
+            if days:
+                line.hours = days * (line.per_day_hours or 0.0)
             else:
-                line.amount = (line.hours or 0.0) * rate
+                line.hours = line.hours
+
+    @api.depends('hours', 'rate')
+    def _compute_amount(self):
+        """CR3-FINAL P9: one formula for both modes now that Hours is always
+        populated — Amount = Hours × Rate. Range mode therefore still yields
+        days × per-day-hours × rate, unchanged, but the Hours cell now shows
+        the number that produced it."""
+        for line in self:
+            line.amount = (line.hours or 0.0) * (line.rate or 0.0)
 
     # NOTE (2026-07-17): removed the two @api.onchange handlers that
     # cross-cleared date/hours vs start_date/end_date/per_day_hours.
@@ -177,17 +210,13 @@ class Way4TechManpowerTimesheet(models.Model):
             if not vat_tax:
                 raise UserError(_('No 15% sales tax configured for this company.'))
             desc = line.description or _('Timesheet %s') % (line.date or line.start_date or '')
-            # CR3 P3 (v13.0): invoice line reads Hours × Rate, not 1 × Amount.
-            # Range way: qty = calendar_days × per_day_hours, price = rate.
-            # Single way: qty = hours, price = rate.
+            # CR3-FINAL P9: Hours is now populated in BOTH modes, so the
+            # invoice line is simply Quantity = Hours, Price = Rate — the same
+            # total-hours figure the grid and the Contract Statement show.
             # Falls back to (1 × amount) if rate is 0 (legacy rows) so old
             # rows don't get zero-priced invoice lines.
             if line.rate:
-                if line.start_date and line.end_date and line.end_date >= line.start_date:
-                    days = (line.end_date - line.start_date).days + 1
-                    inv_qty = days * (line.per_day_hours or 0.0)
-                else:
-                    inv_qty = line.hours or 0.0
+                inv_qty = line.hours or 0.0
                 inv_price = line.rate
             else:
                 inv_qty = 1.0
@@ -262,11 +291,8 @@ class Way4TechManpowerTimesheet(models.Model):
             return
         if not self.invoice_line_id:
             return
-        if self.start_date and self.end_date and self.end_date >= self.start_date:
-            days = (self.end_date - self.start_date).days + 1
-            units = days * (self.per_day_hours or 0.0)
-        else:
-            units = self.hours or 0.0
+        # CR3-FINAL P9: Hours is authoritative in both modes now.
+        units = self.hours or 0.0
         if not units:
             return
         new_rate = (self.invoice_line_id.price_subtotal or 0.0) / units

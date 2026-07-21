@@ -22,6 +22,17 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     contract_id = fields.Many2one(
         "way4tech.manpower.contract", required=True, ondelete="cascade",
     )
+    # CR3-FINAL P6: when set, this row is one line of a multi-line invoice
+    # block rather than a standalone single-line invoice. ondelete='set null'
+    # — deleting a draft block must never destroy the operator's typed income
+    # rows; they simply return to the unassigned pool.
+    invoice_block_id = fields.Many2one(
+        "way4tech.manpower.invoice.block",
+        string="Invoice Block",
+        ondelete="set null", index=True, copy=False,
+        help="The multi-line invoice block this row belongs to. Rows sharing "
+             "a block are billed together on ONE customer invoice.",
+    )
     company_id = fields.Many2one(related="contract_id.company_id", store=True, readonly=True)
     currency_id = fields.Many2one(related="contract_id.currency_id", store=True, readonly=True)
 
@@ -90,10 +101,21 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     def action_create_invoice(self):
         """Mint a customer invoice for this single income line. Mirrors the
         contract-level ``action_create_invoice`` (same analytic, project,
-        category, tags, PRO ref) but scoped to THIS line's account + amount."""
+        category, tags, PRO ref) but scoped to THIS line's account + amount.
+
+        CR3-FINAL P6: kept for continuity with rows created before invoice
+        blocks existed. A row that belongs to a block must be billed through
+        the block so all its sibling lines land on the same invoice.
+        """
         for line in self:
             if line.invoice_id:
                 raise UserError(_("This income line has already been invoiced."))
+            if line.invoice_block_id:
+                raise UserError(_(
+                    'This row belongs to invoice block "%s". Use that block\'s '
+                    '"Create Invoice" button so every line in the block is '
+                    'billed on the same invoice.'
+                ) % (line.invoice_block_id.name or ''))
             # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
             line.contract_id._require_month_approval(line.accounting_date)
             contract = line.contract_id

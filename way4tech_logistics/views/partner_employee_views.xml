@@ -40,6 +40,16 @@
             <xpath expr="//field[@name='identification_id']" position="after">
                 <field name="way4tech_iqama_number" string="Iqama #"/>
             </xpath>
+            <!-- CR3-FINAL P10: Per Day Allowed Hours master lives on the
+                 employee, next to Working Hours in the HR schedule block.
+                 A manpower contract can override it, and the timesheet row
+                 always stays editable — see the priority chain in
+                 way4tech.manpower.timesheet._onchange_employee_id. -->
+            <xpath expr="//field[@name='resource_calendar_id']" position="after">
+                <field name="default_per_day_allowed_hours"
+                       string="Per Day Allowed Hours"
+                       help="Default per-day allowed hours used when this employee is picked on a Manpower Contract timesheet row in Start/End range mode. A contract-level value overrides this; the timesheet row itself can always be edited."/>
+            </xpath>
         </field>
     </record>
 

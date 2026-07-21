@@ -351,6 +351,15 @@ class Way4TechManpowerContract(models.Model):
         string='Total Vendor Bills', compute='_compute_bill_aggregates',
         currency_field='currency_id',
     )
+    # ── CR3-FINAL P11: live balance shown under the Customer Statement button
+    client_balance = fields.Monetary(
+        string='Client Balance', compute='_compute_client_balance',
+        currency_field='currency_id',
+        help="The client's live outstanding balance — the same closing "
+             'balance the Partner Ledger reports. Signed sum of posted '
+             'receivable and payable journal items. Recomputed on every read, '
+             'so it follows invoices and payments automatically.',
+    )
     # ── CR2 G5 (19.0.2.9.0): monthly signature-approval workflow ─────────
     signature_request_ids = fields.One2many(
         'way4tech.manpower.contract.signature.request',
@@ -448,6 +457,34 @@ class Way4TechManpowerContract(models.Model):
         'contract_id',
         string='Project Income',
     )
+    # ── CR3-FINAL P6: multi-line invoices built from the contract ─────────
+    invoice_block_ids = fields.One2many(
+        'way4tech.manpower.invoice.block',
+        'contract_id',
+        string='Invoice Blocks',
+        help='Each block is one future customer invoice. Add several lines '
+             'to a block and its Create Invoice button bills them all on a '
+             'single document. A month can hold several blocks.',
+    )
+    # Income rows that predate invoice blocks, or were typed straight onto
+    # the flat grid. Shown in their own section so nothing created before
+    # P6 disappears from the form.
+    unassigned_income_line_ids = fields.One2many(
+        'way4tech.manpower.contract.income.line',
+        'contract_id',
+        domain=[('invoice_block_id', '=', False)],
+        string='Income Lines (not in a block)',
+    )
+    unassigned_income_count = fields.Integer(
+        compute='_compute_unassigned_income_count',
+    )
+
+    @api.depends('income_line_ids', 'income_line_ids.invoice_block_id')
+    def _compute_unassigned_income_count(self):
+        for rec in self:
+            rec.unassigned_income_count = len(
+                rec.income_line_ids.filtered(lambda l: not l.invoice_block_id)
+            )
     budget_line_ids = fields.One2many(
         'way4tech.manpower.contract.budget.line',
         'contract_id',
@@ -1093,21 +1130,21 @@ class Way4TechManpowerContract(models.Model):
         return approved
 
     def action_send_for_signature(self):
-        """CR2 G5: open a NEW Signature Request in draft, pre-filled with
-        the current month. Accountant reviews tabs (still writable in
-        draft), clicks 'Send for Signature' on the request itself."""
+        """CR3-FINAL P12: open the Send-for-Signature POPUP.
+
+        Was a full-page draft Signature Request that then needed a second
+        button press to submit. Now a dialog with the Month pre-filled from
+        the record's period; confirming creates the request already Pending
+        and it appears in the Approvals tab by itself.
+        """
         self.ensure_one()
-        month = fields.Date.context_today(self).strftime('%m/%Y')
         return {
             'type': 'ir.actions.act_window',
-            'name': _('New Signature Request'),
-            'res_model': 'way4tech.manpower.contract.signature.request',
+            'name': _('Send for Signature'),
+            'res_model': 'way4tech.manpower.signature.wizard',
             'view_mode': 'form',
-            'target': 'current',
-            'context': {
-                'default_contract_id': self.id,
-                'default_month': month,
-            },
+            'target': 'new',
+            'context': {'default_contract_id': self.id},
         }
 
     def action_create_invoice(self):
@@ -1347,29 +1384,85 @@ class Way4TechManpowerContract(models.Model):
             'context': {'default_move_type': 'in_invoice'},
         }
 
+    # ── CR3-FINAL P11: Customer Statement → native Partner Ledger ─────────
+    @api.depends('client_id', 'company_id')
+    def _compute_client_balance(self):
+        """Live outstanding balance for the contract's client.
+
+        This is the SAME number the Partner Ledger prints as its closing
+        balance: the signed sum (debit − credit) of every POSTED journal item
+        on the partner's receivable AND payable accounts. Posted-only matches
+        the Partner Ledger's own default, so the figure under the button and
+        the figure at the bottom of the report always agree.
+
+        Non-stored on purpose — it re-reads on every form open, so raising an
+        invoice or registering a payment is reflected immediately with no
+        recompute trigger to maintain. Aggregated in SQL via _read_group so
+        it stays cheap on partners with thousands of entries.
+        """
+        for rec in self:
+            if not rec.client_id:
+                rec.client_balance = 0.0
+                continue
+            partner = rec.client_id | rec.client_id.commercial_partner_id
+            groups = self.env['account.move.line']._read_group(
+                domain=[
+                    ('partner_id', 'in', partner.ids),
+                    ('company_id', '=', rec.company_id.id),
+                    ('account_id.account_type', 'in',
+                     ('asset_receivable', 'liability_payable')),
+                    ('parent_state', '=', 'posted'),
+                ],
+                aggregates=['balance:sum'],
+            )
+            rec.client_balance = (groups[0][0] if groups else 0.0) or 0.0
+
     def action_view_partner_ledger(self):
-        """CR2 G4: Customer Statement smart button — opens standard Odoo
-        journal-items list filtered to this contract's client's AR/AP
-        entries. Community-safe: works without account_reports (Enterprise).
-        Skeptic amendment F: drop parent_state='posted' so drafts also show
-        (real accountant workflow); drop group_by_partner (redundant since
-        the domain is already partner-scoped)."""
+        """CR3-FINAL P11: open Odoo's NATIVE Partner Ledger for this client.
+
+        Not a custom report — this is the standard Enterprise Partner Ledger
+        (account_reports), so it carries the full ledger: receivable AND
+        payable, every entry, with Journal / Account / Invoice Date / Due Date
+        / Matching / Debit / Credit / running Balance columns and the native
+        PDF and XLSX exports. It opens already filtered to this contract's
+        client and unfolded, using the same mechanism Odoo itself uses for the
+        partner form's statement buttons.
+
+        Falls back to a partner-scoped journal-items list if account_reports
+        is not installed, so the button never dead-ends on a Community
+        database.
+        """
         self.ensure_one()
         if not self.client_id:
             raise UserError(_(
                 'Set a client on the contract before opening its statement.'
             ))
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Customer Statement — %s') % self.client_id.display_name,
-            'res_model': 'account.move.line',
-            'view_mode': 'list,form',
-            'domain': [
-                ('partner_id', '=', self.client_id.id),
-                ('account_id.account_type', 'in', ('asset_receivable', 'liability_payable')),
-            ],
-            'context': {'search_default_group_by_account': 1},
+        partner = self.client_id | self.client_id.commercial_partner_id
+        try:
+            action = self.env['ir.actions.actions']._for_xml_id(
+                'account_reports.action_account_report_partner_ledger',
+            )
+        except ValueError:
+            return {
+                'type': 'ir.actions.act_window',
+                'name': _('Customer Statement — %s') % self.client_id.display_name,
+                'res_model': 'account.move.line',
+                'view_mode': 'list,form',
+                'domain': [
+                    ('partner_id', 'in', partner.ids),
+                    ('account_id.account_type', 'in',
+                     ('asset_receivable', 'liability_payable')),
+                ],
+                'context': {'search_default_group_by_account': 1},
+            }
+        action['params'] = {
+            'options': {
+                'partner_ids': partner.ids,
+                'unfold_all': True,
+            },
+            'ignore_session': True,
         }
+        return action
 
     def action_view_invoices(self):
         self.ensure_one()
@@ -1380,6 +1473,37 @@ class Way4TechManpowerContract(models.Model):
             'view_mode': 'list,form',
             'domain': [('id', 'in', self.invoice_ids.ids)],
         }
+
+    # ── CR3-FINAL P7: one-click Print All Invoices ────────────────────────
+    def action_print_all_invoices(self):
+        """Render every invoice of this contract into ONE PDF file.
+
+        Deliberately NOT merged into a single document: each invoice keeps
+        its own page(s), its own sequence number, its own line table, its own
+        VAT totals and its own ZATCA QR code. Passing the whole recordset to
+        the KSA Tax Invoice report makes QWeb loop `docs` and start a fresh
+        `<div class="page">` per invoice, which is precisely what ZATCA
+        requires — one PDF, several separate tax invoices inside it.
+        """
+        self.ensure_one()
+        invoices = self.invoice_ids.filtered(
+            lambda m: m.move_type in ('out_invoice', 'out_refund')
+            and m.state != 'cancel'
+        ).sorted(lambda m: (m.invoice_date or m.date or fields.Date.today(), m.id))
+        if not invoices:
+            raise UserError(_(
+                'This contract has no customer invoices to print yet. Create '
+                'an invoice from the Project Income tab first.'
+            ))
+        report = self.env.ref(
+            'way4tech_ksa_tax_invoice.action_report_ksa_tax_invoice',
+            raise_if_not_found=False,
+        )
+        if not report:
+            # KSA tax-invoice module not installed on this database — fall
+            # back to Odoo's standard invoice report rather than failing.
+            report = self.env.ref('account.account_invoices')
+        return report.report_action(invoices)
 
 
 class Way4TechManpowerContractLine(models.Model):
