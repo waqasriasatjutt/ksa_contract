@@ -55,6 +55,61 @@ _SOURCE_LINE_MAP = (
 class AccountMoveWay4TechSync(models.Model):
     _inherit = 'account.move'
 
+    # ── CR3-FINAL P5: keep the stored budget "Actual Amount" honest ────────
+    def _way4tech_mark_budget_actuals_dirty(self):
+        """Flag budget lines whose Actual Amount this move could change.
+
+        ``way4tech.manpower.contract.budget.line.actual_amount`` became a
+        STORED field so the contract's Total Actual Cost (and Profit After
+        Actual Cost, Budget Variance, Budget Usage %) can be pivot measures.
+        Its value comes from a raw-SQL scan of POSTED journal items, so the
+        ORM has no dependency chain from a vendor bill back to the line —
+        posting a bill would otherwise leave the stored figure stale.
+
+        We therefore mark the plausibly-affected lines for recompute by hand:
+        same expense account, same calendar month. The analytic test is left
+        to the compute itself — over-selecting here is harmless (it just
+        recomputes a few extra rows), under-selecting would not be.
+        """
+        BudgetLine = self.env['way4tech.manpower.contract.budget.line'].sudo()
+        field = BudgetLine._fields['actual_amount']
+        affected = BudgetLine.browse()
+        for move in self:
+            if not move.date:
+                continue
+            account_ids = move.line_ids.account_id.ids
+            if not account_ids:
+                continue
+            month_start = move.date.replace(day=1)
+            if move.date.month == 12:
+                next_month = move.date.replace(
+                    year=move.date.year + 1, month=1, day=1,
+                )
+            else:
+                next_month = move.date.replace(month=move.date.month + 1, day=1)
+            affected |= BudgetLine.search([
+                ('expense_account_id', 'in', account_ids),
+                ('date', '>=', month_start),
+                ('date', '<', next_month),
+            ])
+        if affected:
+            self.env.add_to_compute(field, affected)
+
+    def _post(self, soft=True):
+        posted = super()._post(soft=soft)
+        posted._way4tech_mark_budget_actuals_dirty()
+        return posted
+
+    def button_draft(self):
+        result = super().button_draft()
+        self._way4tech_mark_budget_actuals_dirty()
+        return result
+
+    def button_cancel(self):
+        result = super().button_cancel()
+        self._way4tech_mark_budget_actuals_dirty()
+        return result
+
     # ── Two-way sync (item 3) ──────────────────────────────────────────────
     def write(self, vals):
         # Amendment C: capture old amount_untaxed so we only fan out when
@@ -87,6 +142,9 @@ class AccountMoveWay4TechSync(models.Model):
 
     # ── Delete propagation (item 4 companion) ──────────────────────────────
     def unlink(self):
+        # CR3-FINAL P5: capture BEFORE the rows disappear — a deleted posted
+        # move must drop out of the stored Actual Amount too.
+        self._way4tech_mark_budget_actuals_dirty()
         if not self.env.context.get(_SYNC_SKIP_KEY):
             for move in self:
                 if not move.exists():

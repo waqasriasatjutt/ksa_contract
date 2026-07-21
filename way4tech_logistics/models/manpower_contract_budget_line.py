@@ -31,9 +31,22 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         "account.account", string="Expense Account", check_company=True,
     )
     budget_amount = fields.Monetary(string="Budget Amount", currency_field="currency_id")
+    # CR3-FINAL P5: STORED. The contract's Total Actual Cost — and everything
+    # derived from it (Profit After Actual Cost, Budget Variance, Budget
+    # Usage %) — is now a stored pivot measure, and a stored field must not
+    # depend on a non-stored one or it silently freezes at its last value.
+    #
+    # The depends below cover every input on the budget-line side. They can
+    # NOT cover the other input: the figure is read from posted journal items
+    # with raw SQL, and there is no ORM dependency chain leading from a vendor
+    # bill back to this line. That half is handled explicitly by
+    # account_move_sync._way4tech_mark_budget_actuals_dirty(), which flags the
+    # affected lines for recompute whenever a move is posted, reset to draft,
+    # cancelled or deleted. The two halves together keep the stored value true.
     actual_amount = fields.Monetary(
         string="Actual Amount",
         compute="_compute_actual_amount",
+        store=True,
         currency_field="currency_id",
     )
     remaining = fields.Monetary(
@@ -98,6 +111,10 @@ class Way4TechManpowerContractBudgetLine(models.Model):
             ids.add(self.contract_id.analytic_account_id.id)
         return list(ids)
 
+    @api.depends(
+        'expense_account_id', 'date',
+        'contract_id.analytic_distribution', 'contract_id.analytic_account_id',
+    )
     def _compute_actual_amount(self):
         """CR2 G7 (2026-07-18): actual pulls from confirmed vendor-bill
         journal-items whose analytic_distribution matches the contract's
