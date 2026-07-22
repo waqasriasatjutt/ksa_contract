@@ -389,13 +389,25 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
         }
 
     def write(self, vals):
-        """Part A point 14: editing an approved row voids its approval."""
+        """Part A point 14: editing an approved row voids its approval.
+
+        Also walks UP to the parent invoice block. An approval is raised
+        against the block, but the figures that matter live on its child
+        income lines — editing a line without this would leave the block's
+        approval standing against amounts nobody signed off.
+        """
         result = super().write(vals)
         watched = {'amount', 'amount_total', 'quantity', 'price', 'hours',
                    'rate', 'budget_amount', 'description', 'line_ids'}
-        if watched & set(vals) and not self.env.context.get(
+        if not (watched & set(vals)) or self.env.context.get(
                 'way4tech_skip_approval_invalidation'):
-            self.env['way4tech.manpower.approval.request']._invalidate_for(self)
+            return result
+        Request = self.env['way4tech.manpower.approval.request']
+        Request._invalidate_for(self)
+        if 'invoice_block_id' in self._fields:
+            blocks = self.mapped('invoice_block_id')
+            if blocks:
+                Request._invalidate_for(blocks)
         return result
 
 
