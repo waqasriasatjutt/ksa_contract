@@ -12,6 +12,7 @@ from odoo.exceptions import UserError
 class Way4TechManpowerContractIncomeLine(models.Model):
     _name = "way4tech.manpower.contract.income.line"
     _description = "Manpower Contract — Project Income Line"
+    _inherit = ['way4tech.manpower.approval.mixin']
     # _order does NOT include accounting_date: sorting by an editable date
     # field means every date pick triggers a row-position resort in the
     # inline editable list, which re-renders the row and re-focuses the
@@ -122,7 +123,7 @@ class Way4TechManpowerContractIncomeLine(models.Model):
                     'billed on the same invoice.'
                 ) % (line.invoice_block_id.name or ''))
             # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
-            line.contract_id._require_month_approval(line.accounting_date)
+            line.contract_id._require_month_approval(record=line)
             contract = line.contract_id
             settings = self.env["way4tech.payroll.settings"].get_for_company(contract.company_id.id)
             distribution = contract._resolve_analytic_distribution(settings)
@@ -179,6 +180,7 @@ class Way4TechManpowerContractIncomeLine(models.Model):
                 "state": "invoiced",
             })
             contract.invoice_ids = [(4, invoice.id)]
+            contract._consume_approval(line)
         return {
             "type": "ir.actions.act_window",
             "name": _("Invoice"),

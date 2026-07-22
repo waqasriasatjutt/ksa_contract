@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         CR3-FINAL Part A — the approval area.
+         Approval is granted HERE and nowhere else. From a contract a user
+         can only send a request and read its status.
+         ================================================================ -->
+
+    <record id="view_manpower_approval_request_form" model="ir.ui.view">
+        <field name="name">way4tech.manpower.approval.request.form</field>
+        <field name="model">way4tech.manpower.approval.request</field>
+        <field name="arch" type="xml">
+            <form string="Approval Request">
+                <header>
+                    <button name="action_approve" type="object" string="Approve"
+                            class="btn-primary" invisible="state != 'pending'"
+                            groups="way4tech_logistics.group_logistics_manager"/>
+                    <button name="action_reject" type="object" string="Reject / Return"
+                            class="btn-danger" invisible="state != 'pending'"
+                            groups="way4tech_logistics.group_logistics_manager"
+                            help="Enter a reason first. The items return to Draft so the requester can correct and resend."/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            class="btn-secondary"
+                            invisible="state in ('consumed', 'cancelled')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="pending,approved,consumed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <div class="alert alert-info" role="alert"
+                         invisible="state != 'approved'">
+                        Approved. The items below may now be created — <strong>once
+                        each</strong>. As soon as an item is acted on its approval is
+                        consumed; anything created afterwards, or any change to an
+                        approved item, needs a fresh request.
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state != 'rejected'">
+                        Rejected. <field name="reason" readonly="1" nolabel="1"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="contract_id" readonly="1"/>
+                            <field name="requested_by" readonly="1"/>
+                            <field name="approver_id" readonly="1"/>
+                            <field name="urgent" readonly="state != 'pending'"/>
+                        </group>
+                        <group>
+                            <field name="line_count" readonly="1"/>
+                            <field name="decided_on" readonly="1"/>
+                            <field name="sign_request_id" readonly="1"
+                                   invisible="not sign_request_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Reason (required to reject)">
+                        <field name="reason" nolabel="1"
+                               readonly="state != 'pending'"
+                               placeholder="Why is this being returned? The requester sees this."/>
+                    </group>
+                    <notebook>
+                        <page string="Items Covered" name="items">
+                            <field name="line_ids" readonly="1">
+                                <list decoration-muted="consumed">
+                                    <field name="item_type"/>
+                                    <field name="description"/>
+                                    <field name="amount"/>
+                                    <field name="consumed" widget="boolean_toggle"/>
+                                    <field name="res_model" column_invisible="1"/>
+                                    <field name="res_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Note" name="note">
+                            <field name="note" readonly="state != 'pending'"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_manpower_approval_request_list" model="ir.ui.view">
+        <field name="name">way4tech.manpower.approval.request.list</field>
+        <field name="model">way4tech.manpower.approval.request</field>
+        <field name="arch" type="xml">
+            <list string="Approvals"
+                  decoration-warning="state == 'pending'"
+                  decoration-success="state == 'approved'"
+                  decoration-danger="state == 'rejected'"
+                  decoration-muted="state in ('consumed', 'cancelled')">
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="line_count" string="Items"/>
+                <field name="requested_by"/>
+                <field name="approver_id"/>
+                <field name="urgent" optional="show"/>
+                <field name="create_date" string="Requested"/>
+                <field name="decided_on" optional="hide"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_manpower_approval_request_search" model="ir.ui.view">
+        <field name="name">way4tech.manpower.approval.request.search</field>
+        <field name="model">way4tech.manpower.approval.request</field>
+        <field name="arch" type="xml">
+            <search string="Approvals">
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="requested_by"/>
+                <field name="approver_id"/>
+                <separator/>
+                <filter string="Awaiting Me" name="f_mine"
+                        domain="[('approver_id.id', '=', uid), ('state', '=', 'pending')]"/>
+                <filter string="Urgent" name="f_urgent" domain="[('urgent', '=', True)]"/>
+                <separator/>
+                <filter string="Pending" name="f_pending" domain="[('state','=','pending')]"/>
+                <filter string="Approved" name="f_approved" domain="[('state','=','approved')]"/>
+                <filter string="Rejected" name="f_rejected" domain="[('state','=','rejected')]"/>
+                <filter string="Consumed" name="f_consumed" domain="[('state','=','consumed')]"/>
+                <separator/>
+                <filter string="Contract" name="g_contract" context="{'group_by':'contract_id'}"/>
+                <filter string="Status" name="g_state" context="{'group_by':'state'}"/>
+                <filter string="Approver" name="g_approver" context="{'group_by':'approver_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_manpower_approval_request" model="ir.actions.act_window">
+        <field name="name">Approvals</field>
+        <field name="res_model">way4tech.manpower.approval.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_manpower_approval_request_search"/>
+        <field name="context">{'search_default_f_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing waiting for approval</p>
+            <p>
+                Requests sent from Manpower Contracts land here. Approving one lets
+                exactly the items it covers be created, once each. It never unlocks
+                another contract, another item or a later month.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_manpower_approval_request"
+              name="Approvals"
+              parent="menu_way4tech_manpower"
+              action="action_manpower_approval_request"
+              sequence="44"/>
+
+    <!-- Send-for-Approval wizard -->
+    <record id="view_manpower_approval_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.manpower.approval.wizard.form</field>
+        <field name="model">way4tech.manpower.approval.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send for Approval">
+                <group>
+                    <field name="contract_id" invisible="1"/>
+                    <field name="res_model" invisible="1"/>
+                    <field name="res_id" invisible="1"/>
+                    <field name="mode" invisible="1"/>
+                    <field name="approver_id" readonly="1"/>
+                    <field name="urgent"/>
+                    <field name="note" placeholder="Optional context for the approver…"/>
+                </group>
+                <group string="Items in this request">
+                    <field name="summary" nolabel="1" readonly="1"/>
+                </group>
+                <div class="alert alert-info" role="alert">
+                    The approver decides in <strong>Manpower → Approvals</strong>.
+                    Approval covers exactly these items, once each — it does not
+                    leave the contract or the month open for anything else.
+                </div>
+                <footer>
+                    <button name="action_send" type="object" string="Send for Approval"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"
+                            data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

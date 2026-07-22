@@ -1171,49 +1171,104 @@ class Way4TechManpowerContract(models.Model):
         self.ensure_one()
         self.state = 'draft'
 
-    # ── CR2 G5 (19.0.2.9.0): signature-approval gate ──────────────────────
-    def _require_month_approval(self, target_date):
-        """CR2 G5 gate: raise UserError unless this contract has an approved
-        Signature Request for target_date's MM/YYYY bucket. Simplification:
-        approval merely unlocks the tab for that month — we do NOT restore
-        from snapshot. Once approved for month M, any subsequent edits to
-        lines dated M are the accountant's responsibility (visible in
-        chatter via tracking=True)."""
+    # ── CR3-FINAL Part A: per-item, consumed-once approval gate ───────────
+    # Replaces the CR2 G5 (contract, month) gate. That one unlocked an entire
+    # contract-month on a single approval, which is exactly what testing hit:
+    # contract 36 was approved for 07/2026 once, and every document after it
+    # went through unchallenged.
+    #
+    # The signature is kept for backwards compatibility with the ~40 existing
+    # call sites, but target_date is now ignored — an approval is matched by
+    # (model, record id), never by client, month or contract.
+    def _require_month_approval(self, target_date=None, record=None):
         self.ensure_one()
-        if not target_date:
-            target_date = fields.Date.context_today(self)
-        month = target_date.strftime('%m/%Y')
-        approved = self.env['way4tech.manpower.contract.signature.request'].search([
-            ('contract_id', '=', self.id),
-            ('month', '=', month),
-            ('state', '=', 'approved'),
-        ], limit=1)
-        if not approved:
+        if record is None:
+            # Contract-level actions (the legacy header Create Invoice) have
+            # no specific row to point at. Under Part A every document must
+            # come from a row, so refuse rather than silently allow.
             raise UserError(_(
-                'Cannot post accounting documents for contract "%s" — no '
-                'approved Signature Request exists for month %s. Open the '
-                'Approvals tab, click "Send for Signature", then have the '
-                'manager approve the request before creating invoices/bills.'
-            ) % (self.name, month))
-        return approved
+                'Create the invoice from a Project Income invoice block '
+                'instead. Contract-level invoicing is not approvable under '
+                'the per-item approval rule, because there is no specific '
+                'item for the approver to sign off.'
+            ))
+        return self.env['way4tech.manpower.approval.request']._require_approval(
+            record,
+        )
 
-    def action_send_for_signature(self):
-        """CR3-FINAL P12: open the Send-for-Signature POPUP.
+    def _consume_approval(self, record):
+        self.ensure_one()
+        return self.env['way4tech.manpower.approval.request']._consume_approval(
+            record,
+        )
 
-        Was a full-page draft Signature Request that then needed a second
-        button press to submit. Now a dialog with the Month pre-filled from
-        the record's period; confirming creates the request already Pending
-        and it appears in the Approvals tab by itself.
-        """
+    # ── Part A point 9: bulk request from the header ──────────────────────
+    def _collect_pending_items(self):
+        """Every draft row on this contract that could be sent for approval."""
+        self.ensure_one()
+        items = []
+        for block in self.invoice_block_ids:
+            if block.state == 'draft' and block.line_ids:
+                items.append(block)
+        for line in self.income_line_ids:
+            if line.state == 'draft' and not line.invoice_block_id:
+                items.append(line)
+        for line in self.timesheet_ids:
+            if line.state == 'draft':
+                items.append(line)
+        for line in self.project_expense_ids:
+            if line.state == 'draft':
+                items.append(line)
+        for line in self.commission_line_ids:
+            if line.state == 'draft':
+                items.append(line)
+        for line in self.budget_line_ids:
+            if line.state == 'draft':
+                items.append(line)
+        return items
+
+    def action_send_all_for_approval(self):
+        """Send every current draft on this contract as ONE request."""
+        self.ensure_one()
+        if self.state != 'active':
+            raise UserError(_(
+                'Activate the contract before sending items for approval.'
+            ))
+        items = self._collect_pending_items()
+        if not items:
+            raise UserError(_(
+                'Nothing to send — every row on this contract is already '
+                'approved, created or awaiting a decision.'
+            ))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Send for Approval'),
+            'res_model': 'way4tech.manpower.approval.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_contract_id': self.id,
+                'default_mode': 'all',
+            },
+        }
+
+    def action_view_approvals(self):
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Send for Signature'),
-            'res_model': 'way4tech.manpower.signature.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {'default_contract_id': self.id},
+            'name': _('Approvals'),
+            'res_model': 'way4tech.manpower.approval.request',
+            'view_mode': 'list,form',
+            'domain': [('contract_id', '=', self.id)],
         }
+
+    def action_send_for_signature(self):
+        """Legacy entry point — now routes to the Part A approval wizard.
+
+        Kept so any saved action, button or external reference still resolves.
+        """
+        self.ensure_one()
+        return self.action_send_all_for_approval()
 
     def action_create_invoice(self):
         self.ensure_one()

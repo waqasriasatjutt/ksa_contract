@@ -14,3 +14,5 @@ from . import fleet_excel_export
 from . import maintenance_excel_wizard
 # ── CR3-FINAL P12: Send for Signature popup ──────────────────────────────────
 from . import manpower_signature_wizard
+# 2026-07-22 — CR3-FINAL Part A: send-for-approval wizard
+from . import manpower_approval_wizard

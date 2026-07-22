@@ -26,6 +26,7 @@ from odoo.exceptions import UserError
 class Way4TechManpowerInvoiceBlock(models.Model):
     _name = 'way4tech.manpower.invoice.block'
     _description = 'Manpower Contract — Invoice Block (multi-line invoice)'
+    _inherit = ['way4tech.manpower.approval.mixin']
     # Newest block first, and never order by an editable date field — that is
     # the date-picker re-focus loop documented across CR2 G1 / v11.0.
     _order = 'id desc'
@@ -173,7 +174,8 @@ class Way4TechManpowerInvoiceBlock(models.Model):
         contract = self.contract_id
         # CR2 G5 monthly signature-approval gate — same rule as every other
         # document-creating action on the contract.
-        contract._require_month_approval(self.accounting_date)
+        # CR3-FINAL Part A: approval is matched to THIS block, and burned below.
+        contract._require_month_approval(record=self)
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(
             contract.company_id.id,
@@ -257,6 +259,21 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             })
         self.write({'invoice_id': invoice.id, 'state': 'invoiced'})
         contract.invoice_ids = [(4, invoice.id)]
+        # Part A: the approval is spent. It unlocks nothing else, ever.
+        contract._consume_approval(self)
+        # Part A point 11: create AND post in one step, from the contract. The
+        # approval WAS the review; routing the user to the invoice form to
+        # press Confirm would let them edit after sign-off. If posting fails
+        # validation, roll the whole thing back rather than leave a half-made
+        # document behind.
+        try:
+            invoice.action_post()
+        except Exception as exc:            # noqa: BLE001
+            raise UserError(_(
+                'The invoice could not be posted, so nothing was created.\n\n'
+                '%s\n\nFix the underlying data (partner, accounts, taxes, '
+                'analytic) and try again.'
+            ) % exc) from exc
         return {
             'type': 'ir.actions.act_window',
             'name': _('Invoice'),

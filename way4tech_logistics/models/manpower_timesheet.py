@@ -5,6 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 class Way4TechManpowerTimesheet(models.Model):
     _name = 'way4tech.manpower.timesheet'
     _description = 'Manpower Contract Timesheet'
+    _inherit = ['way4tech.manpower.approval.mixin']
     # date dropped from _order — see income-line comment: sort by an editable
     # date field in inline lists re-orders rows on every pick → picker loop.
     _order = 'contract_id, id desc'
@@ -199,7 +200,7 @@ class Way4TechManpowerTimesheet(models.Model):
             if line.invoice_id:
                 raise UserError(_('This timesheet line has already been invoiced.'))
             # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
-            line.contract_id._require_month_approval(line.date or line.start_date)
+            line.contract_id._require_month_approval(record=line)
             contract = line.contract_id
             settings = self.env['way4tech.payroll.settings'].get_for_company(contract.company_id.id)
             distribution = contract._resolve_analytic_distribution(settings)
@@ -263,6 +264,7 @@ class Way4TechManpowerTimesheet(models.Model):
                 'state': 'invoiced',
             })
             contract.invoice_ids = [(4, invoice.id)]
+            contract._consume_approval(line)
         return {
             'type': 'ir.actions.act_window',
             'name': _('Invoice'),

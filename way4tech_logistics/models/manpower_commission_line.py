@@ -36,6 +36,7 @@ _logger = logging.getLogger(__name__)
 class Way4TechManpowerCommissionLine(models.Model):
     _name = 'way4tech.manpower.commission.line'
     _description = 'Manpower Contract — Sales Person Commission Line'
+    _inherit = ['way4tech.manpower.approval.mixin']
     # date dropped from _order — sort by editable date in inline lists
     # re-orders rows on every pick → picker loop. See income-line comment.
     _order = 'id desc'
@@ -186,8 +187,8 @@ class Way4TechManpowerCommissionLine(models.Model):
         self.ensure_one()
         if self.bill_id:
             raise UserError(_('A vendor bill already exists for this commission line.'))
-        # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
-        self.contract_id._require_month_approval(self.date)
+        # CR3-FINAL Part A: per-item approval, consumed on creation.
+        self.contract_id._require_month_approval(record=self)
         if not self.vendor_id:
             raise UserError(_(
                 'No vendor could be resolved for salesperson "%s".\n'
@@ -271,6 +272,8 @@ class Way4TechManpowerCommissionLine(models.Model):
             'bill_line_id': bill.invoice_line_ids[:1].id or False,
             'state': 'billed',
         })
+        # CR3-FINAL Part A: burn the approval.
+        self.contract_id._consume_approval(self)
         return {
             'type': 'ir.actions.act_window',
             'name': _('Vendor Bill'),

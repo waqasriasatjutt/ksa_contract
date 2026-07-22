@@ -19,7 +19,8 @@ class ManpowerProjectExpense(models.Model):
     """
     _name = 'way4tech.manpower.project.expense'
     _description = 'Manpower Project Expense'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin',
+                'way4tech.manpower.approval.mixin']
     # See income-line comment: sorting by an editable date field causes a
     # row-position resort on every date pick in editable inline lists,
     # which re-renders + re-focuses → picker reopen loop. id desc only.
@@ -280,8 +281,8 @@ class ManpowerProjectExpense(models.Model):
             raise UserError(_('A vendor bill already exists for this expense.'))
         if not self.vendor_id:
             raise UserError(_('Please set a vendor before creating the bill.'))
-        # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
-        self.contract_id._require_month_approval(self.date)
+        # CR3-FINAL Part A: per-item approval, consumed on creation.
+        self.contract_id._require_month_approval(record=self)
         if not self.account_id:
             raise UserError(_(
                 'No expense account set. Please configure the account in '
@@ -391,6 +392,8 @@ class ManpowerProjectExpense(models.Model):
             'bill_line_id': bill.invoice_line_ids[:1].id or False,
             'state': 'billed',
         })
+        # CR3-FINAL Part A: burn the approval; it unlocks nothing further.
+        self.contract_id._consume_approval(self)
 
         return {
             'type': 'ir.actions.act_window',

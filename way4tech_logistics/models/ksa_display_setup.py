@@ -39,7 +39,11 @@ class Way4TechKsaDisplaySetup(models.AbstractModel):
         changed = []
 
         # ── Dates ─────────────────────────────────────────────────────────
-        langs = self.env['res.lang'].with_context(active_test=False).search([])
+        # ACTIVE languages only. The first cut used active_test=False and
+        # rewrote all 37 installed-but-inactive languages, which is not ours
+        # to change — activating German later should still give German's own
+        # format, not KSA's.
+        langs = self.env['res.lang'].search([('active', '=', True)])
         for lang in langs:
             if lang.date_format != KSA_DATE_FORMAT:
                 lang.date_format = KSA_DATE_FORMAT

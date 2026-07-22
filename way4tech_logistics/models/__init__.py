@@ -45,3 +45,5 @@ from . import manpower_contract_signature_request
 from . import manpower_invoice_block
 # 2026-07-22 — CR3-FINAL round 2: date format + decimal precision (19.0.3.3.0)
 from . import ksa_display_setup
+# 2026-07-22 — CR3-FINAL Part A: per-item consumed-once approvals (19.0.3.4.0)
+from . import manpower_approval_request

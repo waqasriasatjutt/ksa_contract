@@ -24,14 +24,16 @@
                         class="btn-primary"
                         invisible="state != 'active'"
                     />
-                    <!-- CR2 G5 (19.0.2.9.0): Send for Signature button -->
+                    <!-- CR3-FINAL Part A point 9: bulk request. Sends every current
+                         draft on this contract as ONE request. Approval still covers
+                         only those exact items, once each. -->
                     <button
-                        name="action_send_for_signature"
+                        name="action_send_all_for_approval"
                         type="object"
-                        string="Send for Signature"
+                        string="Send All for Approval"
                         class="btn-secondary"
-                        invisible="state == 'cancelled' or has_pending_approval"
-                        help="Open a new monthly Signature Request. Manager must approve before Create Invoice / Create Bill will run for that month."/>
+                        invisible="state != 'active'"
+                        help="Send every current draft on this contract — income, direct cost, operating exp, timesheets, budget and commission — in a single approval request. Approval covers exactly those items, once each; it does not leave the contract or month open."/>
                     <!-- CR3-FINAL P7: one PDF containing every invoice of this
                          contract, each as its own separate Tax Invoice with its
                          own number, lines, VAT and ZATCA QR. -->

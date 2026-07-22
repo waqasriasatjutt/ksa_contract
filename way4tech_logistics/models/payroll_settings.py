@@ -284,6 +284,21 @@ class PayrollSettings(models.Model):
              'the specific types above.\n'
              'Example: 5290 — Other Project Expenses.',
     )
+    # ── CR3-FINAL Part A point 6: who approves ────────────────────────────
+    manpower_approver_id = fields.Many2one(
+        'res.users', string='Approver',
+        help='The authorised user who approves manpower documents. Every '
+             '"Send for Approval" routes here automatically — the requester '
+             'never picks a signer. Nobody may approve their own request, so '
+             'keep this as someone other than the day-to-day accountant.',
+    )
+    # NOTE: a Many2one to sign.template would make this module hard-depend on
+    # the Enterprise `sign` app, which contradicts its Community packaging.
+    # The Sign hand-off is therefore left late-bound (see
+    # way4tech.manpower.approval.request._launch_sign_request, which no-ops
+    # when no template is configured). Wiring it up properly needs a decision
+    # on taking the Enterprise dependency.
+
     # ── P4/P5/P7 (2026-07-15): per-business-division accounts referenced
     #    by the Manpower Contract Income + Expense tabs. Kept nullable so
     #    the settings screen stays valid on existing tenants until an

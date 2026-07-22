@@ -13,6 +13,7 @@ from odoo import api, fields, models
 class Way4TechManpowerContractBudgetLine(models.Model):
     _name = "way4tech.manpower.contract.budget.line"
     _description = "Manpower Contract — Project Budget Line"
+    _inherit = ['way4tech.manpower.approval.mixin']
     # See income-line comment: date in _order causes row resort on every
     # date pick in editable inline lists → picker reopen loop. id desc only.
     _order = "id desc"
@@ -186,10 +187,17 @@ class Way4TechManpowerContractBudgetLine(models.Model):
 
     # CR2 G5 (19.0.2.9.0): approval transitions.
     def action_confirm(self):
-        """draft → confirmed. Line now contributes to KPI totals."""
+        """draft → confirmed. Line now contributes to KPI totals.
+
+        CR3-FINAL Part A point 2: Confirm is one of the six gated actions —
+        it changes the reported figures, so it needs its own approval, and
+        that approval is consumed here.
+        """
         for line in self:
             if line.state != 'confirmed':
+                line.contract_id._require_month_approval(record=line)
                 line.state = 'confirmed'
+                line.contract_id._consume_approval(line)
         return True
 
     def action_reset_draft(self):
