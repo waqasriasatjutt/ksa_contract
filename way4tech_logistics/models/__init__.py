@@ -1,3 +1,9 @@
+# CR3-FINAL Part A: the approval mixin MUST be imported before any model that
+# does `_inherit = ['way4tech.manpower.approval.mixin']`. Odoo resolves _inherit
+# at class-registration time, so a later import gives
+# "Model X inherits from non-existing model way4tech.manpower.approval.mixin".
+from . import manpower_approval_request
+
 from . import platform_config
 from . import payroll_settings
 from . import salary_import
@@ -45,5 +51,5 @@ from . import manpower_contract_signature_request
 from . import manpower_invoice_block
 # 2026-07-22 — CR3-FINAL round 2: date format + decimal precision (19.0.3.3.0)
 from . import ksa_display_setup
-# 2026-07-22 — CR3-FINAL Part A: per-item consumed-once approvals (19.0.3.4.0)
-from . import manpower_approval_request
+# CR3-FINAL Part A approvals are imported at the TOP of this file — the mixin
+# has to exist before the models that inherit it.
