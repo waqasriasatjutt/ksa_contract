@@ -551,7 +551,12 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
                 ('res_model', '=', rec._name),
                 ('res_id', '=', rec.id),
                 ('consumed', '=', False),
-                ('request_id.state', 'in', ('pending', 'approved', 'rejected')),
+                # 'partial' MUST be here: after a mixed decision the request
+                # sits in partial, and omitting it made every row on such a
+                # request report "Not Sent" — hiding exactly the rejection the
+                # user needed to see (item 4).
+                ('request_id.state', 'in',
+                 ('pending', 'partial', 'approved', 'rejected')),
             ], order='id desc', limit=1)
             if not line:
                 rec.approval_state = 'none'
@@ -681,7 +686,9 @@ class Way4TechManpowerApprovalRequestLine(models.Model):
                     'Request %s is %s — its lines can no longer be decided.'
                 ) % (line.request_id.name, line.request_id.state))
             line.write({'decision': 'approved', 'reason': False})
-        self.mapped('request_id')._sync_state_from_lines()
+        requests = self.mapped('request_id')
+        requests.write({'approver_id': self.env.user.id})
+        requests._sync_state_from_lines()
         return True
 
     def action_reject_selected(self):
@@ -693,7 +700,9 @@ class Way4TechManpowerApprovalRequestLine(models.Model):
                     'requester needs to know what to correct.'
                 ) % (line.description or line.id))
             line.decision = 'rejected'
-        self.mapped('request_id')._sync_state_from_lines()
+        requests = self.mapped('request_id')
+        requests.write({'approver_id': self.env.user.id})
+        requests._sync_state_from_lines()
         return True
     fingerprint = fields.Char(
         string='Fingerprint', readonly=True,
