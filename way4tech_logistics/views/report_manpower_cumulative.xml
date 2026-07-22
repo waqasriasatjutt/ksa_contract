@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- CR3-FINAL Part D — cumulative / multi-month statement. Same branded
+         layout as the Contract Statement. Figures are read from the stored
+         contract values; only the TOTAL rows do arithmetic, and percentages
+         there are recalculated from the summed amounts, never added up. -->
+    <record id="action_report_manpower_cumulative" model="ir.actions.report">
+        <field name="name">Cumulative Statement</field>
+        <field name="model">way4tech.manpower.cumulative.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_manpower_cumulative_doc</field>
+        <field name="report_file">way4tech_logistics.report_manpower_cumulative_doc</field>
+        <field name="print_report_name">'Cumulative Statement'</field>
+    </record>
+
+    <template id="report_manpower_cumulative_doc">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="wiz">
+                <t t-call="web.external_layout">
+                    <t t-set="d" t-value="wiz._build_data()"/>
+                    <div class="page w4t-cum">
+                        <style>
+                            .w4t-cum table thead th {
+                                background-color: #003366 !important;
+                                color: #ffffff !important;
+                                border-color: #003366 !important;
+                                font-size: 9px;
+                            }
+                            .w4t-cum table td { font-size: 9px; }
+                            .w4t-cum .grp { background:#dde6f0; font-weight:bold; }
+                            .w4t-cum .tot td { border-top:2px solid #003366; font-weight:bold; }
+                        </style>
+
+                        <div class="row mb-3">
+                            <div class="col-8">
+                                <h2>Cumulative Statement</h2>
+                                <p class="text-muted mb-0">
+                                    <strong>Period:</strong>
+                                    <t t-esc="d['date_from']" t-options='{"widget":"date"}'/>
+                                    to
+                                    <t t-esc="d['date_to']" t-options='{"widget":"date"}'/>
+                                    — <strong>Filters:</strong> <t t-esc="d['filters']"/>
+                                    — <strong>Records:</strong> <t t-esc="d['contract_count']"/>
+                                </p>
+                            </div>
+                            <div class="col-4 text-right">
+                                <span class="badge bg-primary"
+                                      style="font-size:12px;padding:6px 10px">MULTI-MONTH</span>
+                            </div>
+                        </div>
+
+                        <t t-foreach="d['groups']" t-as="g">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">
+                                <t t-esc="g['client']"/>
+                                <t t-if="g['project']"> — <t t-esc="g['project']"/></t>
+                            </h4>
+
+                            <!-- Billing Summary + Profitability -->
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <t t-foreach="d['billing_summary'] + d['profitability']" t-as="col">
+                                            <th class="text-right"><t t-esc="col[1]"/></th>
+                                        </t>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="g['months']" t-as="m">
+                                        <tr>
+                                            <td><t t-esc="m['month']"/></td>
+                                            <t t-foreach="d['billing_summary'] + d['profitability']" t-as="col">
+                                                <td class="text-right">
+                                                    <t t-esc="'{:,.2f}'.format(m.get(col[0]) or 0.0)"/>
+                                                </td>
+                                            </t>
+                                        </tr>
+                                    </t>
+                                    <tr class="tot">
+                                        <td>TOTAL</td>
+                                        <t t-foreach="d['billing_summary'] + d['profitability']" t-as="col">
+                                            <td class="text-right">
+                                                <t t-esc="'{:,.2f}'.format(g['total'].get(col[0]) or 0.0)"/>
+                                            </td>
+                                        </t>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- KPI % — TOTAL recalculated from the totals -->
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <t t-foreach="d['kpis']" t-as="col">
+                                            <th class="text-right"><t t-esc="col[1]"/></th>
+                                        </t>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="g['months']" t-as="m">
+                                        <tr>
+                                            <td><t t-esc="m['month']"/></td>
+                                            <t t-foreach="d['kpis']" t-as="col">
+                                                <td class="text-right">
+                                                    <t t-esc="'{:,.2f}'.format(m.get(col[0]) or 0.0)"/>%
+                                                </td>
+                                            </t>
+                                        </tr>
+                                    </t>
+                                    <tr class="tot">
+                                        <td>TOTAL</td>
+                                        <t t-foreach="d['kpis']" t-as="col">
+                                            <td class="text-right">
+                                                <t t-esc="'{:,.2f}'.format(g['total'].get(col[0]) or 0.0)"/>%
+                                            </td>
+                                        </t>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <t t-if="len(d['groups']) &gt; 1">
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:18px">
+                                Grand Total
+                            </h4>
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <t t-foreach="d['billing_summary'] + d['profitability']" t-as="col">
+                                            <th class="text-right"><t t-esc="col[1]"/></th>
+                                        </t>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="tot">
+                                        <t t-foreach="d['billing_summary'] + d['profitability']" t-as="col">
+                                            <td class="text-right">
+                                                <t t-esc="'{:,.2f}'.format(d['grand_total'].get(col[0]) or 0.0)"/>
+                                            </td>
+                                        </t>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <t t-foreach="d['kpis']" t-as="col">
+                                            <th class="text-right"><t t-esc="col[1]"/></th>
+                                        </t>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="tot">
+                                        <t t-foreach="d['kpis']" t-as="col">
+                                            <td class="text-right">
+                                                <t t-esc="'{:,.2f}'.format(d['grand_total'].get(col[0]) or 0.0)"/>%
+                                            </td>
+                                        </t>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Wizard form + menu -->
+    <record id="view_manpower_cumulative_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.manpower.cumulative.wizard.form</field>
+        <field name="model">way4tech.manpower.cumulative.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cumulative Statement">
+                <group>
+                    <group string="Scope">
+                        <field name="client_id" options="{'no_create': True}"
+                               placeholder="All clients"/>
+                        <field name="project_id" options="{'no_create': True}"
+                               placeholder="All projects"/>
+                        <field name="salesperson_id" options="{'no_create': True}"
+                               placeholder="All salespeople"/>
+                    </group>
+                    <group string="Period">
+                        <field name="period"/>
+                        <field name="date_from" readonly="period != 'custom'"/>
+                        <field name="date_to" readonly="period != 'custom'"/>
+                    </group>
+                </group>
+                <div class="alert alert-info" role="alert">
+                    Month rows show the figures already stored on each contract —
+                    nothing is recalculated, so a month here always matches that
+                    contract's own screen. Only the TOTAL rows aggregate, and the
+                    percentages there are recalculated from the summed amounts.
+                </div>
+                <footer>
+                    <button name="action_print_pdf" type="object" string="Print PDF"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button name="action_export_xlsx" type="object" string="Export XLSX"
+                            class="btn-secondary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"
+                            data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_manpower_cumulative_wizard" model="ir.actions.act_window">
+        <field name="name">Cumulative Statement</field>
+        <field name="res_model">way4tech.manpower.cumulative.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_manpower_cumulative_statement"
+              name="Cumulative Statement"
+              parent="menu_way4tech_manpower"
+              action="action_manpower_cumulative_wizard"
+              sequence="48"/>
+
+</odoo>

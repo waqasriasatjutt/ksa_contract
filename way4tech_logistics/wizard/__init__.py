@@ -16,3 +16,5 @@ from . import maintenance_excel_wizard
 from . import manpower_signature_wizard
 # 2026-07-22 — CR3-FINAL Part A: send-for-approval wizard
 from . import manpower_approval_wizard
+# 2026-07-22 — CR3-FINAL Part D: cumulative multi-month statement
+from . import manpower_cumulative_statement
