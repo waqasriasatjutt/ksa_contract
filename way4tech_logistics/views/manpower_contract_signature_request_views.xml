@@ -120,10 +120,14 @@
         </field>
     </record>
 
-    <menuitem id="menu_manpower_signature_request"
-              name="Approvals"
-              parent="menu_way4tech_manpower"
-              action="action_manpower_contract_signature_request"
-              groups="way4tech_logistics.group_logistics_manager"
-              sequence="45"/>
+    <!-- CR3-FINAL round 3, item 6: menu DELETED.
+         This is the OLD signature-request model, superseded by the Part A
+         per-item approvals (Manpower → Approvals, on
+         way4tech.manpower.approval.request). Leaving it produced two menu
+         entries both labelled "Approvals", of which this one was empty.
+         The menuitem is removed from this file rather than deactivated — Odoo
+         drops data records that disappear from a module's files on upgrade,
+         and a <record> would break a fresh install because nothing would
+         create the menu first. Action and views are kept so historical
+         records stay reachable by direct link. -->
 </odoo>

@@ -246,20 +246,20 @@ class ManpowerProjectExpense(models.Model):
 
     @api.onchange('category_id')
     def _onchange_category_id(self):
-        """P5: 15-category → GL account map lookup on the settings record.
-        Overrides the legacy expense_type mapping when a category is picked."""
+        """CR3-FINAL round 3, item 10: fill the GL account from configuration
+        the moment a category is picked.
+
+        Uses the guarded resolver, so a category mapped to a non-cost account
+        (the Building Maintenance → 120006 InterCompany Petty cash case) fills
+        NOTHING rather than a wrong account. action_create_bill then refuses
+        with a message naming the category.
+        """
         if not self.category_id:
+            self.account_id = False
             return
-        settings = self.env['way4tech.payroll.settings'].get_for_company(
-            (self.company_id or self.env.company).id
+        self.account_id = self.category_id.resolve_expense_account(
+            self.company_id or self.env.company,
         )
-        mapping = settings.manpower_expense_category_account_ids.filtered(
-            lambda m: m.category_id == self.category_id
-        )[:1]
-        if mapping:
-            self.account_id = mapping.account_id
-        elif self.category_id.default_expense_account_id:
-            self.account_id = self.category_id.default_expense_account_id
 
     def _get_expense_account(self, settings):
         """Return the configured GL account for this expense type."""
@@ -283,6 +283,12 @@ class ManpowerProjectExpense(models.Model):
             raise UserError(_('Please set a vendor before creating the bill.'))
         # CR3-FINAL Part A: per-item approval, consumed on creation.
         self.contract_id._require_month_approval(record=self)
+        if not self.account_id and self.category_id:
+            # CR3-FINAL round 3, item 10: name the category and refuse, rather
+            # than posting to whatever account happened to be lying around.
+            self.account_id = self.category_id.resolve_expense_account(
+                self.company_id or self.env.company, raise_if_missing=True,
+            )
         if not self.account_id:
             raise UserError(_(
                 'No expense account set. Please configure the account in '

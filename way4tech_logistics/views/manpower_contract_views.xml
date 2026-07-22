@@ -17,12 +17,18 @@
                         class="btn-primary"
                         invisible="state != 'draft'"
                     />
+                    <!-- CR3-FINAL round 3, item 5: hidden. Under the per-item
+                         approval rule this could only ever raise "Contract-level
+                         invoicing is not approvable" — a button that exists only
+                         to fail. Invoicing goes through a Project Income invoice
+                         block. Method kept in code, like the other retired
+                         buttons, so it can be restored if the rule changes. -->
                     <button
                         name="action_create_invoice"
                         type="object"
                         string="Create Invoice"
                         class="btn-primary"
-                        invisible="state != 'active'"
+                        invisible="1"
                     />
                     <!-- CR3-FINAL Part A point 9: bulk request. Sends every current
                          draft on this contract as ONE request. Approval still covers

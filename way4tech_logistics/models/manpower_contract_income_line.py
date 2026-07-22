@@ -59,9 +59,30 @@ class Way4TechManpowerContractIncomeLine(models.Model):
         "line_id", "tag_id",
         string="Contract Tags",
     )
+    # CR3-FINAL round 3, item 10: stored compute with readonly=False instead of
+    # an onchange. Inside an invoice block the row is created with contract_id
+    # arriving from context, so the old @api.onchange('contract_id') never
+    # fired and the Sale Account came up empty — the user had to look up
+    # 410001 by hand on every line. A compute fills it however the row is
+    # created (UI, block, import, code) and still lets them override.
     sale_account_id = fields.Many2one(
         "account.account", string="Sale Account", check_company=True,
+        compute="_compute_sale_account_id", store=True, readonly=False,
     )
+
+    @api.depends("contract_id")
+    def _compute_sale_account_id(self):
+        for line in self:
+            if line.sale_account_id:
+                continue          # never overwrite an explicit choice
+            contract = line.contract_id
+            if not contract:
+                line.sale_account_id = False
+                continue
+            settings = self.env["way4tech.payroll.settings"].get_for_company(
+                contract.company_id.id,
+            )
+            line.sale_account_id = settings.manpower_income_account_id or False
     quantity = fields.Float(string="Quantity", default=1.0)
     price = fields.Float(string="Price")
     amount = fields.Monetary(
@@ -96,13 +117,8 @@ class Way4TechManpowerContractIncomeLine(models.Model):
         for line in self:
             line.amount = (line.quantity or 0.0) * (line.price or 0.0)
 
-    @api.onchange("contract_id")
-    def _onchange_contract_default_sale_account(self):
-        if not self.sale_account_id and self.contract_id:
-            settings = self.env["way4tech.payroll.settings"].get_for_company(
-                self.contract_id.company_id.id,
-            )
-            self.sale_account_id = settings.manpower_income_account_id
+    # (the old @api.onchange('contract_id') is now _compute_sale_account_id
+    #  above — an onchange did not fire for rows created inside a block)
 
     def action_create_invoice(self):
         """Mint a customer invoice for this single income line. Mirrors the

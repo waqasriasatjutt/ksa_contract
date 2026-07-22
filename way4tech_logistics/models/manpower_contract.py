@@ -20,7 +20,18 @@ class Way4TechManpowerContract(models.Model):
     name = fields.Char(
         string='Contract Name', tracking=True,
         help='Auto-generated as "Client — MM/YYYY" from the Client and the '
-             'Start Date month when left blank. Existing names are preserved.',
+             'Start Date month when left blank, and kept in step if the Start '
+             'Date later changes. Type your own name and it is left alone.',
+    )
+    # CR3-FINAL round 3, item 9: did WE generate this name, or did a human?
+    # The "never rewrite existing names" rule was meant to protect names a user
+    # typed — not to freeze one the system produced. A contract called
+    # "ALFANAR COMPANY — 01/2026" whose period sits in May is actively
+    # misleading, because the month drives the reference series, the duplicate
+    # constraint and every grouping. Default False so every pre-existing record
+    # counts as manually named and is never touched.
+    name_is_auto = fields.Boolean(
+        string='Name Auto-Generated', default=False, copy=False, readonly=True,
     )
     # PRO/YYYY/MM/NNNN — auto-minted on create, monthly-reset counter.
     reference = fields.Char(
@@ -1051,6 +1062,9 @@ class Way4TechManpowerContract(models.Model):
                 sd = fields.Date.to_date(vals['start_date'])
                 if client and sd:
                     vals['name'] = '%s — %s' % (client.name, sd.strftime('%m/%Y'))
+                    # Item 9: remember that WE wrote it, so it can follow the
+                    # period later. A name the user types stays theirs.
+                    vals['name_is_auto'] = True
             # CR3-FINAL P1: the Due Date = Accounting Date + 45 days auto-fill
             # is REMOVED per client instruction. Nothing seeds due_date now.
             # ------------------------------------------------------------
@@ -1105,18 +1119,34 @@ class Way4TechManpowerContract(models.Model):
         # explicitly set accounting_date in the same write.
         if vals.get('start_date') and 'accounting_date' not in vals:
             vals['accounting_date'] = vals['start_date']
+        # CR3-FINAL round 3, item 9: a user typing over the name takes
+        # ownership of it — we stop maintaining it from then on.
+        if 'name' in vals and 'name_is_auto' not in vals:
+            expected = {
+                rec.id: ('%s — %s' % (rec.client_id.name,
+                                      rec.start_date.strftime('%m/%Y')))
+                if rec.client_id and rec.start_date else None
+                for rec in self
+            }
+            if any(vals['name'] != expected.get(rec.id) for rec in self):
+                vals['name_is_auto'] = False
+
         res = super().write(vals)
-        # CR3-FINAL P8: backfill the auto-name for records still unnamed once
-        # both ingredients exist (e.g. client picked after an initial save).
-        # Never renames a record that already has a name — old records are
-        # display-only.
-        if {'client_id', 'start_date'} & set(vals):
+
+        # Keep the auto-name in step with the period. Only ever touches names
+        # WE generated (name_is_auto), plus records still unnamed. A name the
+        # user typed, and every legacy record, is left exactly as it is.
+        if {'client_id', 'start_date'} & set(vals) and 'name' not in vals:
             for rec in self:
-                if not rec.name and rec.client_id and rec.start_date:
+                if not (rec.client_id and rec.start_date):
+                    continue
+                if rec.name and not rec.name_is_auto:
+                    continue
+                wanted = '%s — %s' % (rec.client_id.name,
+                                      rec.start_date.strftime('%m/%Y'))
+                if rec.name != wanted:
                     super(Way4TechManpowerContract, rec).write({
-                        'name': '%s — %s' % (
-                            rec.client_id.name, rec.start_date.strftime('%m/%Y'),
-                        ),
+                        'name': wanted, 'name_is_auto': True,
                     })
         return res
 

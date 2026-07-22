@@ -284,20 +284,35 @@ class PayrollSettings(models.Model):
              'the specific types above.\n'
              'Example: 5290 — Other Project Expenses.',
     )
-    # ── CR3-FINAL Part A point 6: who approves ────────────────────────────
-    manpower_approver_id = fields.Many2one(
-        'res.users', string='Approver',
-        help='The authorised user who approves manpower documents. Every '
-             '"Send for Approval" routes here automatically — the requester '
-             'never picks a signer. Nobody may approve their own request, so '
-             'keep this as someone other than the day-to-day accountant.',
+    # ── CR3-FINAL Part A point 6 / round 3 item 7: who approves ───────────
+    # Multi-user: ANY ONE of them can decide a request (a single signature
+    # completes it — not all of them). Requests are visible to all of them.
+    # Self-approval is still refused, so a requester who is also on this list
+    # simply cannot decide their own request.
+    manpower_approver_ids = fields.Many2many(
+        'res.users', 'way4tech_settings_approver_rel', 'settings_id', 'user_id',
+        string='Approvers',
+        help='Authorised approvers for manpower invoices, bills and budget '
+             'confirmations. Any one of them can decide a request — a single '
+             'signature completes it. All of them see the pending queue. '
+             'Nobody can approve their own request, so configure at least two '
+             'people if the same person also raises them.',
     )
-    # NOTE: a Many2one to sign.template would make this module hard-depend on
-    # the Enterprise `sign` app, which contradicts its Community packaging.
-    # The Sign hand-off is therefore left late-bound (see
-    # way4tech.manpower.approval.request._launch_sign_request, which no-ops
-    # when no template is configured). Wiring it up properly needs a decision
-    # on taking the Enterprise dependency.
+    # Kept so the 3.4/3.5 single-approver configuration is not lost on upgrade;
+    # migrated into manpower_approver_ids and no longer shown.
+    manpower_approver_id = fields.Many2one(
+        'res.users', string='Approver (legacy)',
+    )
+    # CR3-FINAL round 3, item 8: Sign binding confirmed by the client. The
+    # module now depends on `sign`, so this is a real Many2one.
+    manpower_sign_template_id = fields.Many2one(
+        'sign.template', string='Approval Sign Template',
+        help='Approval requests are routed to this Sign template. The signer '
+             'is set automatically from the Approvers above — the requester '
+             'never picks one. Signing produces the signed PDF, the signer '
+             'record and the Sign audit trail. Leave empty to fall back to '
+             'deciding directly in Manpower → Approvals.',
+    )
 
     # ── P4/P5/P7 (2026-07-15): per-business-division accounts referenced
     #    by the Manpower Contract Income + Expense tabs. Kept nullable so

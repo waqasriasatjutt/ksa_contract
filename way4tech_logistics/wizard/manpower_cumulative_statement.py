@@ -191,6 +191,9 @@ class Way4TechManpowerCumulativeWizard(models.TransientModel):
         data = self._build_data()
         if not data['groups']:
             raise UserError(_('No contracts match those filters.'))
+        # CR3-FINAL round 3, item 1: pass the id explicitly. The PDF is
+        # rendered in a SEPARATE request from this one, and a TransientModel
+        # record has to be re-browsed there — see the report parser below.
         return self.env.ref(
             'way4tech_logistics.action_report_manpower_cumulative',
         ).report_action(self, data={'wizard_id': self.id})
@@ -275,4 +278,42 @@ class Way4TechManpowerCumulativeWizard(models.TransientModel):
             'url': '/web/content/?model=%s&id=%s&field=xlsx_file'
                    '&filename_field=xlsx_name&download=true' % (self._name, self.id),
             'target': 'self',
+        }
+
+
+class ReportManpowerCumulative(models.AbstractModel):
+    """CR3-FINAL round 3, item 1 — the PDF came out blank from the UI.
+
+    The template did all its work from `docs`, and for a report bound to a
+    TransientModel `docs` arrives empty in the separate render request — so
+    QWeb looped over nothing and produced a page with no rows. Rendering the
+    same report directly from `_render_qweb_pdf(name, wiz.ids)` DID work,
+    which is exactly why the earlier verification passed while the button
+    produced an empty document: the test exercised a path the UI never takes.
+
+    This parser re-browses the wizard from either the passed data or the
+    docids, builds the figures once, and hands the template a ready-made
+    dictionary — so the template no longer depends on `docs` at all.
+    """
+    _name = 'report.way4tech_logistics.report_manpower_cumulative_doc'
+    _description = 'Cumulative Statement — report parser'
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        Wizard = self.env['way4tech.manpower.cumulative.wizard']
+        wizard = Wizard.browse(docids or []).exists()
+        if not wizard and data and data.get('wizard_id'):
+            wizard = Wizard.browse(data['wizard_id']).exists()
+        if not wizard:
+            raise UserError(_(
+                'This statement can no longer be rendered — the selection it '
+                'was built from has expired. Reopen Cumulative Statement and '
+                'print it again.'
+            ))
+        wizard = wizard[:1]
+        return {
+            'doc_ids': wizard.ids,
+            'doc_model': Wizard._name,
+            'docs': wizard,
+            'd': wizard._build_data(),
         }

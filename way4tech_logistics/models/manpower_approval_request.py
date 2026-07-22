@@ -62,6 +62,10 @@ class Way4TechManpowerApprovalRequest(models.Model):
     state = fields.Selection(
         selection=[
             ('pending', 'Pending Approval'),
+            # CR3-FINAL round 3, item 3: a request can end up with some lines
+            # approved and others rejected. It is not "approved" and it is not
+            # "rejected" — it is both, and the approved lines are creatable.
+            ('partial', 'Partly Approved'),
             ('approved', 'Approved'),
             ('rejected', 'Rejected'),
             ('consumed', 'Consumed'),
@@ -72,10 +76,18 @@ class Way4TechManpowerApprovalRequest(models.Model):
              'they are, the request moves to Consumed and unlocks nothing '
              'further.',
     )
+    # CR3-FINAL round 3, item 7: the pool who MAY decide this request. Any one
+    # of them completes it; it is not a checklist.
+    approver_ids = fields.Many2many(
+        'res.users', 'way4tech_approval_request_approver_rel',
+        'request_id', 'user_id', string='Approvers', readonly=True,
+        help='Any one of these users can decide this request. Taken from '
+             'Payroll & Accounting Setup when it is sent. The requester is '
+             'excluded, so nobody can approve their own work.',
+    )
     approver_id = fields.Many2one(
-        'res.users', string='Approver', tracking=True, readonly=True,
-        help='Taken from Payroll & Accounting Setup when the request is sent. '
-             'The requester is never allowed to be the approver.',
+        'res.users', string='Decided By', tracking=True, readonly=True,
+        help='Whoever actually approved or rejected it.',
     )
     requested_by = fields.Many2one(
         'res.users', string='Requested By', readonly=True, copy=False,
@@ -113,6 +125,40 @@ class Way4TechManpowerApprovalRequest(models.Model):
         for rec in self:
             rec.line_count = len(rec.line_ids)
 
+    def _sync_state_from_lines(self):
+        """CR3-FINAL round 3, item 3: roll the per-line decisions up.
+
+        all approved  → approved      any approved + any rejected → partial
+        all rejected  → rejected      still undecided             → pending
+        everything consumed           → consumed
+        """
+        for req in self:
+            if req.state in ('cancelled',):
+                continue
+            lines = req.line_ids
+            if not lines:
+                continue
+            decisions = lines.mapped('decision')
+            approved = [d for d in decisions if d == 'approved']
+            rejected = [d for d in decisions if d == 'rejected']
+            undecided = [d for d in decisions if not d]
+            if undecided:
+                new_state = 'pending' if not approved else 'partial'
+            elif approved and rejected:
+                new_state = 'partial'
+            elif rejected:
+                new_state = 'rejected'
+            else:
+                new_state = 'approved'
+            # Consumed wins once every approved line has been acted on.
+            actionable = lines.filtered(lambda l: l.decision != 'rejected')
+            if actionable and all(l.consumed for l in actionable):
+                new_state = 'consumed'
+            if req.state != new_state:
+                req.state = new_state
+                if new_state in ('approved', 'partial', 'rejected'):
+                    req.decided_on = fields.Datetime.now()
+
     # ── The gate ──────────────────────────────────────────────────────────
     @api.model
     def _require_approval(self, record):
@@ -134,13 +180,30 @@ class Way4TechManpowerApprovalRequest(models.Model):
                     contract._fields['state'].selection,
                 ).get(contract.state, contract.state),
             })
-        line = self.env['way4tech.manpower.approval.request.line'].search([
+        # CR3-FINAL round 3, item 3: a line is creatable when IT is approved —
+        # either because the whole request was approved, or because the
+        # approver ticked this one inside a partly-approved request. A line
+        # individually rejected inside an approved request stays blocked.
+        Line = self.env['way4tech.manpower.approval.request.line']
+        line = Line.search([
             ('res_model', '=', record._name),
             ('res_id', '=', record.id),
-            ('request_id.state', '=', 'approved'),
             ('consumed', '=', False),
+            ('request_id.state', 'in', ('approved', 'partial')),
+            '|', ('decision', '=', 'approved'),
+            '&', ('decision', '=', False), ('request_id.state', '=', 'approved'),
         ], limit=1)
         if not line:
+            rejected = Line.search([
+                ('res_model', '=', record._name), ('res_id', '=', record.id),
+                ('decision', '=', 'rejected'),
+            ], order='id desc', limit=1)
+            if rejected:
+                raise UserError(_(
+                    'This item was REJECTED by %(who)s.\n\nReason: %(why)s\n\n'
+                    'Correct it and send it for approval again.'
+                ) % {'who': rejected.request_id.approver_id.display_name or '',
+                     'why': rejected.reason or rejected.request_id.reason or '—'})
             raise UserError(_(
                 'No approval for this item.\n\n'
                 'Every invoice, bill and line needs its own approval, even '
@@ -160,11 +223,14 @@ class Way4TechManpowerApprovalRequest(models.Model):
     @api.model
     def _consume_approval(self, record):
         """Burn the approval. Called immediately after the document exists."""
-        line = self.env['way4tech.manpower.approval.request.line'].search([
+        Line = self.env['way4tech.manpower.approval.request.line']
+        line = Line.search([
             ('res_model', '=', record._name),
             ('res_id', '=', record.id),
-            ('request_id.state', '=', 'approved'),
             ('consumed', '=', False),
+            ('request_id.state', 'in', ('approved', 'partial')),
+            '|', ('decision', '=', 'approved'),
+            '&', ('decision', '=', False), ('request_id.state', '=', 'approved'),
         ], limit=1)
         if not line:
             return False
@@ -173,9 +239,9 @@ class Way4TechManpowerApprovalRequest(models.Model):
         request.message_post(body=_(
             'Approval consumed by %(item)s.'
         ) % {'item': record.display_name})
-        # Once every covered row has been acted on, the request closes.
-        if all(request.line_ids.mapped('consumed')):
-            request.state = 'consumed'
+        # Closes only when every line that COULD be acted on has been; a
+        # rejected line is not waiting for anything (item 3).
+        request._sync_state_from_lines()
         return True
 
     @api.model
@@ -198,34 +264,48 @@ class Way4TechManpowerApprovalRequest(models.Model):
 
     # ── Workflow ──────────────────────────────────────────────────────────
     @api.model
-    def _get_configured_approver(self, company):
+    def _get_configured_approvers(self, company):
+        """CR3-FINAL round 3, item 7: the configured approver POOL.
+
+        Any one of them can decide a request. Falls back to the legacy
+        single-approver field so a 3.4/3.5 configuration keeps working.
+        """
         settings = self.env['way4tech.payroll.settings'].get_for_company(company.id)
-        approver = settings.manpower_approver_id
-        if not approver:
+        approvers = settings.manpower_approver_ids
+        if not approvers and settings.manpower_approver_id:
+            approvers = settings.manpower_approver_id
+        if not approvers:
             raise UserError(_(
-                'No Approver configured. Set one in Configuration → Payroll & '
-                'Accounting Setup → Manpower Contracts → Approver.'
+                'No Approvers configured. Set at least one in Configuration → '
+                'Payroll & Accounting Setup → Manpower Contracts → Approvers.'
             ))
-        return approver
+        return approvers
+
+    @api.model
+    def _get_configured_approver(self, company):
+        """Back-compat shim — returns the first configured approver."""
+        return self._get_configured_approvers(company)[:1]
 
     @api.model
     def _create_request(self, contract, records, note=False, urgent=False):
         """Raise ONE request covering `records` (one row, or a month's worth)."""
         if not records:
             raise UserError(_('There is nothing waiting for approval.'))
-        approver = self._get_configured_approver(contract.company_id)
-        # Part A point 7: self-approval is refused up front, not at sign time.
-        if approver == self.env.user:
+        approvers = self._get_configured_approvers(contract.company_id)
+        # Part A point 7 / item 7: the requester is removed from the pool, so
+        # self-approval is impossible even when they are a configured approver.
+        eligible = approvers - self.env.user
+        if not eligible:
             raise UserError(_(
-                'You are the configured Approver, so you cannot submit this '
-                'for your own approval. Ask another authorised user to '
-                'approve it, or change the Approver in Payroll & Accounting '
-                'Setup.'
+                'You are the only configured Approver, so you cannot submit '
+                'this for your own approval. Add a second approver in '
+                'Configuration → Payroll & Accounting Setup → Manpower '
+                'Contracts → Approvers.'
             ))
         Line = self.env['way4tech.manpower.approval.request.line']
         request = self.create({
             'contract_id': contract.id,
-            'approver_id': approver.id,
+            'approver_ids': [(6, 0, eligible.ids)],
             'note': note or False,
             'urgent': urgent,
         })
@@ -253,64 +333,128 @@ class Way4TechManpowerApprovalRequest(models.Model):
         return request
 
     def _launch_sign_request(self):
-        """Hand the request to the Sign module if a template is configured.
+        """CR3-FINAL round 3, item 8 — route the request through Odoo Sign.
 
-        Sign is optional plumbing, not the gate. If no template is set the
-        approval still works end to end through this model — the approver
-        just approves from Manpower → Approvals instead of signing a PDF.
+        The client confirmed the Enterprise dependency, so this is now the
+        intended path: signing produces the signed PDF, the signer record and
+        Sign's own audit trail. The signer is set automatically from the
+        configured Approvers — the requester never picks one.
+
+        If no template is configured we do NOT fail: the request stays
+        decidable in Manpower → Approvals, so a mis-set template can never
+        block invoicing outright.
         """
         self.ensure_one()
         settings = self.env['way4tech.payroll.settings'].get_for_company(
             self.company_id.id,
         )
-        template = getattr(settings, 'manpower_sign_template_id', False)
-        if not template or 'sign.request' not in self.env:
+        template = settings.manpower_sign_template_id
+        if not template:
+            self.message_post(body=_(
+                'No Approval Sign Template configured, so no Sign request was '
+                'raised. Decide this in Manpower → Approvals, or set a '
+                'template in Payroll & Accounting Setup.'
+            ))
+            return False
+        signers = self.approver_ids.filtered(lambda u: u.partner_id)
+        if not signers:
+            self.message_post(body=_(
+                'No approver has a contact record, so no Sign request could '
+                'be raised. Decide this in Manpower → Approvals.'
+            ))
             return False
         try:
+            roles = template.sign_item_ids.mapped('responsible_id')
+            role = roles[:1]
+            # One request item per eligible approver — any ONE signature
+            # completes it (item 7), so they share the same role.
+            items = [(0, 0, {
+                'partner_id': user.partner_id.id,
+                'role_id': role.id if role else False,
+            }) for user in signers]
             sign_request = self.env['sign.request'].create({
                 'template_id': template.id,
                 'reference': self.name,
-                'request_item_ids': [(0, 0, {
-                    'partner_id': self.approver_id.partner_id.id,
-                    'role_id': template.sign_item_ids[:1].responsible_id.id or False,
-                })],
+                'request_item_ids': items,
             })
             self.sign_request_id = sign_request.id
+            self.message_post(body=_(
+                'Sent to Sign as "%(ref)s" for %(who)s.'
+            ) % {'ref': self.name,
+                 'who': ', '.join(signers.mapped('display_name'))})
         except Exception as exc:            # noqa: BLE001 - never block the gate
             self.message_post(body=_(
-                'Could not raise a Sign request automatically (%s). Approve '
-                'from Manpower → Approvals instead.'
+                'Could not raise a Sign request automatically (%s). Decide '
+                'this in Manpower → Approvals instead.'
             ) % exc)
         return True
 
+    def action_open_sign_request(self):
+        """Jump to the Sign document — the contract only shows status."""
+        self.ensure_one()
+        if not self.sign_request_id:
+            raise UserError(_('No Sign request is linked to this approval.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Sign Request'),
+            'res_model': 'sign.request',
+            'res_id': self.sign_request_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def _check_may_decide(self):
+        """Shared guard for every decision path."""
+        self.ensure_one()
+        if not self.env.user.has_group(
+                'way4tech_logistics.group_logistics_manager'):
+            raise UserError(_(
+                'Only a Logistics Manager can approve. Approvals are granted '
+                'in Manpower → Approvals, never from the contract.'
+            ))
+        if self.requested_by == self.env.user:
+            raise UserError(_(
+                'You submitted this request, so you cannot approve it. '
+                'Separation of duties requires a different approver.'
+            ))
+        # Item 7: any ONE of the configured approvers may decide.
+        if self.approver_ids and self.env.user not in self.approver_ids:
+            raise UserError(_(
+                'You are not one of the approvers for this request. It can be '
+                'decided by: %s.'
+            ) % ', '.join(self.approver_ids.mapped('display_name')))
+
     def action_approve(self):
+        """Approve every still-undecided line (item 3: bulk shortcut)."""
         for rec in self:
-            if rec.state != 'pending':
-                raise UserError(_('Only a Pending request can be approved.'))
-            if not self.env.user.has_group(
-                    'way4tech_logistics.group_logistics_manager'):
+            if rec.state not in ('pending', 'partial'):
                 raise UserError(_(
-                    'Only a Logistics Manager can approve. Approvals are '
-                    'granted in Manpower → Approvals, never from the contract.'
+                    'Only a Pending or Partly Approved request can be approved.'
                 ))
-            if rec.requested_by == self.env.user:
-                raise UserError(_(
-                    'You submitted this request, so you cannot approve it. '
-                    'Separation of duties requires a different approver.'
-                ))
-            rec.write({'state': 'approved', 'decided_on': fields.Datetime.now()})
+            rec._check_may_decide()
+            rec.line_ids.filtered(lambda l: not l.decision).write(
+                {'decision': 'approved'})
+            rec.approver_id = self.env.user
+            rec._sync_state_from_lines()
         return True
 
     def action_reject(self):
+        """Reject every still-undecided line (item 3: bulk shortcut)."""
         for rec in self:
-            if rec.state != 'pending':
-                raise UserError(_('Only a Pending request can be rejected.'))
+            if rec.state not in ('pending', 'partial'):
+                raise UserError(_(
+                    'Only a Pending or Partly Approved request can be rejected.'
+                ))
+            rec._check_may_decide()
             if not rec.reason:
                 raise UserError(_(
                     'Enter a reason before rejecting — the requester needs to '
                     'know what to correct.'
                 ))
-            rec.write({'state': 'rejected', 'decided_on': fields.Datetime.now()})
+            rec.line_ids.filtered(lambda l: not l.decision).write(
+                {'decision': 'rejected', 'reason': rec.reason})
+            rec.approver_id = self.env.user
+            rec._sync_state_from_lines()
         return True
 
     def action_cancel(self):
@@ -332,6 +476,51 @@ class Way4TechManpowerApprovalRequest(models.Model):
             'view_mode': 'list',
             'domain': [('request_id', '=', self.id)],
         }
+
+
+class SignRequestWay4Tech(models.Model):
+    """CR3-FINAL round 3, item 8 — signing in Sign approves the request.
+
+    The contract shows status only; the decision is made by signing. When a
+    sign.request completes, the linked approval is approved on behalf of
+    whoever signed it, and the normal guards still apply (a signature from the
+    requester is refused, keeping separation of duties intact even if someone
+    routes a document to themselves).
+    """
+    _inherit = 'sign.request'
+
+    def _way4tech_sync_approval(self):
+        Approval = self.env['way4tech.manpower.approval.request']
+        for sign_request in self:
+            approval = Approval.sudo().search(
+                [('sign_request_id', '=', sign_request.id)], limit=1)
+            if not approval or approval.state not in ('pending', 'partial'):
+                continue
+            signer = sign_request.request_item_ids.filtered(
+                lambda i: i.state == 'completed' and i.partner_id
+            )[:1]
+            user = self.env['res.users'].sudo().search(
+                [('partner_id', '=', signer.partner_id.id)], limit=1,
+            ) if signer else self.env['res.users']
+            if user and user == approval.requested_by:
+                approval.message_post(body=_(
+                    'Signature by the requester ignored — separation of '
+                    'duties requires a different approver.'
+                ))
+                continue
+            approval.line_ids.filtered(lambda l: not l.decision).write(
+                {'decision': 'approved'})
+            approval.approver_id = (user or approval.approver_ids[:1]).id
+            approval._sync_state_from_lines()
+            approval.message_post(body=_(
+                'Approved via Sign document %s.'
+            ) % sign_request.reference or '')
+
+    def write(self, vals):
+        result = super().write(vals)
+        if vals.get('state') in ('signed', 'completed', 'done'):
+            self._way4tech_sync_approval()
+        return result
 
 
 class Way4TechManpowerApprovalMixin(models.AbstractModel):
@@ -366,8 +555,41 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
             ], order='id desc', limit=1)
             if not line:
                 rec.approval_state = 'none'
-            else:
-                rec.approval_state = line.request_id.state
+                rec.approval_reason = False
+                continue
+            # Item 3: a line rejected on its own beats the request's overall
+            # state, so a mixed decision shows correctly per row.
+            rec.approval_state = line.decision or line.request_id.state
+            rec.approval_reason = line.reason or line.request_id.reason or False
+
+    # CR3-FINAL round 3, item 4: the rejection reason, surfaced on the row.
+    approval_reason = fields.Char(
+        string='Approval Note', compute='_compute_approval_state',
+        help='Why the approver rejected this item.',
+    )
+
+    @api.ondelete(at_uninstall=False)
+    def _way4tech_clean_approval_lines(self):
+        """CR3-FINAL round 3: deleting a row must not leave an approval item
+        pointing at a record that no longer exists.
+
+        That dangling reference is what produced "Record does not exist or has
+        been deleted (way4tech.manpower.invoice.block(6,))" when the contract
+        was being cleared. Removing the line here, and voiding a request that
+        is left with nothing to approve, keeps the two sides consistent.
+        """
+        Line = self.env['way4tech.manpower.approval.request.line']
+        lines = Line.sudo().search([
+            ('res_model', '=', self._name), ('res_id', 'in', self.ids),
+        ])
+        requests = lines.mapped('request_id')
+        lines.unlink()
+        for request in requests:
+            if not request.line_ids and request.state in ('pending', 'approved'):
+                request.message_post(body=_(
+                    'Voided — every item it covered has been deleted.'
+                ))
+                request.state = 'cancelled'
 
     def action_send_for_approval(self):
         """Raise a request covering just this row (Part A point 9, per-item)."""
@@ -432,6 +654,47 @@ class Way4TechManpowerApprovalRequestLine(models.Model):
         help='Set the moment the approved document is created. A consumed '
              'line can never unlock anything again.',
     )
+    # ── CR3-FINAL round 3, item 3: per-line decision ──────────────────────
+    # One bad line used to force the whole request to be rejected and
+    # everything resubmitted. The approver can now tick lines and apply
+    # Approve or Reject to just that selection.
+    decision = fields.Selection(
+        selection=[('approved', 'Approved'), ('rejected', 'Rejected')],
+        string='Decision', copy=False,
+        help='Set individually by the approver. Blank means it follows the '
+             "request's overall state.",
+    )
+    reason = fields.Char(
+        string='Reason', copy=False,
+        help='Required when this specific line is rejected.',
+    )
+
+    def _effective_state(self):
+        self.ensure_one()
+        return self.decision or self.request_id.state
+
+    def action_approve_selected(self):
+        """Approve just these lines (from the request's item list)."""
+        for line in self:
+            if line.request_id.state not in ('pending', 'approved'):
+                raise UserError(_(
+                    'Request %s is %s — its lines can no longer be decided.'
+                ) % (line.request_id.name, line.request_id.state))
+            line.write({'decision': 'approved', 'reason': False})
+        self.mapped('request_id')._sync_state_from_lines()
+        return True
+
+    def action_reject_selected(self):
+        """Reject just these lines. A reason is mandatory."""
+        for line in self:
+            if not line.reason:
+                raise UserError(_(
+                    'Enter a Reason on "%s" before rejecting it — the '
+                    'requester needs to know what to correct.'
+                ) % (line.description or line.id))
+            line.decision = 'rejected'
+        self.mapped('request_id')._sync_state_from_lines()
+        return True
     fingerprint = fields.Char(
         string='Fingerprint', readonly=True,
         help='Hash of the figures at approval time. If the row is edited '

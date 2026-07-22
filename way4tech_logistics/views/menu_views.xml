@@ -308,15 +308,17 @@
         groups="way4tech_logistics.group_logistics_manager"
     />
 
-    <!-- Pending Approvals — under Accounting-adjacent area -->
-    <menuitem
-        id="menu_pending_approvals"
-        name="Pending Approvals"
-        parent="menu_way4tech_config"
-        action="way4tech_logistics.action_pending_approvals"
-        sequence="40"
-        groups="way4tech_logistics.group_logistics_manager"
-    />
+    <!-- CR3-FINAL round 3, item 6: Configuration → "Pending Approvals" menu
+         DELETED. It listed account.move records with
+         way4tech_approval_state='pending' — the old >500 SAR journal-entry
+         approval, a different mechanism from the Part A manpower approvals,
+         and always empty here. Three approval-ish menus, two of them empty,
+         made it unclear where approvals actually live: Manpower → Approvals.
+         The menuitem is removed from this file rather than deactivated —
+         Odoo drops data records that disappear from a module's files on
+         upgrade, and a <record> here would break a fresh install because
+         nothing would create the menu first. The action and its views are
+         kept, so the list stays reachable by direct link. -->
 
     <!-- Vehicle Models (edit / delete management) -->
     <menuitem

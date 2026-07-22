@@ -83,17 +83,21 @@ class Way4TechManpowerContractBudgetLine(models.Model):
 
     @api.onchange("category_id")
     def _onchange_category_default_account(self):
-        if not self.expense_account_id and self.category_id and self.contract_id:
-            settings = self.env["way4tech.payroll.settings"].get_for_company(
-                self.contract_id.company_id.id,
-            )
-            mapping = settings.manpower_expense_category_account_ids.filtered(
-                lambda m: m.category_id == self.category_id
-            )[:1]
-            if mapping:
-                self.expense_account_id = mapping.account_id
-            elif self.category_id.default_expense_account_id:
-                self.expense_account_id = self.category_id.default_expense_account_id
+        """CR3-FINAL round 3, item 10: fill from configuration on every category
+        change, through the guarded resolver.
+
+        Previously this only filled a BLANK cell and fell back to the category's
+        own default without checking the account type — which is how a Building
+        Maintenance budget line ended up on 120006 InterCompany Petty cash, an
+        asset account. Now a category with no usable COST account fills nothing,
+        and action_confirm refuses by name.
+        """
+        if not self.category_id:
+            self.expense_account_id = False
+            return
+        self.expense_account_id = self.category_id.resolve_expense_account(
+            self.contract_id.company_id or self.env.company,
+        )
 
     def _get_analytic_account_ids(self):
         """Union of analytic accounts used by the parent contract (both the
@@ -195,6 +199,16 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         """
         for line in self:
             if line.state != 'confirmed':
+                # CR3-FINAL round 3, item 10: a confirmed budget line feeds
+                # Actual Cost, which is read from journal items on this
+                # account. Confirming one pointed at the wrong account (or no
+                # account) would quietly skew the whole budget comparison.
+                if not line.expense_account_id and line.category_id:
+                    line.expense_account_id = \
+                        line.category_id.resolve_expense_account(
+                            line.contract_id.company_id or self.env.company,
+                            raise_if_missing=True,
+                        )
                 line.contract_id._require_month_approval(record=line)
                 line.state = 'confirmed'
                 line.contract_id._consume_approval(line)

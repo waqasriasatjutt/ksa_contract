@@ -1,6 +1,6 @@
 {
     'name': 'Way4Tech Logistics & HR Extensions',
-    'version': '19.0.3.5.1',
+    'version': '19.0.3.6.0',
     'summary': 'Complete operations management for KSA logistics & manpower companies — payroll, fleet, manpower contracts, investor P&L, and full accounting integration for Odoo 19',
     'description': '''
 Way4Tech Logistics & HR Extensions
@@ -216,6 +216,11 @@ DEPENDENCIES
         'mail',
         'fleet',
         'hr',
+        # CR3-FINAL round 3, item 8 — client confirmed the Enterprise
+        # dependency. Manpower approvals are signed in Odoo Sign, which is what
+        # produces the signed PDF, the signer record and the audit trail.
+        # NOTE: this makes the module Enterprise-only from 19.0.3.6.0 onward.
+        'sign',
     ],
     'data': [
         'security/security.xml',

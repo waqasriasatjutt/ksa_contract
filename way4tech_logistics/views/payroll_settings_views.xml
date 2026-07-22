@@ -128,14 +128,28 @@
                                  because it has to be configured before anything
                                  else on this tab can be used. -->
                             <group string="Approval">
-                                <field name="manpower_approver_id"
+                                <!-- item 7: multi-user. ANY ONE of them can decide
+                                     a request; it is not a checklist. -->
+                                <field name="manpower_approver_ids"
+                                       widget="many2many_tags"
                                        options="{'no_create': True}"
-                                       help="Required. The authorised user who approves manpower invoices, bills and budget confirmations. Every 'Send for Approval' routes here automatically. Nobody can approve their own request, so set this to someone other than the day-to-day accountant. Until this is set, no invoice or bill can be created from a manpower contract."/>
+                                       help="Required. The authorised approvers for manpower invoices, bills and budget confirmations. Any ONE of them can decide a request — a single signature completes it. All of them see the pending queue. Nobody can approve their own request, so configure at least two people if the same person also raises them."/>
+                                <!-- item 8: signing happens in Odoo Sign -->
+                                <field name="manpower_sign_template_id"
+                                       options="{'no_create': True}"
+                                       help="Approval requests are routed to this Sign template, with the signer set automatically from the Approvers above. Signing produces the signed PDF, the signer record and the Sign audit trail. Leave empty to decide directly in Manpower → Approvals."/>
+                                <field name="manpower_approver_id" invisible="1"/>
                                 <div colspan="2" class="alert alert-warning" role="alert"
-                                     invisible="manpower_approver_id">
-                                    <strong>No Approver set.</strong> Invoices, bills and
+                                     invisible="manpower_approver_ids">
+                                    <strong>No Approvers set.</strong> Invoices, bills and
                                     budget confirmations on manpower contracts are blocked
-                                    until you choose one.
+                                    until you choose at least one.
+                                </div>
+                                <div colspan="2" class="alert alert-info" role="alert"
+                                     invisible="manpower_sign_template_id or not manpower_approver_ids">
+                                    No Sign template set — approvals will be decided in
+                                    <strong>Manpower → Approvals</strong> rather than signed
+                                    in the Sign app.
                                 </div>
                             </group>
                             <group string="Billing (Customer Invoices)">
