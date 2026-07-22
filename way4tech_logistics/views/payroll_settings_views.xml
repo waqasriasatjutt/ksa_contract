@@ -121,6 +121,23 @@
 
                         <!-- ── MANPOWER ── -->
                         <page string="Manpower Contracts">
+                            <!-- CR3-FINAL Part A: the Approver. This MUST stay
+                                 visible — every document-creating action on a
+                                 manpower contract is gated on it, so leaving it
+                                 unset blocks invoicing entirely. Placed first
+                                 because it has to be configured before anything
+                                 else on this tab can be used. -->
+                            <group string="Approval">
+                                <field name="manpower_approver_id"
+                                       options="{'no_create': True}"
+                                       help="Required. The authorised user who approves manpower invoices, bills and budget confirmations. Every 'Send for Approval' routes here automatically. Nobody can approve their own request, so set this to someone other than the day-to-day accountant. Until this is set, no invoice or bill can be created from a manpower contract."/>
+                                <div colspan="2" class="alert alert-warning" role="alert"
+                                     invisible="manpower_approver_id">
+                                    <strong>No Approver set.</strong> Invoices, bills and
+                                    budget confirmations on manpower contracts are blocked
+                                    until you choose one.
+                                </div>
+                            </group>
                             <group string="Billing (Customer Invoices)">
                                 <field name="manpower_income_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
