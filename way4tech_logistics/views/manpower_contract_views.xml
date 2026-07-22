@@ -123,7 +123,10 @@
                                 <field name="client_balance" widget="monetary"
                                        options="{'currency_field': 'currency_id'}"
                                        class="o_stat_value" readonly="1" nolabel="1"/>
-                                <span class="o_stat_text">Customer Statement</span>
+                                <!-- CR3-FINAL round 2, polish 10: renamed. It opens the
+                                     full Partner Ledger (receivable AND payable), so
+                                     "Customer Statement" understated it. -->
+                                <span class="o_stat_text">Partner Statement</span>
                             </div>
                         </button>
                     </div>
@@ -158,10 +161,12 @@
                             <field name="billing_type" invisible="1"/>
                             <field name="fixed_amount" invisible="1"/>
                             <field name="hourly_rate" invisible="1"/>
-                            <!-- CR3 P3 (v13.0): Contract-level Per Day Allowed Hours master.
-                                 Wins over employee-level default; line stays overwritable. -->
-                            <field name="default_per_day_allowed_hours"
-                                   help="Default Per Day Allowed Hours for timesheet rows on this contract. When an employee is picked on a timesheet row and that row's per_day_hours is still blank, this value fills it (falling back to the employee's own default if this is blank). The row remains editable."/>
+                            <!-- CR3-FINAL round 2, polish 11: hidden from the form.
+                                 It was showing as a bare "0.00" in Contract Details
+                                 with no context. Field stays on the model and still
+                                 acts as the first step of the Per Day Allowed Hours
+                                 fallback chain (Contract → Employee → line). -->
+                            <field name="default_per_day_allowed_hours" invisible="1"/>
                         </group>
                         <group string="Period &amp; Settings">
                             <!-- CR3-FINAL P1 (3): Start Date + End Date ARE the
@@ -510,7 +515,15 @@
                                          disabled on single-day rows. Row-level readonly
                                          (not column_invisible) because the two modes can
                                          coexist in the same grid. -->
+                                    <!-- CR3-FINAL round 2, polish 11: the cell is
+                                         blank AND inactive on single-day rows.
+                                         Cell-level invisible (not column_invisible)
+                                         so the two entry modes can still share the
+                                         grid. Display only — no value is written,
+                                         which keeps it clear of the date-picker
+                                         re-render problem. -->
                                     <field name="per_day_hours" string="Per Day Allowed"
+                                           invisible="not start_date or not end_date"
                                            readonly="not start_date or not end_date"/>
                                     <!-- CR3-FINAL P9: shows days × per-day-hours in range
                                          mode (e.g. 6 × 8 = 48), typed directly in

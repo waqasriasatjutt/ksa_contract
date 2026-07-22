@@ -40,15 +40,20 @@ _logger = logging.getLogger(__name__)
 
 _SYNC_SKIP_KEY = 'way4tech_skip_move_sync'
 
-# Per-source-line-model mapping used by BOTH hooks. Order is stable for
+# Per-source-line-model mapping used by ALL hooks. Order is stable for
 # grep-ability. Each tuple: (model_name, move_fk_field, draft_state,
-# allowed_move_types). Amendment G — scope search per model, no wasted
-# probes across in vs out invoices.
+# done_state, allowed_move_types). Amendment G — scope search per model, no
+# wasted probes across in vs out invoices.
+#
+# CR3-FINAL round 2, bug 4: the invoice BLOCK is in this map too, and every
+# entry now carries its done_state so the source row can follow the document
+# both ways (see _way4tech_sync_source_states).
 _SOURCE_LINE_MAP = (
-    ('way4tech.manpower.contract.income.line', 'invoice_id', 'draft', ('out_invoice', 'out_refund')),
-    ('way4tech.manpower.timesheet',            'invoice_id', 'draft', ('out_invoice', 'out_refund')),
-    ('way4tech.manpower.project.expense',      'bill_id',    'draft', ('in_invoice', 'in_refund')),
-    ('way4tech.manpower.commission.line',      'bill_id',    'draft', ('in_invoice', 'in_refund')),
+    ('way4tech.manpower.invoice.block',        'invoice_id', 'draft', 'invoiced', ('out_invoice', 'out_refund')),
+    ('way4tech.manpower.contract.income.line', 'invoice_id', 'draft', 'invoiced', ('out_invoice', 'out_refund')),
+    ('way4tech.manpower.timesheet',            'invoice_id', 'draft', 'invoiced', ('out_invoice', 'out_refund')),
+    ('way4tech.manpower.project.expense',      'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
+    ('way4tech.manpower.commission.line',      'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
 )
 
 
@@ -95,19 +100,53 @@ class AccountMoveWay4TechSync(models.Model):
         if affected:
             self.env.add_to_compute(field, affected)
 
+    # ── CR3-FINAL round 2, bug 4: source row follows the document state ────
+    def _way4tech_sync_source_states(self):
+        """Push this move's state back onto the contract rows that made it.
+
+        Before this, a row was flipped to Invoiced/Billed at CREATE time and
+        stayed there forever. Resetting the invoice to draft in Accounting
+        left the Project Income block still badged "Invoiced" with a View
+        Invoice button, while the Billing Summary had already dropped to 0 —
+        the two halves of the screen disagreed.
+
+        Mapping: posted → done_state; draft or cancelled → draft_state, so
+        the row becomes actionable again and its button reverts.
+        """
+        for move in self:
+            if move.move_type not in ('out_invoice', 'out_refund',
+                                      'in_invoice', 'in_refund'):
+                continue
+            target_is_done = move.state == 'posted'
+            for model_name, fk_field, draft_state, done_state, allowed in _SOURCE_LINE_MAP:
+                if move.move_type not in allowed:
+                    continue
+                rows = self.env[model_name].sudo().search([(fk_field, '=', move.id)])
+                if not rows:
+                    continue
+                wanted = done_state if target_is_done else draft_state
+                stale = rows.filtered(lambda r: r.state != wanted)
+                if stale:
+                    stale.with_context(**{_SYNC_SKIP_KEY: True}).write(
+                        {'state': wanted},
+                    )
+
     def _post(self, soft=True):
         posted = super()._post(soft=soft)
         posted._way4tech_mark_budget_actuals_dirty()
+        posted._way4tech_sync_source_states()
         return posted
 
     def button_draft(self):
         result = super().button_draft()
         self._way4tech_mark_budget_actuals_dirty()
+        self._way4tech_sync_source_states()
         return result
 
     def button_cancel(self):
         result = super().button_cancel()
         self._way4tech_mark_budget_actuals_dirty()
+        self._way4tech_sync_source_states()
         return result
 
     # ── Two-way sync (item 3) ──────────────────────────────────────────────
@@ -131,7 +170,7 @@ class AccountMoveWay4TechSync(models.Model):
             # Amendment C: skip when amount_untaxed did not actually move.
             if old_amounts.get(move.id) == move.amount_untaxed:
                 continue
-            for model_name, fk_field, _draft, allowed_types in _SOURCE_LINE_MAP:
+            for model_name, fk_field, _draft, _done, allowed_types in _SOURCE_LINE_MAP:
                 if move.move_type not in allowed_types:
                     continue
                 lines = self.env[model_name].sudo().search([(fk_field, '=', move.id)])
@@ -149,7 +188,7 @@ class AccountMoveWay4TechSync(models.Model):
             for move in self:
                 if not move.exists():
                     continue
-                for model_name, fk_field, draft_state, allowed_types in _SOURCE_LINE_MAP:
+                for model_name, fk_field, draft_state, _done, allowed_types in _SOURCE_LINE_MAP:
                     if move.move_type not in allowed_types:
                         continue
                     lines = self.env[model_name].sudo().search([(fk_field, '=', move.id)])

@@ -50,8 +50,16 @@
                             </div>
                         </div>
 
+                        <!-- CR3-FINAL round 2, bug 6: section numbers are counted at
+                             render time instead of being hard-coded. Empty sections
+                             were already skipped, so a contract with no timesheets
+                             printed 1, 2, 3, 5, 6. The counter only advances for
+                             sections that actually print. -->
+                        <t t-set="sec" t-value="0"/>
+
                         <t t-if="o.income_line_ids">
-                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">1. Project Income</h4>
+                            <t t-set="sec" t-value="sec + 1"/>
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px"><t t-esc="sec"/>. Project Income</h4>
                             <table class="table table-sm table-bordered" style="font-size:11px">
                                 <thead style="background:#003366;color:#fff">
                                     <tr>
@@ -63,12 +71,18 @@
                                 <tbody>
                                     <t t-foreach="o.income_line_ids" t-as="l">
                                         <tr>
-                                            <td><t t-esc="l.accounting_date"/></td>
-                                            <td><t t-esc="l.invoice_date or '—'"/></td>
+                                            <!-- CR3-FINAL round 2, bug 6: the date widget
+                                                 renders through the language's date format
+                                                 (already d/m/Y), instead of the raw ISO value
+                                                 the rows were printing. Display only. -->
+                                            <td><t t-esc="l.accounting_date" t-options='{"widget":"date"}'/></td>
+                                            <td><t t-if="l.invoice_date" t-esc="l.invoice_date" t-options='{"widget":"date"}'/><t t-if="not l.invoice_date">—</t></td>
                                             <td><t t-esc="l.description or '—'"/></td>
                                             <td><t t-esc="l.sale_account_id.display_name or '—'"/></td>
                                             <td class="text-right"><t t-esc="'%.2f' % (l.quantity or 0)"/></td>
-                                            <td class="text-right"><t t-esc="'%.2f' % (l.price or 0)"/></td>
+                                            <!-- CR3-FINAL round 2, bug 6: thousand separators,
+                                                 so Price reads 1,000.00 like the Amount column. -->
+                                            <td class="text-right"><t t-esc="'{:,.2f}'.format(l.price or 0)"/></td>
                                             <td class="text-right">
                                                 <t t-esc="l.amount" t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
                                             </td>
@@ -79,7 +93,8 @@
                         </t>
 
                         <t t-if="o.direct_cost_line_ids">
-                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">2. Project Direct Cost</h4>
+                            <t t-set="sec" t-value="sec + 1"/>
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px"><t t-esc="sec"/>. Project Direct Cost</h4>
                             <table class="table table-sm table-bordered" style="font-size:11px">
                                 <thead style="background:#003366;color:#fff">
                                     <tr><th>Date</th><th>Type</th><th>Vendor</th><th class="text-right">Amount</th></tr>
@@ -87,7 +102,7 @@
                                 <tbody>
                                     <t t-foreach="o.direct_cost_line_ids" t-as="l">
                                         <tr>
-                                            <td><t t-esc="l.date"/></td>
+                                            <td><t t-esc="l.date" t-options='{"widget":"date"}'/></td>
                                             <td><t t-esc="l.category_id.name or '—'"/></td>
                                             <td><t t-esc="l.vendor_id.name or '—'"/></td>
                                             <td class="text-right">
@@ -100,7 +115,8 @@
                         </t>
 
                         <t t-if="o.operating_exp_line_ids">
-                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">3. Project Operating Exp</h4>
+                            <t t-set="sec" t-value="sec + 1"/>
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px"><t t-esc="sec"/>. Project Operating Exp</h4>
                             <table class="table table-sm table-bordered" style="font-size:11px">
                                 <thead style="background:#003366;color:#fff">
                                     <tr><th>Date</th><th>Type</th><th>Vendor</th><th class="text-right">Amount</th></tr>
@@ -108,7 +124,7 @@
                                 <tbody>
                                     <t t-foreach="o.operating_exp_line_ids" t-as="l">
                                         <tr>
-                                            <td><t t-esc="l.date"/></td>
+                                            <td><t t-esc="l.date" t-options='{"widget":"date"}'/></td>
                                             <td><t t-esc="l.category_id.name or '—'"/></td>
                                             <td><t t-esc="l.vendor_id.name or '—'"/></td>
                                             <td class="text-right">
@@ -121,7 +137,8 @@
                         </t>
 
                         <t t-if="o.timesheet_ids">
-                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">4. Timesheets</h4>
+                            <t t-set="sec" t-value="sec + 1"/>
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px"><t t-esc="sec"/>. Timesheets</h4>
                             <table class="table table-sm table-bordered" style="font-size:11px">
                                 <thead style="background:#003366;color:#fff">
                                     <tr>
@@ -133,7 +150,7 @@
                                 <tbody>
                                     <t t-foreach="o.timesheet_ids" t-as="l">
                                         <tr>
-                                            <td><t t-esc="l.date or l.start_date or '—'"/></td>
+                                            <td><t t-if="l.date or l.start_date" t-esc="l.date or l.start_date" t-options='{"widget":"date"}'/><t t-if="not (l.date or l.start_date)">—</t></td>
                                             <td><t t-esc="l.employee_id.name or '—'"/></td>
                                             <td class="text-right"><t t-esc="'%.2f' % (l.hours or 0)"/></td>
                                             <td class="text-right"><t t-esc="'%.2f' % (l.rate or 0)"/></td>
@@ -147,7 +164,8 @@
                         </t>
 
                         <t t-if="o.budget_line_ids">
-                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">5. Project Budget</h4>
+                            <t t-set="sec" t-value="sec + 1"/>
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px"><t t-esc="sec"/>. Project Budget</h4>
                             <table class="table table-sm table-bordered" style="font-size:11px">
                                 <thead style="background:#003366;color:#fff">
                                     <tr>
@@ -177,7 +195,8 @@
                         </t>
 
                         <t t-if="o.commission_line_ids">
-                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px">6. Sales Person Commission</h4>
+                            <t t-set="sec" t-value="sec + 1"/>
+                            <h4 style="border-bottom:2px solid #003366;padding-bottom:4px;color:#003366;margin-top:14px"><t t-esc="sec"/>. Sales Person Commission</h4>
                             <table class="table table-sm table-bordered" style="font-size:11px">
                                 <thead style="background:#003366;color:#fff">
                                     <tr><th>Employee</th><th class="text-right">Amount</th></tr>

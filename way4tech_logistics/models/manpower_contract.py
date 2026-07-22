@@ -280,21 +280,27 @@ class Way4TechManpowerContract(models.Model):
         compute='_compute_invoice_count',
         currency_field='currency_id',
     )
+    # CR3-FINAL round 2, bug 3: both of these are hard-wired to 0.0 in
+    # _compute_totals and have been for some time, so they showed up in the
+    # Measures dropdown as permanent zeros. aggregator=None takes them out of
+    # the measure list; the columns stay so nothing that reads them breaks.
     total_employee_cost = fields.Monetary(
-        string='Total Employee Cost',
+        string='Total Employee Cost (unused)',
         compute='_compute_totals',
         store=True,
+        aggregator=None,
         currency_field='currency_id',
-        help="Sum of Hours × Employee Rate across all timesheet lines. "
-             "The same timesheets that drive the client invoice also drive this salary cost.",
+        help="Not in use — always 0. Employee salary cost is tracked on the "
+             "Project Direct Cost tab instead.",
     )
     billing_margin = fields.Monetary(
-        string='Billing Margin (Hours)',
+        string='Billing Margin (unused)',
         compute='_compute_totals',
         store=True,
+        aggregator=None,
         currency_field='currency_id',
-        help="Invoiced amount minus total employee salary cost from timesheets. "
-             "Positive = company earns above the labour cost on hourly contracts.",
+        help="Not in use — always 0. Superseded by the Project Profitability "
+             "figures.",
     )
     project_expense_ids = fields.One2many(
         comodel_name='way4tech.manpower.project.expense',
@@ -490,18 +496,26 @@ class Way4TechManpowerContract(models.Model):
         'contract_id',
         string='Project Budget',
     )
+    # CR3-FINAL round 2, bug 3: this is the OLD all-buckets total and is
+    # duplicated by bs_total_project_exp_all ("Total Project Exp"). It shared
+    # the label "Total Project Expenses" with bs_total_project_exp, which is
+    # what put two different numbers under one name in the Measures dropdown.
+    # Renamed and dropped from the measure list; the field itself stays
+    # because the list view and older reports still read it.
     total_project_expenses = fields.Monetary(
-        string='Total Project Expenses',
+        string='Total Project Expenses (legacy)',
         compute='_compute_project_margin',
         store=True,
+        aggregator=None,
         currency_field='currency_id',
-        help='Sum of all project expense amounts (wages, accommodation, utilities, '
-             'furniture, transport, other). Used to calculate project margin.',
+        help='Legacy all-buckets expense total. Use "Total Project Exp" '
+             '(Direct Cost + Operating Expenses) instead.',
     )
     project_margin = fields.Monetary(
-        string='Project Margin',
+        string='Project Margin (legacy)',
         compute='_compute_project_margin',
         store=True,
+        aggregator=None,
         currency_field='currency_id',
         help='Project Margin = Total Invoiced − Total Project Expenses.\n'
              'Positive = profitable. Shows the gross margin before company overhead.\n'
@@ -563,11 +577,17 @@ class Way4TechManpowerContract(models.Model):
         help='Direct Cost (COGS): sum of billed Project Expense lines whose '
              'category is bucketed as Direct Cost.',
     )
+    # CR3-FINAL round 2, bug 3: renamed. This holds OPERATING EXPENSES only,
+    # but was labelled "Total Project Expenses" — the same label as the legacy
+    # total_project_expenses field below, so the Measures dropdown showed two
+    # different numbers under one identical name (900 here vs 4,510 there).
     bs_total_project_exp = fields.Monetary(
-        string='Total Project Expenses', compute='_compute_kpi_summary',
+        string='Operating Expenses', compute='_compute_kpi_summary',
         store=True, currency_field='currency_id',
         help='Operating Expenses: sum of billed Project Expense lines whose '
-             'category is bucketed as Operating Exp.',
+             'category is bucketed as Operating Exp. Direct Cost is reported '
+             'separately as Total Project CGS; the two together are Total '
+             'Project Exp.',
     )
     # ── CR3-FINAL P3: new field ───────────────────────────────────────────
     bs_total_project_exp_all = fields.Monetary(
@@ -661,13 +681,18 @@ class Way4TechManpowerContract(models.Model):
              "created (state='billed') — consistent with the billed-only "
              'rule applied to CGS/OpEx, so the tiles match the GL.',
     )
-    # CR3-FINAL P2 fix 3: base is NET PROFIT (not Profit After Actual Cost).
+    # CR3-FINAL round 2, bug 1: base is PROFIT AFTER ACTUAL COST.
+    # The first spec said "Net Profit − Commission" and gave 1,200 − 512 = 688,
+    # so that is what shipped. Testing against the client's reference sheet
+    # showed the real rule is F23 = F22 − B26, i.e. Profit After Actual Cost −
+    # Commission. The two only agree when Operating Expenses happen to equal
+    # Actual Cost, which is exactly why the first example did not expose it.
     pp_profit_after_commission = fields.Monetary(
         string='Net Profit After Salesperson Commission',
         compute='_compute_commission_kpis',
         store=True, currency_field='currency_id',
-        help='Net Profit After Salesperson Commission = Net Profit − '
-             'Commission. Example: 1,200 − 512 = 688.',
+        help='Net Profit After Salesperson Commission = Profit After Actual '
+             'Cost − Commission. Example: 1,500 − 512 = 988.',
     )
     # ── CR3-FINAL P4: new KPI ─────────────────────────────────────────────
     kpi_net_return_on_cost_after_commission = fields.Float(
@@ -763,7 +788,7 @@ class Way4TechManpowerContract(models.Model):
     @api.depends(
         'commission_line_ids', 'commission_line_ids.amount',
         'commission_line_ids.state',
-        'pp_net_profit', 'bs_total_project_exp_all',
+        'pp_actual_profit', 'bs_total_project_exp_all',
     )
     def _compute_commission_kpis(self):
         """Group 2 — commission total and everything derived from it.
@@ -777,63 +802,106 @@ class Way4TechManpowerContract(models.Model):
                 l.amount or 0.0 for l in rec.commission_line_ids
                 if l.state == 'billed'
             )
-            # CR3-FINAL P2 fix 3: NET profit is the base, not actual profit.
-            after_commission = rec.pp_net_profit - commission_total
+            # CR3-FINAL round 2, bug 1: base is Profit After Actual Cost
+            # (client sheet F23 = F22 − B26), not Net Profit.
+            after_commission = rec.pp_actual_profit - commission_total
             rec.bs_sales_person_commission = commission_total
             rec.pp_profit_after_commission = after_commission
-            # CR3-FINAL P4.
+            # CR3-FINAL P4 — follows the corrected base automatically.
             rec.kpi_net_return_on_cost_after_commission = self._kpi_pct(
                 after_commission, rec.bs_total_project_exp_all,
             )
 
-    # ── CR3-FINAL P5: correct percentage aggregation at group level ────────
-    def _read_group(self, domain, groupby=(), aggregates=(), having=(),
-                    offset=0, limit=None, order=None):
-        """Recalculate KPI % measures from the GROUP's summed amounts.
+    # ══ CR3-FINAL P5: correct percentage aggregation at EVERY group level ══
+    #
+    # Odoo aggregates a stored Float measure with SUM. Summing percentages is
+    # meaningless — two contracts at 89.65% and 40.00% are not a group at
+    # 129.65% — and the client's rule is explicit: a percentage must be
+    # recalculated at each level from that level's own summed amounts.
+    #
+    # This has to be done on BOTH group-read entry points. Odoo 19 has two,
+    # and they do NOT share an implementation:
+    #   • _read_group        — list-view group rollups, graph, direct ORM calls
+    #   • _read_grouping_sets — what the PIVOT actually uses (via the JS
+    #     `formattedReadGroupingSets`). It builds its own SQL GROUPING SETS
+    #     query and never calls _read_group.
+    # Overriding only _read_group leaves the pivot summing percentages while
+    # every direct-ORM test passes — exactly the false pass that let this
+    # ship. Both are patched below through one shared helper.
 
-        Odoo aggregates a stored Float measure with SUM. Summing percentages
-        is meaningless (three contracts at 20% do not make 60%), and the
-        client's P5 rule is explicit: percentages must be recalculated at
-        every level from the group's own numerator and denominator. So when
-        a caller (pivot, list group rollup, graph) asks for a KPI% aggregate,
-        we transparently also fetch its numerator and denominator sums and
-        substitute numerator ÷ denominator × 100 into the result.
+    def _way4tech_pct_plan(self, aggregates):
+        """Work out which requested aggregates are KPI percentages.
 
-        Amount measures are untouched and keep aggregating by sum.
+        Returns (plan, extended_aggregates) where plan maps the position of a
+        percentage aggregate to the positions of its numerator/denominator
+        sums inside `extended_aggregates`. Returns (None, aggregates) when no
+        percentage was asked for, so the caller can take the fast path.
         """
-        pct_specs = {}          # position in `aggregates` → (num spec, den spec)
+        plan = {}
         for index, spec in enumerate(aggregates):
             fname, _sep, func = spec.partition(':')
             if fname in self.PERCENT_MEASURES and func in ('sum', ''):
                 num, den = self.PERCENT_MEASURES[fname]
-                pct_specs[index] = ('%s:sum' % num, '%s:sum' % den)
-        if not pct_specs:
-            return super()._read_group(
-                domain, groupby, aggregates, having, offset, limit, order,
-            )
-
-        # Append whatever numerator/denominator sums are not already requested.
+                plan[index] = ('%s:sum' % num, '%s:sum' % den)
+        if not plan:
+            return None, aggregates
         extended = list(aggregates)
-        for num_spec, den_spec in pct_specs.values():
+        for num_spec, den_spec in plan.values():
             for spec in (num_spec, den_spec):
                 if spec not in extended:
                     extended.append(spec)
-        rows = super()._read_group(
-            domain, groupby, tuple(extended), having, offset, limit, order,
-        )
+        return plan, tuple(extended)
 
-        base = len(groupby)                       # aggregates start after groupby
-        pos = {spec: base + i for i, spec in enumerate(extended)}
-        keep = base + len(aggregates)             # drop our helper columns
+    def _way4tech_pct_patch(self, rows, plan, extended, aggregates, n_groupby):
+        """Substitute numerator ÷ denominator × 100 into each percentage cell
+        and drop the helper columns we appended."""
+        pos = {spec: n_groupby + i for i, spec in enumerate(extended)}
+        keep = n_groupby + len(aggregates)
         patched = []
         for row in rows:
             row = list(row)
-            for index, (num_spec, den_spec) in pct_specs.items():
+            for index, (num_spec, den_spec) in plan.items():
                 numerator = row[pos[num_spec]] or 0.0
                 denominator = row[pos[den_spec]] or 0.0
-                row[base + index] = self._kpi_pct(numerator, denominator)
+                row[n_groupby + index] = self._kpi_pct(numerator, denominator)
             patched.append(tuple(row[:keep]))
         return patched
+
+    def _read_group(self, domain, groupby=(), aggregates=(), having=(),
+                    offset=0, limit=None, order=None):
+        """List-view rollups / graph / direct ORM calls."""
+        plan, extended = self._way4tech_pct_plan(aggregates)
+        if plan is None:
+            return super()._read_group(
+                domain, groupby, aggregates, having, offset, limit, order,
+            )
+        rows = super()._read_group(
+            domain, groupby, extended, having, offset, limit, order,
+        )
+        return self._way4tech_pct_patch(
+            rows, plan, extended, aggregates, len(groupby),
+        )
+
+    def _read_grouping_sets(self, domain, grouping_sets, aggregates=(),
+                            order=None):
+        """THE PIVOT PATH. Returns one result list per grouping set, so each
+        has to be patched against its OWN groupby length — the grand-total
+        set (groupby = ()) included, which is where the impossible 129.65%
+        was showing up."""
+        plan, extended = self._way4tech_pct_plan(aggregates)
+        if plan is None:
+            return super()._read_grouping_sets(
+                domain, grouping_sets, aggregates, order,
+            )
+        results = super()._read_grouping_sets(
+            domain, grouping_sets, extended, order,
+        )
+        return [
+            self._way4tech_pct_patch(
+                rows, plan, extended, aggregates, len(groupby),
+            )
+            for groupby, rows in zip(grouping_sets, results)
+        ]
 
     @api.onchange('client_id')
     def _onchange_client_id(self):
@@ -1445,7 +1513,7 @@ class Way4TechManpowerContract(models.Model):
         except ValueError:
             return {
                 'type': 'ir.actions.act_window',
-                'name': _('Customer Statement — %s') % self.client_id.display_name,
+                'name': _('Partner Statement — %s') % self.client_id.display_name,
                 'res_model': 'account.move.line',
                 'view_mode': 'list,form',
                 'domain': [

@@ -174,16 +174,23 @@ class Way4TechManpowerTimesheet(models.Model):
                 if contract and contract.wage:
                     # Convert monthly wage to hourly rate (KSA: 30 days × 8 hours)
                     self.employee_hourly_rate = contract.wage / (30.0 * 8.0)
-        # CR3 P3 priority chain: only seed if line is still blank (never
-        # overwrite an operator's manual override).
-        if self.employee_id and not self.per_day_hours:
-            src = None
+        # CR3-FINAL round 2, polish 11: RE-EVALUATE on every employee change.
+        # The old rule only seeded a blank cell, so swapping the employee left
+        # the previous person's figure sitting there — silently invoicing the
+        # wrong hours. Now the chain is re-applied on each change and
+        # overwrites whatever was there, including a manually typed value.
+        # If neither the contract nor the new employee has a default, the cell
+        # is CLEARED rather than left stale. It stays editable afterwards.
+        if self.employee_id:
+            src = 0.0
             if self.contract_id and self.contract_id.default_per_day_allowed_hours:
                 src = self.contract_id.default_per_day_allowed_hours
             elif self.employee_id.default_per_day_allowed_hours:
                 src = self.employee_id.default_per_day_allowed_hours
-            if src:
-                self.per_day_hours = src
+            self.per_day_hours = src
+        else:
+            # Employee cleared — drop the inherited default too.
+            self.per_day_hours = 0.0
 
     def action_create_invoice(self):
         """P6: per-line Create Invoice. Reuses the contract's income

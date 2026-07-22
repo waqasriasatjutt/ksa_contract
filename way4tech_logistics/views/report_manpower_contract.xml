@@ -4,14 +4,26 @@
     <!-- ===================================================
          Manpower Contract Statement — Report Action
          =================================================== -->
+    <!-- CR3-FINAL round 2, bug 5: UNBOUND from the Print menu.
+         This is the OLD statement. It still printed Contract Type, Billing
+         Type and Fixed Monthly Amount (all hidden in P1), raw ISO dates, no
+         Reference/Month, none of the six sections, and it counted DRAFT
+         invoices in Total Invoiced — so a reset invoice still showed 5,000.
+         Having two "statement" entries in one Print menu, with the wrong one
+         first, is how it got used by mistake.
+
+         The record and its template are kept rather than deleted so nothing
+         referencing them breaks and the change is reversible; clearing
+         binding_model_id is what takes it out of the Print dropdown.
+         "Contract Statement" (report_manpower_contract_statement.xml) is now
+         the only statement offered. -->
     <record id="action_report_manpower_contract" model="ir.actions.report">
-        <field name="name">Manpower Contract Statement</field>
+        <field name="name">Manpower Contract Statement (superseded)</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">way4tech_logistics.report_manpower_contract_doc</field>
         <field name="report_file">way4tech_logistics.report_manpower_contract_doc</field>
-        <field name="binding_model_id" ref="model_way4tech_manpower_contract"/>
-        <field name="binding_type">report</field>
+        <field name="binding_model_id" eval="False"/>
     </record>
 
     <!-- ===================================================
