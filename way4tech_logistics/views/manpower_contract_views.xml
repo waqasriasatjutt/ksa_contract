@@ -293,13 +293,24 @@
                                     <field name="invoice_date" widget="date"/>
                                     <field name="note" optional="hide"/>
                                     <field name="line_count" string="Lines"/>
-                                    <field name="amount_untaxed" sum="Total"/>
+                                    <!-- CR3-FINAL round 2, new item 2: the block used to
+                                         show only "Untaxed Total", so a 5,000.00 block
+                                         silently produced a 5,750.00 invoice. Full
+                                         breakdown now, with Total as the headline. -->
+                                    <field name="amount_untaxed" string="Amount" sum="Amount"/>
+                                    <field name="amount_tax" string="VAT" sum="VAT"/>
+                                    <field name="amount_total" string="Total" sum="Total"/>
                                     <field name="state" widget="badge"
                                            decoration-info="state == 'draft'"
+                                           decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'invoiced'"/>
+                                    <!-- CR3-FINAL round 2, new item 1: Create only when the
+                                         block is genuinely free. Once an invoice exists —
+                                         posted OR draft — the only offer is View, so the
+                                         user can never press a button that just errors. -->
                                     <button name="action_create_invoice" type="object"
                                             string="Create Invoice" icon="fa-file-text-o"
-                                            invisible="state == 'invoiced'"
+                                            invisible="state != 'draft'"
                                             class="btn-sm btn-primary"/>
                                     <button name="action_view_invoice" type="object"
                                             string="View Invoice" icon="fa-eye"
@@ -313,13 +324,22 @@
                                     <header>
                                         <button name="action_create_invoice" type="object"
                                                 string="Create Invoice" class="btn-primary"
-                                                invisible="state == 'invoiced'"/>
+                                                invisible="state != 'draft'"/>
                                         <button name="action_view_invoice" type="object"
                                                 string="View Invoice" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
                                         <field name="state" widget="statusbar"
-                                               statusbar_visible="draft,invoiced"/>
+                                               statusbar_visible="draft,invoice_draft,invoiced"/>
                                     </header>
+                                    <div class="alert alert-warning" role="alert"
+                                         invisible="state != 'invoice_draft'">
+                                        The linked invoice has been reset to draft. Open it
+                                        with <strong>View Invoice</strong>, correct it and
+                                        confirm it again — this block will return to
+                                        Invoiced. To bill something different instead,
+                                        cancel or delete that invoice and this block is
+                                        released.
+                                    </div>
                                     <sheet>
                                         <div class="oe_title">
                                             <h2><field name="name" readonly="1" nolabel="1"/></h2>
@@ -333,21 +353,33 @@
                                             </group>
                                             <group>
                                                 <field name="note"
-                                                       readonly="state == 'invoiced'"/>
+                                                       readonly="state != 'draft'"
+                                                       help="Free text appended to the invoice reference, AFTER the PRO/YYYY/MM/NNNN series — it does not replace or clash with it."/>
+                                                <!-- CR3-FINAL round 2, new item 2 -->
                                                 <field name="amount_untaxed" readonly="1"/>
+                                                <field name="amount_tax" readonly="1"/>
+                                                <field name="amount_total" readonly="1"
+                                                       class="oe_subtotal_footer_separator"/>
                                                 <field name="currency_id" invisible="1"/>
                                             </group>
                                         </group>
-                                        <field name="line_ids" readonly="state == 'invoiced'"
+                                        <field name="line_ids" readonly="state != 'draft'"
                                                context="{'default_contract_id': parent.id}">
                                             <list editable="bottom">
+                                                <!-- CR3-FINAL round 2, polish 12: drag handle,
+                                                     so the order typed here is the order the
+                                                     invoice prints in. -->
+                                                <field name="sequence" widget="handle"/>
                                                 <field name="description"/>
                                                 <field name="sale_account_id"/>
+                                                <!-- polish 12: Contract Tags now settable per
+                                                     line in the block, matching the old
+                                                     non-block income grid. -->
+                                                <field name="tag_ids" widget="many2many_tags"
+                                                       optional="show"/>
                                                 <field name="quantity"/>
                                                 <field name="price"/>
-                                                <field name="amount" sum="Untaxed Total"/>
-                                                <field name="tag_ids" widget="many2many_tags"
-                                                       optional="hide"/>
+                                                <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="accounting_date" widget="date"
                                                        optional="hide"/>
                                                 <field name="contract_id" column_invisible="1"/>
@@ -361,17 +393,26 @@
                                  existed (or typed outside one) stay visible and keep
                                  their original per-line Create Invoice button. Hidden
                                  entirely when there are none, so the tab stays clean. -->
-                            <separator string="Income Lines Not In A Block"
+                            <separator string="Income Lines Not In A Block (legacy)"
                                        invisible="unassigned_income_count == 0"/>
                             <field name="unassigned_income_count" invisible="1"/>
+                            <!-- CR3-FINAL round 2, polish 12: create="0" closes this as a
+                                 path for NEW work, so invoice blocks are the single way to
+                                 raise an invoice. Rows already here stay fully editable and
+                                 keep their Create Invoice button, so nothing in flight
+                                 breaks. -->
                             <field name="unassigned_income_line_ids"
                                    readonly="state == 'cancelled'"
                                    invisible="unassigned_income_count == 0"
                                    context="{'default_contract_id': id}">
-                                <list editable="top" decoration-muted="state == 'invoiced'">
+                                <list editable="top" create="0"
+                                      decoration-muted="state == 'invoiced'">
+                                    <!-- Bug 7 mitigation: a text column leads, so creating a
+                                         row does not auto-focus a date cell and pop the
+                                         picker before the user has asked for it. -->
+                                    <field name="description"/>
                                     <field name="accounting_date" widget="date"/>
                                     <field name="invoice_date" widget="date"/>
-                                    <field name="description"/>
                                     <field name="tag_ids" widget="many2many_tags"/>
                                     <field name="sale_account_id"/>
                                     <field name="quantity"/>
@@ -413,12 +454,14 @@
                                    readonly="state == 'cancelled'"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
+                                    <!-- Bug 7 mitigation: description leads so a new row
+                                         does not open focused on a date cell. -->
+                                    <field name="description"/>
                                     <field name="date" string="Accounting Date" widget="date"/>
                                     <field name="bill_date" widget="date"/>
                                     <field name="category_id"
                                            domain="[('expense_type', '=', 'direct')]"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
-                                    <field name="description"/>
                                     <field name="vendor_id"/>
                                     <field name="account_id"
                                            help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>

@@ -22,7 +22,24 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-call="web.external_layout">
-                    <div class="page">
+                    <div class="page w4t-stmt">
+
+                        <!-- CR3-FINAL round 2, new item 3: the column-header rows were
+                             dark blue with black text and effectively unreadable. The
+                             inline color:#fff on <thead> was being overridden by
+                             Bootstrap's own `.table > :not(caption) > * > *` colour
+                             rule, which is more specific than an inherited value, so
+                             the <th> cells fell back to body text. Setting it on the
+                             th itself with !important wins. Applies to every section
+                             at once. -->
+                        <style>
+                            .w4t-stmt table thead th {
+                                background-color: #003366 !important;
+                                color: #ffffff !important;
+                                border-color: #003366 !important;
+                            }
+                            .w4t-stmt table thead tr { background-color: #003366 !important; }
+                        </style>
 
                         <div class="row mb-3">
                             <div class="col-8">

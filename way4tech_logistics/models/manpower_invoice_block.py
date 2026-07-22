@@ -73,9 +73,34 @@ class Way4TechManpowerInvoiceBlock(models.Model):
     invoice_id = fields.Many2one(
         'account.move', string='Invoice', readonly=True, copy=False,
     )
+    # CR3-FINAL round 2, new item 1: three states, not two.
+    # A block whose invoice was reset to draft used to fall back to 'draft',
+    # which showed a Create Invoice button that could only ever raise "this
+    # block has already produced invoice X" — visible, dead, and leaving the
+    # draft invoice unattended. 'invoice_draft' is that middle ground: still
+    # linked, still showing View Invoice, waiting to be corrected and
+    # re-confirmed. The block is only freed back to 'draft' when the linked
+    # invoice is cancelled or deleted.
     state = fields.Selection(
-        [('draft', 'Draft'), ('invoiced', 'Invoiced')],
+        [('draft', 'Draft'),
+         ('invoice_draft', 'Invoice in Draft'),
+         ('invoiced', 'Invoiced')],
         default='draft', readonly=True, copy=False,
+    )
+
+    # ── CR3-FINAL round 2, new item 2: show the real payable figure ───────
+    # The block only ever showed the untaxed total, so a block reading
+    # "5,000.00" produced a 5,750.00 invoice and the user never saw the gross
+    # until after creation.
+    amount_tax = fields.Monetary(
+        string='VAT', compute='_compute_totals', store=True,
+        currency_field='currency_id',
+        help='15% Output VAT that will be applied when this block is invoiced.',
+    )
+    amount_total = fields.Monetary(
+        string='Total', compute='_compute_totals', store=True,
+        currency_field='currency_id',
+        help='Gross total including VAT — the amount the invoice will carry.',
     )
     note = fields.Char(
         string='Reference / Note',
@@ -94,21 +119,52 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             else:
                 block.name = _('Draft Invoice')
 
-    @api.depends('line_ids', 'line_ids.amount')
+    def _get_sale_vat_tax(self):
+        """The 15% Output VAT applied to every line this block invoices."""
+        self.ensure_one()
+        company = self.contract_id.company_id or self.env.company
+        return self.env['account.tax'].search([
+            ('type_tax_use', '=', 'sale'),
+            ('amount_type', '=', 'percent'),
+            ('amount', '=', 15.0),
+            ('company_id', '=', company.id),
+        ], limit=1)
+
+    @api.depends('line_ids', 'line_ids.amount', 'contract_id.company_id')
     def _compute_totals(self):
         for block in self:
             block.line_count = len(block.line_ids)
-            block.amount_untaxed = sum(block.line_ids.mapped('amount'))
+            untaxed = sum(block.line_ids.mapped('amount'))
+            block.amount_untaxed = untaxed
+            # Compute VAT through the tax record rather than hard-coding 15%,
+            # so the preview matches whatever the invoice will actually post.
+            tax = block._get_sale_vat_tax()
+            if tax and untaxed:
+                block.amount_tax = tax.amount / 100.0 * untaxed
+            else:
+                block.amount_tax = 0.0
+            block.amount_total = untaxed + block.amount_tax
 
     # ── Actions ───────────────────────────────────────────────────────────
     def action_create_invoice(self):
         """Create ONE customer invoice carrying every line in this block."""
         self.ensure_one()
+        # CR3-FINAL round 2, new item 1: a cancelled invoice no longer blocks
+        # the block — it is released below by _way4tech_sync_source_states, so
+        # reaching here with a live invoice_id genuinely means one exists.
         if self.invoice_id:
             raise UserError(_(
-                'This block has already produced invoice "%s". Use '
-                '"Create New Invoice" to start another one.'
-            ) % self.invoice_id.display_name)
+                'This block is already linked to invoice "%(inv)s" (%(state)s).\n\n'
+                'Correct and re-confirm that invoice instead — the block will '
+                'return to Invoiced. To bill something else, use "Create New '
+                'Invoice" for a fresh block. To release this block, cancel or '
+                'delete the linked invoice.'
+            ) % {
+                'inv': self.invoice_id.display_name,
+                'state': dict(
+                    self.invoice_id._fields['state'].selection,
+                ).get(self.invoice_id.state, self.invoice_id.state),
+            })
         if not self.line_ids:
             raise UserError(_(
                 'This invoice block has no lines yet. Add at least one line '
@@ -132,8 +188,13 @@ class Way4TechManpowerInvoiceBlock(models.Model):
         if not vat_tax:
             raise UserError(_('No 15% sales tax configured for this company.'))
 
+        # CR3-FINAL round 2, polish 12: bill lines in ENTRY order. The income
+        # line model sorts newest-first, so iterating the o2m raw printed the
+        # invoice in reverse (Sweeper → electrician → plumber came out
+        # backwards). sequence-then-id is the order shown in the block grid.
+        source_lines = self.line_ids.sorted(lambda l: (l.sequence, l.id))
         invoice_lines = []
-        for line in self.line_ids:
+        for line in source_lines:
             sale_account = line.sale_account_id or settings.manpower_income_account_id
             if not sale_account:
                 raise UserError(_(

@@ -15,9 +15,14 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     # _order does NOT include accounting_date: sorting by an editable date
     # field means every date pick triggers a row-position resort in the
     # inline editable list, which re-renders the row and re-focuses the
-    # picker → infinite reopen loop. Sort by id desc (newest first) instead.
-    # Users see chronological order via list-header click when needed.
-    _order = "id desc"
+    # picker → infinite reopen loop.
+    #
+    # CR3-FINAL round 2, polish 12: sequence-then-id ASCENDING, so rows keep
+    # the order they were typed in. Under "id desc" an invoice block billed
+    # its lines newest-first and the printed invoice came out reversed.
+    _order = "sequence, id"
+
+    sequence = fields.Integer(default=10, help="Display / billing order.")
 
     contract_id = fields.Many2one(
         "way4tech.manpower.contract", required=True, ondelete="cascade",

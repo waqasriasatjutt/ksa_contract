@@ -117,19 +117,35 @@ class AccountMoveWay4TechSync(models.Model):
             if move.move_type not in ('out_invoice', 'out_refund',
                                       'in_invoice', 'in_refund'):
                 continue
-            target_is_done = move.state == 'posted'
             for model_name, fk_field, draft_state, done_state, allowed in _SOURCE_LINE_MAP:
                 if move.move_type not in allowed:
                     continue
                 rows = self.env[model_name].sudo().search([(fk_field, '=', move.id)])
                 if not rows:
                     continue
-                wanted = done_state if target_is_done else draft_state
-                stale = rows.filtered(lambda r: r.state != wanted)
-                if stale:
-                    stale.with_context(**{_SYNC_SKIP_KEY: True}).write(
-                        {'state': wanted},
+                # CR3-FINAL round 2, new item 1 — three outcomes, not two:
+                #   posted    → done  (Invoiced / Bill Created)
+                #   draft     → still LINKED. The row must keep offering View,
+                #               never a Create button that can only raise
+                #               "already produced invoice X". Blocks have a
+                #               dedicated 'invoice_draft' state for this; the
+                #               simpler line models just hold their done state.
+                #   cancelled → RELEASED: clear the FK and drop to draft, so a
+                #               fresh document can be created.
+                if move.state == 'posted':
+                    vals = {'state': done_state}
+                elif move.state == 'cancel':
+                    vals = {'state': draft_state, fk_field: False}
+                else:  # draft — keep the link
+                    has_mid = 'invoice_draft' in dict(
+                        rows._fields['state'].selection,
                     )
+                    vals = {'state': 'invoice_draft' if has_mid else done_state}
+                stale = rows.filtered(
+                    lambda r: any(r[k] != v for k, v in vals.items())
+                )
+                if stale:
+                    stale.with_context(**{_SYNC_SKIP_KEY: True}).write(vals)
 
     def _post(self, soft=True):
         posted = super()._post(soft=soft)

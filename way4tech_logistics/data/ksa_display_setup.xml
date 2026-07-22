@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- CR3-FINAL round 2 — Bug 8 (dates d/m/y) + Polish 9 (2 decimals).
+         Idempotent: re-applied on every upgrade so devtest and devnew cannot
+         drift apart on display format again. Display only — no stored value,
+         posted document or existing record is modified. -->
+    <function model="way4tech.ksa.display.setup"
+              name="_apply_ksa_display_settings"/>
+</odoo>
