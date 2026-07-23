@@ -1,12 +1,16 @@
 {
     'name': 'Way4Tech Logistics & HR Extensions',
-    'version': '19.0.3.7.1',
+    'version': '19.0.3.7.2',
     'summary': 'Complete operations management for KSA logistics & manpower companies — payroll, fleet, manpower contracts, investor P&L, and full accounting integration for Odoo 19',
     'description': '''
 Way4Tech Logistics & HR Extensions
 ====================================
 Complete Operations Management for KSA Logistics & Manpower Companies
-Odoo 19 Community Edition | Saudi Arabia (KSA) | Multi-Company
+Odoo 19 Enterprise | Saudi Arabia (KSA) | Multi-Company
+
+REQUIRES ODOO ENTERPRISE — the manpower approval workflow signs through the
+Enterprise Sign app (module `sign`), and the Customer/Partner Statement opens
+the Enterprise Partner Ledger (`account_reports`) when it is installed.
 
 PURPOSE
 -------
@@ -198,8 +202,14 @@ SECURITY
 ────────────────────────────────────────────────────────────────
 DEPENDENCIES
 ────────────────────────────────────────────────────────────────
-  Odoo modules : account, analytic, mail, fleet, hr
-  Python libs  : openpyxl  (Excel import/export)
+  Edition      : Odoo 19 ENTERPRISE (required — see below)
+  Odoo modules : account, analytic, mail, fleet, hr, sign
+                 (`sign` is an Enterprise app — it powers the manpower
+                  approval / signature workflow)
+  Enterprise   : `sign` (hard dependency); `account_reports` used at runtime
+                 for the Partner Ledger when present (falls back gracefully)
+  Python libs  : openpyxl   (Excel import/export)
+                 xlsxwriter (Cumulative Statement XLSX export)
 ''',
     'category': 'Human Resources/Payroll',
     'author': 'Waqas Riasat',
