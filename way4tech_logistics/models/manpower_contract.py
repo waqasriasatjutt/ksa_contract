@@ -937,10 +937,17 @@ class Way4TechManpowerContract(models.Model):
                 if inv.state == 'posted'
             )
 
-    @api.depends('timesheet_ids.hours')
+    @api.depends('timesheet_ids.hours', 'timesheet_ids.state')
     def _compute_totals(self):
+        """CR3-FINAL round 5, issue 7: Total Hours counts INVOICED timesheets
+        only, so it follows the same 'only once the document exists' rule as
+        Total Invoiced / CGS / Expenses. A draft, unapproved timesheet no
+        longer inflates the Billing Summary."""
         for rec in self:
-            rec.total_hours = sum(rec.timesheet_ids.mapped('hours'))
+            rec.total_hours = sum(
+                ts.hours or 0.0 for ts in rec.timesheet_ids
+                if ts.state == 'invoiced'
+            )
             rec.total_employee_cost = 0.0
             rec.billing_margin = 0.0
 

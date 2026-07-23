@@ -13,24 +13,30 @@
         <field name="arch" type="xml">
             <form string="Approval Request">
                 <header>
+                    <!-- CR3-FINAL round 5, issue 3: THREE finalise buttons. Per-row
+                         Approve/Reject in the Items list only MARK provisionally;
+                         the request stays open until one of these is pressed. -->
                     <button name="action_approve" type="object" string="Approve All"
                             class="btn-primary"
-                            invisible="state not in ('pending', 'partial')"
+                            invisible="state != 'pending'"
                             groups="way4tech_logistics.group_logistics_manager"
-                            help="Approve every row that has not been decided individually."/>
+                            help="Approve every row and close the request."/>
+                    <button name="action_partially_approve" type="object"
+                            string="Partially Approve" class="btn-primary"
+                            invisible="state != 'pending'"
+                            groups="way4tech_logistics.group_logistics_manager"
+                            help="Commit the per-row Approve/Reject markings you made. Every row must be marked, and every rejected row needs a reason."/>
                     <button name="action_reject" type="object" string="Reject All"
                             class="btn-danger"
-                            invisible="state not in ('pending', 'partial')"
+                            invisible="state != 'pending'"
                             groups="way4tech_logistics.group_logistics_manager"
-                            help="Enter a reason first. Every undecided row is returned to the requester."/>
+                            help="Enter the Reason field first. Every row is returned to the requester."/>
                     <button name="action_open_sign_request" type="object"
                             string="Open Sign Document" class="btn-secondary"
                             invisible="not sign_request_id"/>
                     <button name="action_cancel" type="object" string="Cancel"
                             class="btn-secondary"
                             invisible="state in ('consumed', 'cancelled')"/>
-                    <!-- item 4: Rejected and Partly Approved are first-class,
-                         visible states, not something you have to infer. -->
                     <field name="state" widget="statusbar"
                            statusbar_visible="pending,partial,approved,consumed"/>
                 </header>
@@ -82,55 +88,55 @@
                                placeholder="Why is this being returned? The requester sees this."/>
                     </group>
                     <notebook>
-                        <!-- CR3-FINAL round 4, item 4: decide row by row with
-                             per-line buttons. The round-3 approach put the
-                             buttons in a <header> inside this EMBEDDED o2m list,
-                             which does not render selection checkboxes — so the
-                             help text described a UI that wasn't there. Per-row
-                             Approve / Reject buttons always render and give the
-                             same "approve some, reject others" outcome. Type the
-                             Reason on a row, then click its Reject. -->
+                        <!-- CR3-FINAL round 5, issues 3 + 6b. Per-row Approve/Reject
+                             only MARK provisionally (the badge in Decision changes);
+                             nothing commits until a header button. Clean table:
+                             Type · Item · Amount (right-aligned) · Decision · Reason
+                             · actions, with column headers and even spacing. -->
                         <page string="Items Covered" name="items">
                             <div class="alert alert-info" role="alert"
-                                 invisible="state not in ('pending', 'partial')">
-                                Decide each row with its own <strong>Approve</strong>
-                                or <strong>Reject</strong> button — you can approve
-                                some and reject others. To reject a row, type the
-                                <strong>Reason</strong> on that row first. Approved
-                                rows become creatable; rejected rows go back to the
-                                requester with your reason. <em>Approve All / Reject
-                                All</em> in the header decide every remaining row at
-                                once.
+                                 invisible="state != 'pending'">
+                                Mark each row with its <strong>Approve</strong> or
+                                <strong>Reject</strong> button (to reject, type the
+                                <strong>Reason</strong> on that row first). These are
+                                provisional — nothing is committed and the request
+                                stays open until you press a header button:
+                                <strong>Approve All</strong>,
+                                <strong>Reject All</strong>, or
+                                <strong>Partially Approve</strong> (commits your
+                                row-by-row markings). You can leave and come back;
+                                the request stays exactly as you left it.
                             </div>
                             <field name="line_ids"
-                                   readonly="state not in ('pending', 'partial')">
-                                <list editable="bottom" create="0" delete="0"
+                                   readonly="state != 'pending'">
+                                <list create="0" delete="0" editable="bottom"
                                       decoration-muted="consumed"
                                       decoration-success="decision == 'approved'"
                                       decoration-danger="decision == 'rejected'">
-                                    <field name="item_type" readonly="1"/>
-                                    <field name="description" readonly="1"/>
-                                    <field name="amount" readonly="1"/>
-                                    <field name="decision" widget="badge"
-                                           readonly="1"
+                                    <field name="item_type" string="Type" readonly="1"/>
+                                    <field name="description" string="Item" readonly="1"/>
+                                    <field name="amount" string="Amount" readonly="1"
+                                           sum="Total"/>
+                                    <field name="decision" string="Decision"
+                                           widget="badge" readonly="1"
                                            decoration-success="decision == 'approved'"
                                            decoration-danger="decision == 'rejected'"/>
-                                    <field name="reason"
+                                    <field name="reason" string="Reason"
                                            readonly="decision == 'approved'"
-                                           placeholder="Type a reason, then click Reject"/>
-                                    <!-- per-row decision buttons (item 4) -->
+                                           placeholder="Reason (required to reject)"/>
                                     <button name="action_approve_selected"
                                             type="object" string="Approve"
                                             icon="fa-check" class="btn-sm btn-success"
-                                            invisible="decision == 'approved'"
+                                            invisible="decision == 'approved' or consumed"
                                             groups="way4tech_logistics.group_logistics_manager"/>
                                     <button name="action_reject_selected"
                                             type="object" string="Reject"
                                             icon="fa-times" class="btn-sm btn-danger"
-                                            invisible="decision == 'rejected'"
+                                            invisible="decision == 'rejected' or consumed"
                                             groups="way4tech_logistics.group_logistics_manager"/>
-                                    <field name="consumed" widget="boolean_toggle"
-                                           readonly="1" optional="show"/>
+                                    <field name="consumed" string="Created"
+                                           widget="boolean_toggle" readonly="1"
+                                           optional="hide"/>
                                     <field name="res_model" column_invisible="1"/>
                                     <field name="res_id" column_invisible="1"/>
                                 </list>

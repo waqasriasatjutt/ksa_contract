@@ -32,18 +32,11 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         "account.account", string="Expense Account", check_company=True,
     )
     budget_amount = fields.Monetary(string="Budget Amount", currency_field="currency_id")
-    # CR3-FINAL P5: STORED. The contract's Total Actual Cost — and everything
-    # derived from it (Profit After Actual Cost, Budget Variance, Budget
-    # Usage %) — is now a stored pivot measure, and a stored field must not
-    # depend on a non-stored one or it silently freezes at its last value.
-    #
-    # The depends below cover every input on the budget-line side. They can
-    # NOT cover the other input: the figure is read from posted journal items
-    # with raw SQL, and there is no ORM dependency chain leading from a vendor
-    # bill back to this line. That half is handled explicitly by
-    # account_move_sync._way4tech_mark_budget_actuals_dirty(), which flags the
-    # affected lines for recompute whenever a move is posted, reset to draft,
-    # cancelled or deleted. The two halves together keep the stored value true.
+    # CR3-FINAL round 5: STORED, and now derived from the contract's Project
+    # Expense lines (see _compute_actual_amount). Its @api.depends reach those
+    # lines, so posting/cancelling a bill flows here through the ORM — the old
+    # raw-SQL + manual-trigger design is gone. Stored so Total Actual Cost and
+    # everything derived from it stay usable as pivot measures.
     actual_amount = fields.Monetary(
         string="Actual Amount",
         compute="_compute_actual_amount",
@@ -128,53 +121,53 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         return list(ids)
 
     @api.depends(
-        'expense_account_id', 'date',
-        'contract_id.analytic_distribution', 'contract_id.analytic_account_id',
+        'category_id', 'date',
+        'contract_id.project_expense_ids.amount',
+        'contract_id.project_expense_ids.state',
+        'contract_id.project_expense_ids.category_id',
+        'contract_id.project_expense_ids.date',
     )
     def _compute_actual_amount(self):
-        """CR2 G7 (2026-07-18): actual pulls from confirmed vendor-bill
-        journal-items whose analytic_distribution matches the contract's
-        analytic AND whose posting date falls in the SAME MONTH as this
-        budget line's date. am.state='posted' guarantees confirmation-only.
-        This makes Total Project Expenses == Total Actual Cost auto-
-        reconcile once fixes G2 (billed-only source) + this month-scoped
-        query are both in place — no separate reconciliation logic needed
-        (per CR2 G7 item 4)."""
+        """CR3-FINAL round 5, issues 1+2 — Actual = billed spend for THIS
+        budget line's CATEGORY in its MONTH, read from the contract's own
+        Project Expense lines.
+
+        The previous design scanned posted journal-items by
+        account + analytic + month. It was dead on real data: spend lands on
+        the account with NO analytic (e.g. bank payments), so the analytic
+        match returned 0 while the dashboard's Operating Expenses (which reads
+        the expense LINES directly) showed the real number. The two disagreed
+        because they measured different things.
+
+        This reads the SAME source as bs_total_project_cgs / bs_total_project_exp
+        — the contract's billed Project Expense lines — filtered to this
+        budget line's category and month. Consequences:
+          * Actual now equals the dashboard for that category, by construction.
+          * It recomputes automatically the moment an expense line is billed
+            (the @api.depends on project_expense_ids.state), and drops back if
+            a bill is reset/cancelled — NO manual trigger, NO analytic needed.
+          * Because it is driven by the EXPENSE lines, not by a write to this
+            budget line, Actual keeps moving even after the budget line is
+            approved (issue 2) — approval froze the plan (Budget Amount), the
+            Actual is a live figure the approver never signed off.
+        """
         for line in self:
-            actual = 0.0
-            analytic_ids = line._get_analytic_account_ids()
-            if line.expense_account_id and analytic_ids and line.date:
-                # Month bucket: [1st of month, 1st of next month)
-                d = line.date
-                if d.month == 12:
-                    next_month = d.replace(year=d.year + 1, month=1, day=1)
-                else:
-                    next_month = d.replace(month=d.month + 1, day=1)
-                month_start = d.replace(day=1)
-                self.env.cr.execute(
-                    """
-                    SELECT COALESCE(SUM(aml.debit - aml.credit), 0)
-                    FROM account_move_line aml
-                    JOIN account_move am ON am.id = aml.move_id
-                    WHERE aml.account_id = %s
-                      AND am.state = 'posted'
-                      AND am.date >= %s AND am.date < %s
-                      AND EXISTS (
-                          SELECT 1
-                          FROM jsonb_object_keys(COALESCE(aml.analytic_distribution, '{}'::jsonb)) AS k
-                          WHERE EXISTS (
-                              SELECT 1
-                              FROM unnest(string_to_array(k, ',')) AS part
-                              WHERE part::int = ANY(%s)
-                          )
-                      )
-                    """,
-                    (line.expense_account_id.id, month_start, next_month, analytic_ids),
-                )
-                result = self.env.cr.fetchone()
-                if result:
-                    actual = float(result[0] or 0.0)
-            line.actual_amount = actual
+            if not line.category_id or not line.date:
+                line.actual_amount = 0.0
+                continue
+            d = line.date
+            month_start = d.replace(day=1)
+            if d.month == 12:
+                next_month = d.replace(year=d.year + 1, month=1, day=1)
+            else:
+                next_month = d.replace(month=d.month + 1, day=1)
+            line.actual_amount = sum(
+                e.amount or 0.0
+                for e in line.contract_id.project_expense_ids
+                if e.category_id == line.category_id
+                and e.state == 'billed'
+                and e.date and month_start <= e.date < next_month
+            )
 
     @api.depends("budget_amount", "actual_amount")
     def _compute_remaining(self):

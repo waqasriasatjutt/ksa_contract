@@ -125,39 +125,61 @@ class Way4TechManpowerApprovalRequest(models.Model):
         for rec in self:
             rec.line_count = len(rec.line_ids)
 
-    def _sync_state_from_lines(self):
-        """CR3-FINAL round 3, item 3: roll the per-line decisions up.
+    def _commit_decisions(self):
+        """CR3-FINAL round 5, issue 3 — FINALIZE the request.
 
-        all approved  → approved      any approved + any rejected → partial
-        all rejected  → rejected      still undecided             → pending
-        everything consumed           → consumed
+        Called ONLY by the three header buttons (Approve All / Reject All /
+        Partially Approve). Per-row Approve/Reject are provisional markings
+        that do NOT come through here, so a request stays open (Pending) and
+        fully decidable until the approver deliberately commits — navigating
+        away, switching windows or deciding one row never closes it.
+
+        Rolls the committed per-line decisions into the request's final state:
+          all approved            → approved
+          all rejected            → rejected
+          mix of approved+rejected → partial
+        Once committed, approved rows are creatable and rejected rows go back
+        to the requester (their source row stays Draft/editable, badged
+        Rejected with the reason).
         """
         for req in self:
-            if req.state in ('cancelled',):
+            if req.state != 'pending':
                 continue
-            lines = req.line_ids
-            if not lines:
-                continue
-            decisions = lines.mapped('decision')
-            approved = [d for d in decisions if d == 'approved']
-            rejected = [d for d in decisions if d == 'rejected']
-            undecided = [d for d in decisions if not d]
-            if undecided:
-                new_state = 'pending' if not approved else 'partial'
-            elif approved and rejected:
+            decisions = req.line_ids.mapped('decision')
+            approved = any(d == 'approved' for d in decisions)
+            rejected = any(d == 'rejected' for d in decisions)
+            if approved and rejected:
                 new_state = 'partial'
             elif rejected:
                 new_state = 'rejected'
-            else:
+            elif approved:
                 new_state = 'approved'
-            # Consumed wins once every approved line has been acted on.
-            actionable = lines.filtered(lambda l: l.decision != 'rejected')
+            else:
+                new_state = 'pending'          # nothing decided — stay open
+            if new_state == 'pending':
+                continue
+            req.write({
+                'state': new_state,
+                'approver_id': self.env.user.id,
+                'decided_on': fields.Datetime.now(),
+            })
+            n_ok = sum(1 for d in decisions if d == 'approved')
+            n_no = sum(1 for d in decisions if d == 'rejected')
+            req.message_post(body=_(
+                'Decision committed by %(user)s: %(ok)s approved, %(no)s '
+                'rejected.'
+            ) % {'user': self.env.user.display_name, 'ok': n_ok, 'no': n_no})
+
+    def _refresh_consumed_state(self):
+        """After a document is created from an approved row, close the request
+        to Consumed once every approved (actionable) line has been acted on.
+        A rejected line is not waiting for anything."""
+        for req in self:
+            if req.state not in ('approved', 'partial'):
+                continue
+            actionable = req.line_ids.filtered(lambda l: l.decision == 'approved')
             if actionable and all(l.consumed for l in actionable):
-                new_state = 'consumed'
-            if req.state != new_state:
-                req.state = new_state
-                if new_state in ('approved', 'partial', 'rejected'):
-                    req.decided_on = fields.Datetime.now()
+                req.state = 'consumed'
 
     # ── The gate ──────────────────────────────────────────────────────────
     @api.model
@@ -239,9 +261,9 @@ class Way4TechManpowerApprovalRequest(models.Model):
         request.message_post(body=_(
             'Approval consumed by %(item)s.'
         ) % {'item': record.display_name})
-        # Closes only when every line that COULD be acted on has been; a
-        # rejected line is not waiting for anything (item 3).
-        request._sync_state_from_lines()
+        # Closes to Consumed only when every approved line has been acted on;
+        # a rejected line is not waiting for anything (issue 3).
+        request._refresh_consumed_state()
         return True
 
     @api.model
@@ -285,6 +307,24 @@ class Way4TechManpowerApprovalRequest(models.Model):
     def _get_configured_approver(self, company):
         """Back-compat shim — returns the first configured approver."""
         return self._get_configured_approvers(company)[:1]
+
+    @api.model
+    def _line_display_name(self, rec):
+        """CR3-FINAL round 5, issue 6a: a readable item name for the approver.
+
+        Timesheet and Budget rows have no `name`, so `rec.display_name` fell
+        back to 'model,id' (e.g. 'way4tech.manpower.timesheet,34') — the
+        approver was signing off items identified only by a database id.
+        """
+        if rec._name == 'way4tech.manpower.timesheet':
+            when = rec.date or rec.start_date or ''
+            parts = [rec.employee_id.name or _('Timesheet'), str(when) if when else '',
+                     rec.description or '']
+            return ' — '.join(p for p in parts if p)
+        if rec._name == 'way4tech.manpower.contract.budget.line':
+            parts = [_('Budget'), rec.category_id.name or '', rec.description or '']
+            return ' — '.join(p for p in parts if p)
+        return rec.display_name
 
     @api.model
     def _line_display_amount(self, rec):
@@ -342,7 +382,7 @@ class Way4TechManpowerApprovalRequest(models.Model):
                 'request_id': request.id,
                 'res_model': rec._name,
                 'res_id': rec.id,
-                'description': rec.display_name,
+                'description': self._line_display_name(rec),
                 'amount': self._line_display_amount(rec),
                 'fingerprint': Line._build_fingerprint(rec),
             })
@@ -442,36 +482,60 @@ class Way4TechManpowerApprovalRequest(models.Model):
             ) % ', '.join(self.approver_ids.mapped('display_name')))
 
     def action_approve(self):
-        """Approve every still-undecided line (item 3: bulk shortcut)."""
+        """Header button 'Approve All' — approve every row, then commit."""
         for rec in self:
-            if rec.state not in ('pending', 'partial'):
+            if rec.state != 'pending':
                 raise UserError(_(
-                    'Only a Pending or Partly Approved request can be approved.'
-                ))
+                    'This request has already been decided (%s).'
+                ) % dict(rec._fields['state'].selection).get(rec.state))
             rec._check_may_decide()
-            rec.line_ids.filtered(lambda l: not l.decision).write(
-                {'decision': 'approved'})
-            rec.approver_id = self.env.user
-            rec._sync_state_from_lines()
+            rec.line_ids.write({'decision': 'approved', 'reason': False})
+            rec._commit_decisions()
         return True
 
     def action_reject(self):
-        """Reject every still-undecided line (item 3: bulk shortcut)."""
+        """Header button 'Reject All' — reject every row with one reason,
+        then commit. The requester gets all rows back to correct and resend."""
         for rec in self:
-            if rec.state not in ('pending', 'partial'):
+            if rec.state != 'pending':
                 raise UserError(_(
-                    'Only a Pending or Partly Approved request can be rejected.'
-                ))
+                    'This request has already been decided (%s).'
+                ) % dict(rec._fields['state'].selection).get(rec.state))
             rec._check_may_decide()
             if not rec.reason:
                 raise UserError(_(
-                    'Enter a reason before rejecting — the requester needs to '
+                    'Enter a Reason before rejecting — the requester needs to '
                     'know what to correct.'
                 ))
-            rec.line_ids.filtered(lambda l: not l.decision).write(
-                {'decision': 'rejected', 'reason': rec.reason})
-            rec.approver_id = self.env.user
-            rec._sync_state_from_lines()
+            rec.line_ids.write({'decision': 'rejected', 'reason': rec.reason})
+            rec._commit_decisions()
+        return True
+
+    def action_partially_approve(self):
+        """Header button 'Partially Approve' — commit the per-row markings the
+        approver made (some approved, some rejected). Requires every row to be
+        marked and every rejected row to carry a reason (issue 3)."""
+        for rec in self:
+            if rec.state != 'pending':
+                raise UserError(_(
+                    'This request has already been decided (%s).'
+                ) % dict(rec._fields['state'].selection).get(rec.state))
+            rec._check_may_decide()
+            undecided = rec.line_ids.filtered(lambda l: not l.decision)
+            if undecided:
+                raise UserError(_(
+                    'Mark every row Approve or Reject first — %(n)s row(s) '
+                    'are still undecided. (Use Approve All / Reject All to '
+                    'decide the whole request in one go.)'
+                ) % {'n': len(undecided)})
+            no_reason = rec.line_ids.filtered(
+                lambda l: l.decision == 'rejected' and not l.reason)
+            if no_reason:
+                raise UserError(_(
+                    'Every rejected row needs a Reason — %(n)s still missing '
+                    'one.'
+                ) % {'n': len(no_reason)})
+            rec._commit_decisions()
         return True
 
     def action_cancel(self):
@@ -511,7 +575,7 @@ class SignRequestWay4Tech(models.Model):
         for sign_request in self:
             approval = Approval.sudo().search(
                 [('sign_request_id', '=', sign_request.id)], limit=1)
-            if not approval or approval.state not in ('pending', 'partial'):
+            if not approval or approval.state != 'pending':
                 continue
             signer = sign_request.request_item_ids.filtered(
                 lambda i: i.state == 'completed' and i.partner_id
@@ -525,10 +589,11 @@ class SignRequestWay4Tech(models.Model):
                     'duties requires a different approver.'
                 ))
                 continue
-            approval.line_ids.filtered(lambda l: not l.decision).write(
-                {'decision': 'approved'})
-            approval.approver_id = (user or approval.approver_ids[:1]).id
-            approval._sync_state_from_lines()
+            # A completed signature = Approve All (the signer authorises the
+            # whole request). Marks every row approved, then commits (issue 3).
+            approval.line_ids.write({'decision': 'approved', 'reason': False})
+            approval.sudo().write({'approver_id': (user or approval.approver_ids[:1]).id})
+            approval.sudo()._commit_decisions()
             approval.message_post(body=_(
                 'Approved via Sign document %s.'
             ) % sign_request.reference or '')
@@ -555,46 +620,57 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
             ('pending', 'Awaiting Approval'),
             ('approved', 'Approved'),
             ('rejected', 'Rejected'),
+            ('consumed', 'Created'),
         ],
         string='Approval', compute='_compute_approval_state',
         help='Approval status of THIS row. Each row is approved on its own; '
              'approving one never unlocks another.',
     )
+    approval_reason = fields.Char(
+        compute='_compute_approval_state',
+        help='Rejection reason for this row, if any.',
+    )
+    # CR3-FINAL round 5, issue 5: ONE column carries everything. Shows the
+    # state, and on rejection shows the reason inline, so there is no second
+    # permanently-blank "Approval Note" column.
+    approval_label = fields.Char(
+        string='Approval', compute='_compute_approval_state',
+        help='Approval status shown on the row: Awaiting Approval / Approved / '
+             'Rejected (with reason) / Created.',
+    )
 
     def _compute_approval_state(self):
         Line = self.env['way4tech.manpower.approval.request.line']
+        labels = {'none': '', 'pending': 'Awaiting Approval',
+                  'approved': 'Approved', 'consumed': 'Created'}
         for rec in self:
+            # Newest approval line for this exact row, regardless of consumed
+            # or the request's overall state.
             line = Line.search([
                 ('res_model', '=', rec._name),
                 ('res_id', '=', rec.id),
-                ('consumed', '=', False),
-                # 'partial' MUST be here: after a mixed decision the request
-                # sits in partial, and omitting it made every row on such a
-                # request report "Not Sent" — hiding exactly the rejection the
-                # user needed to see (item 4).
-                ('request_id.state', 'in',
-                 ('pending', 'partial', 'approved', 'rejected')),
             ], order='id desc', limit=1)
-            if not line:
+            if not line or line.request_id.state == 'cancelled':
                 rec.approval_state = 'none'
                 rec.approval_reason = False
+                rec.approval_label = ''
                 continue
-            # CR3-FINAL round 4 HOTFIX: a single ROW is only ever pending /
-            # approved / rejected — never 'partial'. 'partial' is a
-            # REQUEST-level state (some lines approved, some rejected), and it
-            # is NOT one of this field's Selection values, so assigning
-            # `line.request_id.state` crashed with "Wrong value ... 'partial'"
-            # the moment anyone opened a contract holding a partly-approved
-            # item. An undecided line (whatever the request's overall state)
-            # is, for this row, still Pending.
-            rec.approval_state = line.decision or 'pending'
-            rec.approval_reason = line.reason or line.request_id.reason or False
-
-    # CR3-FINAL round 3, item 4: the rejection reason, surfaced on the row.
-    approval_reason = fields.Char(
-        string='Approval Note', compute='_compute_approval_state',
-        help='Why the approver rejected this item.',
-    )
+            if line.consumed:
+                # CR3-FINAL round 5, issue 4: once the document is created the
+                # row is Created, not back to Awaiting.
+                state, reason = 'consumed', False
+            else:
+                # A single ROW is only ever pending/approved/rejected — never
+                # 'partial' (that is a request-level state, and assigning it
+                # here crashed in round 4). An undecided line is Pending.
+                state = line.decision or 'pending'
+                reason = line.reason or line.request_id.reason or False
+            rec.approval_state = state
+            rec.approval_reason = reason
+            if state == 'rejected':
+                rec.approval_label = _('Rejected: %s') % (reason or _('no reason given'))
+            else:
+                rec.approval_label = labels.get(state, '')
 
     @api.ondelete(at_uninstall=False)
     def _way4tech_clean_approval_lines(self):
@@ -697,35 +773,39 @@ class Way4TechManpowerApprovalRequestLine(models.Model):
         help='Required when this specific line is rejected.',
     )
 
-    def _effective_state(self):
-        self.ensure_one()
-        return self.decision or self.request_id.state
-
     def action_approve_selected(self):
-        """Approve just these lines (from the request's item list)."""
+        """CR3-FINAL round 5, issue 3 — mark this row Approved (PROVISIONAL).
+
+        This only sets the marking. It does NOT commit or close the request —
+        the request stays Pending and fully decidable until the approver
+        presses Approve All / Reject All / Partially Approve in the header.
+        """
         for line in self:
-            if line.request_id.state not in ('pending', 'approved'):
+            if line.request_id.state != 'pending':
                 raise UserError(_(
-                    'Request %s is %s — its lines can no longer be decided.'
-                ) % (line.request_id.name, line.request_id.state))
+                    'This request has already been decided — its markings are '
+                    'locked.'
+                ))
+            line.request_id._check_may_decide()
             line.write({'decision': 'approved', 'reason': False})
-        requests = self.mapped('request_id')
-        requests.write({'approver_id': self.env.user.id})
-        requests._sync_state_from_lines()
         return True
 
     def action_reject_selected(self):
-        """Reject just these lines. A reason is mandatory."""
+        """Mark this row Rejected (PROVISIONAL) — a Reason is required. Like
+        Approve, this only marks; nothing commits until a header button."""
         for line in self:
+            if line.request_id.state != 'pending':
+                raise UserError(_(
+                    'This request has already been decided — its markings are '
+                    'locked.'
+                ))
+            line.request_id._check_may_decide()
             if not line.reason:
                 raise UserError(_(
-                    'Enter a Reason on "%s" before rejecting it — the '
+                    'Type a Reason on "%s" before marking it Rejected — the '
                     'requester needs to know what to correct.'
                 ) % (line.description or line.id))
             line.decision = 'rejected'
-        requests = self.mapped('request_id')
-        requests.write({'approver_id': self.env.user.id})
-        requests._sync_state_from_lines()
         return True
     fingerprint = fields.Char(
         string='Fingerprint', readonly=True,

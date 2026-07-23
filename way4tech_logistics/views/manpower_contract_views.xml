@@ -319,11 +319,12 @@
                                            decoration-info="state == 'draft'"
                                            decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'invoiced'"/>
-                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
-                                           decoration-info="approval_state == 'pending'"
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
-                                           decoration-danger="approval_state == 'rejected'"/>
-                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
                                     <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
                                             class="btn-sm btn-warning"
                                             invisible="approval_state != 'rejected'"
@@ -447,11 +448,12 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
-                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
-                                           decoration-info="approval_state == 'pending'"
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
-                                           decoration-danger="approval_state == 'rejected'"/>
-                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
                                     <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
                                             class="btn-sm btn-warning"
                                             invisible="approval_state != 'rejected'"
@@ -508,11 +510,12 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
-                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
-                                           decoration-info="approval_state == 'pending'"
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
-                                           decoration-danger="approval_state == 'rejected'"/>
-                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
                                     <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
                                             class="btn-sm btn-warning"
                                             invisible="approval_state != 'rejected'"
@@ -565,11 +568,12 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
-                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
-                                           decoration-info="approval_state == 'pending'"
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
-                                           decoration-danger="approval_state == 'rejected'"/>
-                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
                                     <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
                                             class="btn-sm btn-warning"
                                             invisible="approval_state != 'rejected'"
@@ -632,11 +636,12 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
-                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
-                                           decoration-info="approval_state == 'pending'"
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
-                                           decoration-danger="approval_state == 'rejected'"/>
-                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
                                     <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
                                             class="btn-sm btn-warning"
                                             invisible="approval_state != 'rejected'"
@@ -726,11 +731,12 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
-                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
-                                           decoration-info="approval_state == 'pending'"
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
-                                           decoration-danger="approval_state == 'rejected'"/>
-                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
                                     <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
                                             class="btn-sm btn-warning"
                                             invisible="approval_state != 'rejected'"
