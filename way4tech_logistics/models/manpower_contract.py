@@ -1198,8 +1198,25 @@ class Way4TechManpowerContract(models.Model):
         self.state = 'cancelled'
 
     def action_reset_draft(self):
+        """CR3-FINAL round 4, item 1: reopen a contract — from ANY state,
+        including Completed, and by any user (no approval needed).
+
+        Deliberately narrow: it changes ONLY the contract state. It does not
+        touch, cancel or alter any posted invoice or bill, and it does not
+        revive consumed approvals — anything created after reopening still
+        needs a fresh approval. The contract has to be set Active again before
+        new documents can be created. The change is logged in the chatter.
+        """
         self.ensure_one()
+        previous = dict(self._fields['state'].selection).get(
+            self.state, self.state)
         self.state = 'draft'
+        self.message_post(body=_(
+            'Reset to Draft (was %(prev)s) by %(user)s. Posted invoices and '
+            'bills are unchanged; consumed approvals remain consumed — new '
+            'documents will need a fresh approval once the contract is Active '
+            'again.'
+        ) % {'prev': previous, 'user': self.env.user.display_name})
 
     # ── CR3-FINAL Part A: per-item, consumed-once approval gate ───────────
     # Replaces the CR2 G5 (contract, month) gate. That one unlocked an entire

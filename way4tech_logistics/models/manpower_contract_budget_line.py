@@ -7,7 +7,7 @@ with the contract's analytic account (contract.analytic_distribution +
 contract.analytic_account_id) filtered to lines whose account_id matches
 this budget line's expense_account_id.
 """
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 
 class Way4TechManpowerContractBudgetLine(models.Model):
@@ -95,9 +95,20 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         if not self.category_id:
             self.expense_account_id = False
             return
-        self.expense_account_id = self.category_id.resolve_expense_account(
-            self.contract_id.company_id or self.env.company,
-        )
+        company = self.contract_id.company_id or self.env.company
+        self.expense_account_id = self.category_id.resolve_expense_account(company)
+        # CR3-FINAL round 4, item 7: surface the gap immediately.
+        if not self.expense_account_id:
+            return {'warning': {
+                'title': _('No expense account configured'),
+                'message': _(
+                    'Category "%s" has no expense account mapped. Set it in '
+                    'Configuration → Payroll & Accounting Setup → Manpower '
+                    'Contracts → Expense Category map, or pick an account on '
+                    'this line. The budget line cannot be confirmed until it '
+                    'has one.'
+                ) % self.category_id.display_name,
+            }}
 
     def _get_analytic_account_ids(self):
         """Union of analytic accounts used by the parent contract (both the

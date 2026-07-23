@@ -82,19 +82,25 @@
                                placeholder="Why is this being returned? The requester sees this."/>
                     </group>
                     <notebook>
-                        <!-- CR3-FINAL round 3, item 3: decide line by line.
-                             Tick the rows, then Approve Selected / Reject
-                             Selected. One bad line no longer forces the whole
-                             request back. Rejected rows need a Reason. -->
+                        <!-- CR3-FINAL round 4, item 4: decide row by row with
+                             per-line buttons. The round-3 approach put the
+                             buttons in a <header> inside this EMBEDDED o2m list,
+                             which does not render selection checkboxes — so the
+                             help text described a UI that wasn't there. Per-row
+                             Approve / Reject buttons always render and give the
+                             same "approve some, reject others" outcome. Type the
+                             Reason on a row, then click its Reject. -->
                         <page string="Items Covered" name="items">
                             <div class="alert alert-info" role="alert"
                                  invisible="state not in ('pending', 'partial')">
-                                Tick the rows you want to decide, then use
-                                <strong>Approve Selected</strong> or
-                                <strong>Reject Selected</strong>. You can approve
-                                some and reject others — approved rows become
-                                creatable, rejected rows go back to the requester
-                                with your reason.
+                                Decide each row with its own <strong>Approve</strong>
+                                or <strong>Reject</strong> button — you can approve
+                                some and reject others. To reject a row, type the
+                                <strong>Reason</strong> on that row first. Approved
+                                rows become creatable; rejected rows go back to the
+                                requester with your reason. <em>Approve All / Reject
+                                All</em> in the header decide every remaining row at
+                                once.
                             </div>
                             <field name="line_ids"
                                    readonly="state not in ('pending', 'partial')">
@@ -102,18 +108,6 @@
                                       decoration-muted="consumed"
                                       decoration-success="decision == 'approved'"
                                       decoration-danger="decision == 'rejected'">
-                                    <header>
-                                        <button name="action_approve_selected"
-                                                type="object"
-                                                string="Approve Selected"
-                                                class="btn-primary"
-                                                groups="way4tech_logistics.group_logistics_manager"/>
-                                        <button name="action_reject_selected"
-                                                type="object"
-                                                string="Reject Selected"
-                                                class="btn-danger"
-                                                groups="way4tech_logistics.group_logistics_manager"/>
-                                    </header>
                                     <field name="item_type" readonly="1"/>
                                     <field name="description" readonly="1"/>
                                     <field name="amount" readonly="1"/>
@@ -122,9 +116,21 @@
                                            decoration-success="decision == 'approved'"
                                            decoration-danger="decision == 'rejected'"/>
                                     <field name="reason"
-                                           placeholder="Required to reject this row"/>
+                                           readonly="decision == 'approved'"
+                                           placeholder="Type a reason, then click Reject"/>
+                                    <!-- per-row decision buttons (item 4) -->
+                                    <button name="action_approve_selected"
+                                            type="object" string="Approve"
+                                            icon="fa-check" class="btn-sm btn-success"
+                                            invisible="decision == 'approved'"
+                                            groups="way4tech_logistics.group_logistics_manager"/>
+                                    <button name="action_reject_selected"
+                                            type="object" string="Reject"
+                                            icon="fa-times" class="btn-sm btn-danger"
+                                            invisible="decision == 'rejected'"
+                                            groups="way4tech_logistics.group_logistics_manager"/>
                                     <field name="consumed" widget="boolean_toggle"
-                                           readonly="1"/>
+                                           readonly="1" optional="show"/>
                                     <field name="res_model" column_invisible="1"/>
                                     <field name="res_id" column_invisible="1"/>
                                 </list>

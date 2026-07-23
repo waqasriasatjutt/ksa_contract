@@ -242,8 +242,12 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             move_vals['way4tech_tag_ids'] = [(6, 0, all_tags.ids)]
 
         invoice = self.env['account.move'].create(move_vals)
-        reference = contract._compose_reference_string(invoice=invoice)
-        invoice.ref = '%s — %s' % (reference, self.note) if self.note else reference
+        # CR3-FINAL round 4, item 6: the block Note is no longer appended to
+        # the Customer Reference. It never printed on the PDF, so the customer
+        # never saw it, and free text muddied the PRO/YYYY/MM/xxxx reference we
+        # filter and match on. Customer Reference now carries only the clean
+        # composed reference.
+        invoice.ref = contract._compose_reference_string(invoice=invoice)
         contract._apply_ksa_account_overrides(invoice)
 
         # Pin each source line to the exact invoice line it produced, so the

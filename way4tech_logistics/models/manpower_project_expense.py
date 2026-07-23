@@ -140,7 +140,10 @@ class ManpowerProjectExpense(models.Model):
     quantity = fields.Float(
         string='Quantity',
         default=1.0,
-        digits='Product Unit of Measure',
+        # CR3-FINAL round 4, item 8: 'Product Unit of Measure' is not a real
+        # precision name in Odoo 19 (the record is "Product Unit"), so this
+        # resolved to the default. Pin 2 decimals explicitly.
+        digits=(16, 2),
         help='Quantity for the vendor bill line. Amount auto-computes as '
              'Quantity × Price. Defaults to 1.',
     )
@@ -257,9 +260,22 @@ class ManpowerProjectExpense(models.Model):
         if not self.category_id:
             self.account_id = False
             return
-        self.account_id = self.category_id.resolve_expense_account(
-            self.company_id or self.env.company,
-        )
+        company = self.company_id or self.env.company
+        self.account_id = self.category_id.resolve_expense_account(company)
+        # CR3-FINAL round 4, item 7: tell the user AT SELECTION TIME that the
+        # category has no account, instead of leaving the field silently blank
+        # for them to notice. The hard refusal at Create Bill stays as a
+        # backstop.
+        if not self.account_id:
+            return {'warning': {
+                'title': _('No expense account configured'),
+                'message': _(
+                    'Category "%s" has no expense account mapped. Set it in '
+                    'Configuration → Payroll & Accounting Setup → Manpower '
+                    'Contracts → Expense Category map, or pick an account on '
+                    'this line. The bill cannot be created until it has one.'
+                ) % self.category_id.display_name,
+            }}
 
     def _get_expense_account(self, settings):
         """Return the configured GL account for this expense type."""

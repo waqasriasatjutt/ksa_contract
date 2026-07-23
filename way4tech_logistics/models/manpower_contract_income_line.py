@@ -83,8 +83,11 @@ class Way4TechManpowerContractIncomeLine(models.Model):
                 contract.company_id.id,
             )
             line.sale_account_id = settings.manpower_income_account_id or False
-    quantity = fields.Float(string="Quantity", default=1.0)
-    price = fields.Float(string="Price")
+    # CR3-FINAL round 4, item 8: explicit 2-decimal display. Without digits a
+    # Float renders at the generic precision, so the block grid showed
+    # 2.000000 / 1,000.000000.
+    quantity = fields.Float(string="Quantity", default=1.0, digits=(16, 2))
+    price = fields.Float(string="Price", digits=(16, 2))
     amount = fields.Monetary(
         string="Amount", compute="_compute_amount", store=True, currency_field="currency_id",
     )

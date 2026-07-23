@@ -20,11 +20,13 @@ _logger = logging.getLogger(__name__)
 # bill_month, budget month), so only the date side needs enforcing here.
 KSA_DATE_FORMAT = '%d/%m/%Y'
 
-# Polish 9: two decimals everywhere. These are the precisions Odoo applies to
-# invoice/bill line Quantity and Unit Price, which were rendering as
-# 2.000000 and 1,000.000000.
+# Polish 9 / round 4 item 8: two decimals everywhere. The precision behind
+# invoice/bill line Quantity is called "Product Unit" in Odoo 19 (NOT "Product
+# Unit of Measure" — that name does not exist, which is why the round-3 hook
+# silently changed nothing and Quantity kept rendering as 2.000000). Verified
+# live: account.move.line.quantity uses digits='Product Unit', which was 6.
 KSA_PRECISIONS = {
-    'Product Unit of Measure': 2,
+    'Product Unit': 2,
     'Product Price': 2,
     'Discount': 2,
 }

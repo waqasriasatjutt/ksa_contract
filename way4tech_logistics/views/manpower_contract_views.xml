@@ -65,12 +65,16 @@
                         class="btn-danger"
                         invisible="state in ('completed', 'cancelled')"
                     />
+                    <!-- CR3-FINAL round 4, item 1: reopen is available from
+                         Completed too (was hidden), by any user. It only
+                         changes the contract state — posted documents and
+                         consumed approvals are untouched. -->
                     <button
                         name="action_reset_draft"
                         type="object"
                         string="Reset to Draft"
                         class="btn-secondary"
-                        invisible="state == 'draft' or state == 'completed'"
+                        invisible="state in ('draft', 'cancelled')"
                     />
                     <!-- CR3 P8 (v12.1): "View Invoices" header button hidden per client
                          request — redundant with the "Invoiced" smart button in the
@@ -299,7 +303,10 @@
                                     <field name="name" string="Invoice"/>
                                     <field name="accounting_date" widget="date"/>
                                     <field name="invoice_date" widget="date"/>
-                                    <field name="note" optional="hide"/>
+                                    <!-- CR3-FINAL round 4, item 6: Note removed. It never
+                                         printed on the invoice PDF and muddied the PRO
+                                         reference. Field kept on the model, hidden here. -->
+                                    <field name="note" column_invisible="1"/>
                                     <field name="line_count" string="Lines"/>
                                     <!-- CR3-FINAL round 2, new item 2: the block used to
                                          show only "Untaxed Total", so a 5,000.00 block
@@ -312,6 +319,15 @@
                                            decoration-info="state == 'draft'"
                                            decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'invoiced'"/>
+                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
+                                           decoration-info="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"/>
+                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <!-- CR3-FINAL round 2, new item 1: Create only when the
                                          block is genuinely free. Once an invoice exists —
                                          posted OR draft — the only offer is View, so the
@@ -360,9 +376,10 @@
                                                        readonly="state == 'invoiced'"/>
                                             </group>
                                             <group>
-                                                <field name="note"
-                                                       readonly="state != 'draft'"
-                                                       help="Free text appended to the invoice reference, AFTER the PRO/YYYY/MM/NNNN series — it does not replace or clash with it."/>
+                                                <!-- CR3-FINAL round 4, item 6: Note removed
+                                                     from the form (kept invisible so the model
+                                                     field still resolves). -->
+                                                <field name="note" invisible="1"/>
                                                 <!-- CR3-FINAL round 2, new item 2 -->
                                                 <field name="amount_untaxed" readonly="1"/>
                                                 <field name="amount_tax" readonly="1"/>
@@ -380,11 +397,12 @@
                                                 <field name="sequence" widget="handle"/>
                                                 <field name="description"/>
                                                 <field name="sale_account_id"/>
-                                                <!-- polish 12: Contract Tags now settable per
-                                                     line in the block, matching the old
-                                                     non-block income grid. -->
-                                                <field name="tag_ids" widget="many2many_tags"
-                                                       optional="show"/>
+                                                <!-- CR3-FINAL round 4, item 3: Contract Tags is
+                                                     an ALWAYS-ON column now, matching the old
+                                                     non-block income grid. It was optional="show"
+                                                     before, which persists a hidden state in the
+                                                     browser and read as "missing". -->
+                                                <field name="tag_ids" widget="many2many_tags"/>
                                                 <field name="quantity"/>
                                                 <field name="price"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
@@ -429,6 +447,15 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
+                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
+                                           decoration-info="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"/>
+                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_invoice" type="object"
                                         string="Create Invoice" icon="fa-file-text-o"
                                         invisible="state == 'invoiced'"
@@ -481,6 +508,15 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
+                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
+                                           decoration-info="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"/>
+                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_bill" type="object"
                                             string="Create Bill" icon="fa-file-text-o"
                                             invisible="state == 'billed'"
@@ -529,6 +565,15 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
+                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
+                                           decoration-info="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"/>
+                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_bill" type="object"
                                             string="Create Bill" icon="fa-file-text-o"
                                             invisible="state == 'billed'"
@@ -587,6 +632,15 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
+                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
+                                           decoration-info="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"/>
+                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_invoice" type="object"
                                         string="Create Invoice" icon="fa-file-text-o"
                                         invisible="state == 'invoiced'"
@@ -672,6 +726,15 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
+                                    <field name="approval_state" widget="badge" string="Approval" optional="show"
+                                           decoration-info="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"/>
+                                    <field name="approval_reason" string="Approval Note" optional="show"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_bill" type="object"
                                             string="Create Bill" icon="fa-file-text-o"
                                             invisible="state == 'billed'"

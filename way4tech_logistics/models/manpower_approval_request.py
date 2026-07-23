@@ -287,6 +287,24 @@ class Way4TechManpowerApprovalRequest(models.Model):
         return self._get_configured_approvers(company)[:1]
 
     @api.model
+    def _line_display_amount(self, rec):
+        """CR3-FINAL round 4, item 2: the figure the approver is authorising.
+
+        A budget line has neither `amount_total` nor `amount` — its value is
+        `budget_amount` (the Actual is derived later from confirmed bills and
+        is not what is being approved). The old `amount_total or amount`
+        chain therefore showed 0.00 for every budget item. Resolve per model
+        so blocks, invoices, timesheets, expenses, commission AND budgets all
+        show the right number.
+        """
+        if rec._name == 'way4tech.manpower.contract.budget.line':
+            return rec.budget_amount or 0.0
+        for field in ('amount_total', 'amount', 'price_subtotal'):
+            if field in rec._fields and rec[field]:
+                return rec[field]
+        return 0.0
+
+    @api.model
     def _create_request(self, contract, records, note=False, urgent=False):
         """Raise ONE request covering `records` (one row, or a month's worth)."""
         if not records:
@@ -325,8 +343,7 @@ class Way4TechManpowerApprovalRequest(models.Model):
                 'res_model': rec._name,
                 'res_id': rec.id,
                 'description': rec.display_name,
-                'amount': getattr(rec, 'amount_total', False)
-                or getattr(rec, 'amount', 0.0) or 0.0,
+                'amount': self._line_display_amount(rec),
                 'fingerprint': Line._build_fingerprint(rec),
             })
         request._launch_sign_request()
