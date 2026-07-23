@@ -284,6 +284,15 @@ class PayrollSettings(models.Model):
              'the specific types above.\n'
              'Example: 5290 — Other Project Expenses.',
     )
+    # ── CR4 item 5a: module-local product master list ─────────────────────
+    manpower_product_ids = fields.One2many(
+        'way4tech.manpower.product', 'settings_id', string='Products',
+        help="Simple product list used on Project Income and Project Direct "
+             "Cost lines. Not Odoo's product catalogue, and it never affects "
+             "the GL account or VAT. Untick Active to retire an entry while "
+             "keeping it on historical records.",
+    )
+
     # ── CR3-FINAL Part A point 6 / round 3 item 7: who approves ───────────
     # Multi-user: ANY ONE of them can decide a request (a single signature
     # completes it — not all of them). Requests are visible to all of them.

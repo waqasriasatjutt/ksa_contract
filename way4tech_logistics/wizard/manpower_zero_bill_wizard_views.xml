@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- CR4 item 7: confirmation dialog for a zero-amount vendor bill.
+         A dialog (Continue / Cancel), NOT a UserError. -->
+    <record id="view_zero_bill_confirm_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.zero.bill.confirm.wizard.form</field>
+        <field name="model">way4tech.zero.bill.confirm.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Zero-Amount Bill">
+                <field name="expense_id" invisible="1"/>
+                <div class="alert alert-warning" role="alert">
+                    <field name="message" nolabel="1" readonly="1"/>
+                </div>
+                <footer>
+                    <button name="action_confirm" type="object"
+                            string="Create Bill Anyway" class="btn-primary"
+                            data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"
+                            data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

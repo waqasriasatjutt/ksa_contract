@@ -42,7 +42,10 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     company_id = fields.Many2one(related="contract_id.company_id", store=True, readonly=True)
     currency_id = fields.Many2one(related="contract_id.currency_id", store=True, readonly=True)
 
-    accounting_date = fields.Date(string="Accounting Date", required=True, default=fields.Date.context_today)
+    accounting_date = fields.Date(
+        string="Accounting Date", required=True,
+        # CR4 item 3: default from the contract's Start Date month, not today.
+        default=lambda self: self._way4tech_default_period_date())
     # store=False on the Char compute so setting accounting_date in an inline
     # editable list does NOT write a DB column on every pick — the extra write
     # triggers a row re-render that re-focuses the date input and re-opens
@@ -65,6 +68,14 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     # fired and the Sale Account came up empty — the user had to look up
     # 410001 by hand on every line. A compute fills it however the row is
     # created (UI, block, import, code) and still lets them override.
+    # CR4 item 5: module-local product (NOT product.product). No onchange, so
+    # picking one never touches the account or the tax (item 5e).
+    product_id = fields.Many2one(
+        "way4tech.manpower.product", string="Product",
+        help="Optional product from the module's own list. Shown above the "
+             "description on the line and on the invoice. Does not affect the "
+             "GL account or VAT.",
+    )
     sale_account_id = fields.Many2one(
         "account.account", string="Sale Account", check_company=True,
         compute="_compute_sale_account_id", store=True, readonly=False,
@@ -120,6 +131,22 @@ class Way4TechManpowerContractIncomeLine(models.Model):
         for line in self:
             line.amount = (line.quantity or 0.0) * (line.price or 0.0)
 
+    def _way4tech_invoice_line_name(self):
+        """CR4 item 5c: what to print on the invoice line.
+
+        product only  -> product name
+        description only -> description
+        both          -> product name, then the description underneath
+        The list is module-local (can't populate Odoo's native product), so
+        the product name is carried into the invoice line's description block.
+        """
+        self.ensure_one()
+        product = self.product_id.name or ''
+        desc = self.description or ''
+        if product and desc:
+            return '%s\n%s' % (product, desc)
+        return product or desc
+
     # (the old @api.onchange('contract_id') is now _compute_sale_account_id
     #  above — an onchange did not fire for rows created inside a block)
 
@@ -162,7 +189,7 @@ class Way4TechManpowerContractIncomeLine(models.Model):
                 raise UserError(_("No 15% sales tax configured for this company."))
 
             line_vals = {
-                "name": line.description,
+                "name": line._way4tech_invoice_line_name(),
                 "quantity": line.quantity or 1.0,
                 "price_unit": line.price or 0.0,
                 "account_id": sale_account.id,

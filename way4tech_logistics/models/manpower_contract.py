@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from odoo import api, fields, models, tools, _
 from odoo.exceptions import UserError, ValidationError
@@ -263,6 +263,28 @@ class Way4TechManpowerContract(models.Model):
         tracking=True,
         copy=False,
     )
+    # ── CR4 item 6: header lock once a customer invoice is POSTED ──────────
+    # True as soon as any linked out_invoice is posted. Drives the read-only
+    # attrs on name / start_date / end_date / reference in the view AND the
+    # write guard below. Depends ONLY on posted invoices, NOT on contract
+    # state, so Reset-to-Draft does not unlock (precaution 5). Non-stored so
+    # it re-evaluates on every open with no migration on existing records.
+    is_locked = fields.Boolean(
+        string='Locked (invoice posted)', compute='_compute_is_locked',
+        help='Set once this record has at least one posted customer invoice. '
+             'The month-bearing header fields (name, Start/End Date, '
+             'Reference) then become read-only so posted documents keep their '
+             'reference. Everything else stays editable.',
+    )
+
+    @api.depends('invoice_ids', 'invoice_ids.state', 'invoice_ids.move_type')
+    def _compute_is_locked(self):
+        for rec in self:
+            rec.is_locked = any(
+                inv.state == 'posted' and inv.move_type == 'out_invoice'
+                for inv in rec.invoice_ids
+            )
+
     line_ids = fields.One2many(
         comodel_name='way4tech.manpower.contract.line',
         inverse_name='contract_id',
@@ -798,7 +820,6 @@ class Way4TechManpowerContract(models.Model):
 
     @api.depends(
         'commission_line_ids', 'commission_line_ids.amount',
-        'commission_line_ids.state',
         'pp_actual_profit', 'bs_total_project_exp_all',
     )
     def _compute_commission_kpis(self):
@@ -809,10 +830,13 @@ class Way4TechManpowerContract(models.Model):
         comment above the field definitions).
         """
         for rec in self:
+            # CR4 item 1: Total Salesperson Commission sums ALL of the
+            # record's commission lines with NO date and NO state filter, so
+            # the line amount, the tab footer total and this header total
+            # always agree. (Was billed-only, which disagreed with the footer
+            # whenever a line was still draft.)
             commission_total = sum(
-                l.amount or 0.0 for l in rec.commission_line_ids
-                if l.state == 'billed'
-            )
+                l.amount or 0.0 for l in rec.commission_line_ids)
             # CR3-FINAL round 2, bug 1: base is Profit After Actual Cost
             # (client sheet F23 = F22 − B26), not Net Profit.
             after_commission = rec.pp_actual_profit - commission_total
@@ -1072,15 +1096,53 @@ class Way4TechManpowerContract(models.Model):
                     # Item 9: remember that WE wrote it, so it can follow the
                     # period later. A name the user types stays theirs.
                     vals['name_is_auto'] = True
-            # CR3-FINAL P1: the Due Date = Accounting Date + 45 days auto-fill
-            # is REMOVED per client instruction. Nothing seeds due_date now.
-            # ------------------------------------------------------------
+            # CR4 item 2: End Date defaults to the LAST DAY of the Start
+            # Date's month. Only seeded here when the caller left it blank; the
+            # onchange handles subsequent Start Date edits in the UI.
+            if not vals.get('end_date') and vals.get('start_date'):
+                vals['end_date'] = self._way4tech_end_of_month(
+                    fields.Date.to_date(vals['start_date']))
+            # CR4 item 8: mint PRO/YYYY/MM/NNNN with the month from Start Date
+            # and a per-month counter. Replaces the ir.sequence, whose live
+            # date-ranges were YEARLY (so %(range_month)s always read 01 and
+            # the counter never reset) and were frozen by noupdate="1".
             if not vals.get('reference'):
-                seq_date = vals.get('start_date') or date.today()
-                vals['reference'] = self.env['ir.sequence'].with_context(
-                    ir_sequence_date=seq_date,
-                ).next_by_code('way4tech.manpower.contract.pro') or '/'
+                vals['reference'] = self._way4tech_next_pro_reference(
+                    fields.Date.to_date(vals.get('start_date')) or date.today())
         return super().create(vals_list)
+
+    # ── CR4 item 8: reference minting ─────────────────────────────────────
+    @staticmethod
+    def _way4tech_end_of_month(day):
+        """Last calendar day of `day`'s month."""
+        if not day:
+            return False
+        if day.month == 12:
+            first_next = day.replace(year=day.year + 1, month=1, day=1)
+        else:
+            first_next = day.replace(month=day.month + 1, day=1)
+        return first_next - timedelta(days=1)
+
+    @api.model
+    def _way4tech_next_pro_reference(self, start_date):
+        """Return the next PRO/YYYY/MM/NNNN for start_date's month.
+
+        Month comes from Start Date; the counter is the highest existing
+        counter for that exact YYYY/MM prefix, plus one — so it resets to
+        0001 at the start of every month. Self-contained (does not touch the
+        legacy ir.sequence). Manpower contracts are low-volume, so a
+        search-max+1 is safe here; a unique index already guards the record.
+        """
+        if not start_date:
+            start_date = date.today()
+        prefix = 'PRO/%s/%s/' % (start_date.strftime('%Y'), start_date.strftime('%m'))
+        highest = 0
+        for other in self.with_context(active_test=False).search(
+                [('reference', '=like', prefix + '%')]):
+            tail = (other.reference or '').rsplit('/', 1)[-1]
+            if tail.isdigit():
+                highest = max(highest, int(tail))
+        return '%s%04d' % (prefix, highest + 1)
 
     @api.ondelete(at_uninstall=False)
     def _unlink_check_active_documents(self):
@@ -1119,7 +1181,32 @@ class Way4TechManpowerContract(models.Model):
                     'the contract state to Cancelled to archive it.'
                 ) % {'name': rec.display_name, 'n': len(posted_bill)})
 
+    # CR4 item 6: the four month-bearing fields that lock once invoiced.
+    _WAY4TECH_LOCKED_FIELDS = ('name', 'start_date', 'end_date', 'reference')
+
     def write(self, vals):
+        # CR4 item 6: block changes to the locked fields on EVERY write path
+        # (UI, import, RPC) once a posted invoice exists — precaution 6. Only
+        # a REAL change is blocked; an idempotent write of the same value
+        # passes, so line-item edits that happen to touch nothing here are
+        # unaffected (precaution 4).
+        touched = [f for f in self._WAY4TECH_LOCKED_FIELDS if f in vals]
+        if touched and not self.env.context.get('way4tech_skip_lock_guard'):
+            for rec in self:
+                if not rec.is_locked:
+                    continue
+                for f in touched:
+                    new = vals[f]
+                    cur = rec[f]
+                    if f in ('start_date', 'end_date'):
+                        new = fields.Date.to_date(new)
+                    if (new or False) != (cur or False):
+                        raise UserError(_(
+                            'This record has a posted customer invoice, so '
+                            '"%(field)s" is locked to keep the reference on '
+                            'posted documents intact. Everything else on the '
+                            'record stays editable.'
+                        ) % {'field': rec._fields[f].string})
         # CR3-FINAL P1: start_date leads — keep the demoted accounting_date
         # mirroring it so legacy filters/saved views stay consistent when the
         # user edits the header period. Only mirrors when the caller did not
@@ -1155,7 +1242,45 @@ class Way4TechManpowerContract(models.Model):
                     super(Way4TechManpowerContract, rec).write({
                         'name': wanted, 'name_is_auto': True,
                     })
+
+        # CR4 item 8: keep the Reference month in step with Start Date. The
+        # reference regenerates only when the MONTH changes (same-month tweaks
+        # keep the number), only while UNLOCKED (a posted invoice freezes it —
+        # the write guard above already blocks a start_date change once
+        # locked), and never renumbers other records.
+        if vals.get('start_date') and 'reference' not in vals:
+            for rec in self:
+                if rec.is_locked or not rec.start_date:
+                    continue
+                want_prefix = 'PRO/%s/%s/' % (
+                    rec.start_date.strftime('%Y'), rec.start_date.strftime('%m'))
+                if not (rec.reference or '').startswith(want_prefix):
+                    super(Way4TechManpowerContract, rec).write({
+                        'reference': rec._way4tech_next_pro_reference(rec.start_date),
+                    })
         return res
+
+    # ── CR4 item 2: End Date auto-populate + mandatory (while unlocked) ────
+    @api.onchange('start_date')
+    def _onchange_start_date_end_date(self):
+        """End Date follows the Start Date's month on EVERY change, overwriting
+        any manual value (intended). The user may then edit it, even outside
+        the month. Skipped on a locked record (Start Date can't change there)."""
+        if self.start_date and not self.is_locked:
+            self.end_date = self._way4tech_end_of_month(self.start_date)
+
+    @api.constrains('end_date', 'start_date')
+    def _check_end_date_required(self):
+        """End Date is mandatory while the record is unlocked. Locked records
+        (posted invoice) are exempt so legacy rows with a blank End Date still
+        save when their line items are edited (item 6 precaution 4)."""
+        for rec in self:
+            if not rec.is_locked and rec.start_date and not rec.end_date:
+                raise ValidationError(_(
+                    'End Date is required. It defaults to the last day of the '
+                    'Start Date month and can be adjusted, but it cannot be '
+                    'left empty.'
+                ))
 
     def _compose_reference_string(self, invoice=None):
         """Build the composite reference string used on generated documents.
@@ -1496,15 +1621,15 @@ class Way4TechManpowerContract(models.Model):
             return 0.0
 
         if self.commission_type == 'fix':
-            from datetime import date as _date
-            target = target_date or _date.today()
+            # CR4 item 1: NO date. One record = one month, so Fix Amount =
+            # rate x number of POSTED customer invoices on this record. Counts
+            # invoice records (a block with many lines is ONE invoice), not
+            # lines, and excludes credit notes / drafts. `target_date` is
+            # deliberately ignored so the amount never depends on when the
+            # invoice was dated versus the record's month.
             invoice_count = sum(
                 1 for inv in self.invoice_ids
-                if inv.state == 'posted'
-                and inv.move_type == 'out_invoice'
-                and inv.invoice_date
-                and inv.invoice_date.year == target.year
-                and inv.invoice_date.month == target.month
+                if inv.state == 'posted' and inv.move_type == 'out_invoice'
             )
             return (template.fix_rate or 0.0) * invoice_count
 

@@ -94,6 +94,9 @@
                     <!-- CR2 G5 (19.0.2.9.0): expose has_pending_approval as
                          invisible so header button's invisible attr resolves. -->
                     <field name="has_pending_approval" invisible="1"/>
+                    <!-- CR4 item 6: drives the read-only lock on the four
+                         month-bearing header fields once an invoice is posted. -->
+                    <field name="is_locked" invisible="1"/>
                     <!-- CR3-FINAL P1 (1): the Report Period block is REMOVED
                          from the form. A monthly record IS its own period, so
                          a second date window on top of it was redundant and
@@ -147,7 +150,9 @@
                             <!-- CR3-FINAL P8: no longer required. Left blank it
                                  auto-generates as "Client — MM/YYYY" from the
                                  Client and the Start Date month on save. -->
+                            <!-- CR4 item 6: name locks once an invoice is posted. -->
                             <field name="name"
+                                   readonly="is_locked"
                                    placeholder="Auto-generated from Client + Start Date month"/>
                         </h1>
                         <h4>
@@ -191,10 +196,18 @@
                                  date, never this header.
                                  accounting_date + due_date are hidden here (kept
                                  in the model); the +45-day Due Date rule is gone. -->
-                            <field name="start_date" readonly="state != 'draft'"
+                            <!-- CR4 item 6: Start/End Date lock once an invoice is
+                                 posted. Start Date keeps its existing draft-only edit
+                                 rule too. -->
+                            <field name="start_date"
+                                   readonly="state != 'draft' or is_locked"
                                    help="Start of this record's period. Drives the auto-name (Client — MM/YYYY), the PRO/YYYY/MM/NNNN reference series, and the one-record-per-client-month-project rule."/>
+                            <!-- CR4 item 2: auto-fills to the last day of the Start
+                                 Date month, editable, mandatory while unlocked. -->
                             <field name="end_date"
-                                   help="End of this record's period. Display and reporting only."/>
+                                   readonly="is_locked"
+                                   required="not is_locked"
+                                   help="End of this record's period. Defaults to the last day of the Start Date month on every Start Date change; editable, and required while the record is unlocked."/>
                             <field name="contract_month" readonly="1" force_save="1"
                                    invisible="1"
                                    help="First day of Start Date's month. Uniqueness key; not for display."/>
@@ -396,6 +409,12 @@
                                                      so the order typed here is the order the
                                                      invoice prints in. -->
                                                 <field name="sequence" widget="handle"/>
+                                                <!-- CR4 item 5: product (optional column). No
+                                                     account/tax effect. Prints above the
+                                                     description on the invoice line. -->
+                                                <field name="product_id"
+                                                       options="{'no_create': True}"
+                                                       optional="hide"/>
                                                 <field name="description"/>
                                                 <field name="sale_account_id"/>
                                                 <!-- CR3-FINAL round 4, item 3: Contract Tags is
@@ -494,6 +513,10 @@
                                     <!-- Bug 7 mitigation: description leads so a new row
                                          does not open focused on a date cell. -->
                                     <field name="description"/>
+                                    <!-- CR4 item 5: product on Direct Cost only (optional).
+                                         No account/tax effect. -->
+                                    <field name="product_id"
+                                           options="{'no_create': True}" optional="hide"/>
                                     <field name="date" string="Accounting Date" widget="date"/>
                                     <field name="bill_date" widget="date"/>
                                     <field name="category_id"
@@ -753,39 +776,17 @@
                                 </list>
                             </field>
                         </page>
-                        <!-- 7. CR2 G5 (19.0.2.9.0): monthly Signature Approvals -->
-                        <!-- CR3-FINAL P12: send-only. This tab shows STATUS; it
-                             cannot grant approval. The list is create/edit/delete
-                             disabled so the only way a row appears here is the
-                             Send for Signature popup, and the only place a row can
-                             be approved is Manpower → Approvals, by a Logistics
-                             Manager. Proper separation of duties. -->
-                        <page string="Approvals" name="signature_approvals">
-                            <div class="alert alert-info" role="alert">
-                                <strong>Monthly signature workflow:</strong>
-                                click <em>Send for Signature</em> above — a small dialog
-                                opens with the Month already filled in. Confirming it
-                                adds the row below as <em>Pending</em> automatically.
-                                <br/>The approval itself is granted by an authorised
-                                approver in <strong>Manpower → Approvals</strong>, not
-                                here. Once approved, this month's Create Invoice and
-                                Create Bill unlock — other months are unaffected.
-                            </div>
-                            <field name="signature_request_ids" readonly="1">
-                                <list create="0" edit="0" delete="0"
-                                      decoration-info="state == 'draft'"
-                                      decoration-warning="state == 'pending'"
-                                      decoration-success="state == 'approved'"
-                                      decoration-muted="state == 'cancelled'">
-                                    <field name="month"/>
-                                    <field name="state" widget="badge"/>
-                                    <field name="signed_by"/>
-                                    <field name="signed_date"/>
-                                    <field name="create_uid" string="Submitted By"/>
-                                    <field name="create_date"/>
-                                </list>
-                            </field>
-                        </page>
+                        <!-- CR4 item 9: the Approvals tab is REMOVED from the form.
+                             Every line tab already shows its own Approval column (the
+                             status, with the rejection reason inline) and a Re-send
+                             button, so approval state and the reject reason are
+                             visible where the item lives. The Approvals MENU
+                             (Manpower → Approvals) and the header "Send All for
+                             Approval" button both stay. The tab was the legacy
+                             signature-request list (way4tech.manpower.contract.
+                             signature.request), separate from the live per-item
+                             approvals; its model and data are untouched, only the
+                             page is dropped from this view. -->
                     </notebook>
                     <div class="alert alert-info" role="alert">
                         <strong>Accounting:</strong> The income account and sales journal for invoices

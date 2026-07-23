@@ -48,7 +48,9 @@ class Way4TechManpowerCommissionLine(models.Model):
     currency_id = fields.Many2one(related='contract_id.currency_id', store=True, readonly=True)
 
     date = fields.Date(
-        string='Accounting Date', required=True, default=fields.Date.context_today,
+        string='Accounting Date', required=True,
+        # CR4 item 3: default from the contract's Start Date month, not today.
+        default=lambda self: self._way4tech_default_period_date(),
         help='Posting date on the generated vendor bill (account.move.date).',
     )
     bill_month = fields.Char(

@@ -53,3 +53,5 @@ from . import manpower_invoice_block
 from . import ksa_display_setup
 # CR3-FINAL Part A approvals are imported at the TOP of this file — the mixin
 # has to exist before the models that inherit it.
+# 2026-07-24 — CR4 item 5: module-local product list
+from . import manpower_product

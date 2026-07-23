@@ -50,11 +50,15 @@ class Way4TechManpowerInvoiceBlock(models.Model):
     # produces. Individual income lines keep their own dates for reporting.
     accounting_date = fields.Date(
         string='Accounting Date', required=True,
-        default=fields.Date.context_today,
+        # CR4 item 3: the block's accounting date IS the invoice's accounting
+        # date, so it defaults from the contract's Start Date month, not today.
+        default=lambda self: self._way4tech_default_period_date(),
         help='Posting date (account.move.date) of the invoice this block creates.',
     )
     invoice_date = fields.Date(
         string='Invoice Date', required=True,
+        # CR4 item 4: the invoice's ISSUE date stays "today" (invoices are
+        # raised after the month closes; ZATCA needs the real issue date).
         default=fields.Date.context_today,
         help='Document date (account.move.invoice_date) of the invoice this '
              'block creates.',
@@ -204,7 +208,8 @@ class Way4TechManpowerInvoiceBlock(models.Model):
                     'Account is set in Payroll & Accounting Setup.'
                 ) % (line.description or ''))
             line_vals = {
-                'name': line.description,
+                # CR4 item 5c: product name above the description on the invoice.
+                'name': line._way4tech_invoice_line_name(),
                 'quantity': line.quantity or 1.0,
                 'price_unit': line.price or 0.0,
                 'account_id': sale_account.id,

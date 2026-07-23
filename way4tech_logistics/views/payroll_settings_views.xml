@@ -252,6 +252,27 @@
                                     <strong>zero</strong>; Create Bill raises a clear error.
                                 </div>
                             </group>
+
+                            <!-- CR4 item 5a: module-local product master list. Same
+                                 "Add a line" pattern. NOT product.product; never
+                                 affects account or VAT. Retire via Active. -->
+                            <group string="Products (Project Income + Direct Cost lines)"
+                                   colspan="4">
+                                <field name="manpower_product_ids"
+                                       nolabel="1" colspan="4"
+                                       context="{'default_settings_id': id}">
+                                    <list editable="bottom">
+                                        <field name="name"/>
+                                        <field name="active" widget="boolean_toggle"/>
+                                    </list>
+                                </field>
+                                <div class="alert alert-info" role="alert" colspan="4">
+                                    A simple list of product names for Project Income and
+                                    Project Direct Cost lines. It does not touch the GL
+                                    account or the 15% VAT. Untick <em>Active</em> to retire
+                                    an entry while keeping it on historical records.
+                                </div>
+                            </group>
                         </page>
 
                         <!-- HIDDEN Compliance Costs tab — remove invisible="1" to re-enable -->

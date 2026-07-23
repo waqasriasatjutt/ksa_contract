@@ -70,7 +70,10 @@ class Way4TechManpowerContractBudgetLine(models.Model):
     # store=False to avoid the row-rerender loop when the user picks Date
     # in the inline list. See the same fix on income line.inv_month.
     month = fields.Char(string="Month", compute="_compute_month")
-    date = fields.Date(string="Date", default=fields.Date.context_today)
+    # CR4 item 3: default from the contract's Start Date month, not today.
+    date = fields.Date(
+        string="Date",
+        default=lambda self: self._way4tech_default_period_date())
 
     # ── Compute methods ─────────────────────────────────────────────────────
 

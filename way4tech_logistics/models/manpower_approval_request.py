@@ -695,6 +695,20 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
                 ))
                 request.state = 'cancelled'
 
+    @api.model
+    def _way4tech_default_period_date(self):
+        """CR4 item 3: default an accounting/period date from the parent
+        contract's Start Date (its month), NOT today, so line entries land in
+        the record's month and the date picker opens there. Read from the
+        `default_contract_id` the notebook tab puts in context. Falls back to
+        today when there is no contract in context (rare)."""
+        cid = self.env.context.get('default_contract_id')
+        if cid:
+            contract = self.env['way4tech.manpower.contract'].browse(cid)
+            if contract.exists() and contract.start_date:
+                return contract.start_date
+        return fields.Date.context_today(self)
+
     def action_send_for_approval(self):
         """Raise a request covering just this row (Part A point 9, per-item)."""
         self.ensure_one()

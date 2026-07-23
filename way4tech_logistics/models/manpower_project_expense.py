@@ -45,7 +45,8 @@ class ManpowerProjectExpense(models.Model):
     date = fields.Date(
         string='Accounting Date',
         required=True,
-        default=fields.Date.today,
+        # CR4 item 3: default from the contract's Start Date month, not today.
+        default=lambda self: self._way4tech_default_period_date(),
         help='Posting date on the generated vendor bill (accounting_date).',
     )
     bill_date = fields.Date(
@@ -58,6 +59,13 @@ class ManpowerProjectExpense(models.Model):
     # Direct Cost or Operating Exp via category.expense_type. Default is
     # taken from the tab's context (category_bucket_default), letting each
     # notebook page pre-select the "Miscellaneous" seed of that bucket.
+    # CR4 item 5: module-local product, shown on the Direct Cost tab only (the
+    # view hides it on Operating Exp). No onchange -> never affects account/VAT.
+    product_id = fields.Many2one(
+        'way4tech.manpower.product', string='Product',
+        help="Optional product from the module's own list. Does not affect "
+             "the GL account or VAT.",
+    )
     category_id = fields.Many2one(
         'way4tech.expense.category',
         string='Category',
@@ -295,6 +303,20 @@ class ManpowerProjectExpense(models.Model):
         self.ensure_one()
         if self.bill_id:
             raise UserError(_('A vendor bill already exists for this expense.'))
+        # CR4 item 7: a zero-amount bill is unusual but allowed. Ask for
+        # confirmation via a dialog (NOT a UserError, which would just block
+        # with no way to proceed). On confirm the wizard re-calls this action
+        # with the skip flag set.
+        if not (self.amount or 0.0) and not self.env.context.get(
+                'way4tech_skip_zero_bill_check'):
+            return {
+                'type': 'ir.actions.act_window',
+                'name': _('Zero-Amount Bill'),
+                'res_model': 'way4tech.zero.bill.confirm.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {'default_expense_id': self.id},
+            }
         if not self.vendor_id:
             raise UserError(_('Please set a vendor before creating the bill.'))
         # CR3-FINAL Part A: per-item approval, consumed on creation.
@@ -339,8 +361,13 @@ class ManpowerProjectExpense(models.Model):
         else:
             bl_quantity = 1.0
             bl_price = self.amount
+        # CR4 item 5c: product name above the description on the bill line.
+        _pname = self.product_id.name or ''
+        _pdesc = self.description or ''
+        _bl_name = ('%s\n%s' % (_pname, _pdesc)) if (_pname and _pdesc) \
+            else (_pname or _pdesc)
         bill_line_vals = {
-            'name': self.description,
+            'name': _bl_name,
             'quantity': bl_quantity,
             'price_unit': bl_price,
             'account_id': self.account_id.id,
