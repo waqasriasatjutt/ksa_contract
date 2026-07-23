@@ -579,9 +579,15 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
                 rec.approval_state = 'none'
                 rec.approval_reason = False
                 continue
-            # Item 3: a line rejected on its own beats the request's overall
-            # state, so a mixed decision shows correctly per row.
-            rec.approval_state = line.decision or line.request_id.state
+            # CR3-FINAL round 4 HOTFIX: a single ROW is only ever pending /
+            # approved / rejected — never 'partial'. 'partial' is a
+            # REQUEST-level state (some lines approved, some rejected), and it
+            # is NOT one of this field's Selection values, so assigning
+            # `line.request_id.state` crashed with "Wrong value ... 'partial'"
+            # the moment anyone opened a contract holding a partly-approved
+            # item. An undecided line (whatever the request's overall state)
+            # is, for this row, still Pending.
+            rec.approval_state = line.decision or 'pending'
             rec.approval_reason = line.reason or line.request_id.reason or False
 
     # CR3-FINAL round 3, item 4: the rejection reason, surfaced on the row.
