@@ -1,6 +1,6 @@
 {
     'name': 'Way4Tech Logistics & HR Extensions',
-    'version': '19.0.3.9.0',
+    'version': '19.0.3.10.0',
     'summary': 'Complete operations management for KSA logistics & manpower companies — payroll, fleet, manpower contracts, investor P&L, and full accounting integration for Odoo 19',
     'description': '''
 Way4Tech Logistics & HR Extensions
@@ -273,6 +273,9 @@ DEPENDENCIES
         'views/employee_cost_views.xml',
         'views/manpower_contract_views.xml',
         'views/manpower_project_expense_views.xml',
+        # CR5 item 2a: per-line "Files & Document" dialogs (attachments upload +
+        # single-document download). Additive; opened by the paperclip button.
+        'views/manpower_docline_attach_views.xml',
         # CR2 G5 (19.0.2.9.0): monthly signature approval workflow
         'views/manpower_contract_signature_request_views.xml',
         # CR3-FINAL Part A: per-item, consumed-once approvals

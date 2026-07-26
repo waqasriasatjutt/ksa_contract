@@ -12,7 +12,8 @@ from odoo.exceptions import UserError
 class Way4TechManpowerContractIncomeLine(models.Model):
     _name = "way4tech.manpower.contract.income.line"
     _description = "Manpower Contract — Project Income Line"
-    _inherit = ['way4tech.manpower.approval.mixin']
+    _inherit = ['way4tech.manpower.approval.mixin',
+                'way4tech.manpower.docline.mixin']
     # _order does NOT include accounting_date: sorting by an editable date
     # field means every date pick triggers a row-position resort in the
     # inline editable list, which re-renders the row and re-focuses the
@@ -22,6 +23,8 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     # the order they were typed in. Under "id desc" an invoice block billed
     # its lines newest-first and the printed invoice came out reversed.
     _order = "sequence, id"
+    # CR5 item 2a: the line's "Files" dialog (docline mixin opener).
+    _way4tech_attach_view_xmlid = 'way4tech_logistics.view_income_line_attach_form'
 
     sequence = fields.Integer(default=10, help="Display / billing order.")
 

@@ -8,7 +8,11 @@
         <field name="name">way4tech.manpower.contract.form</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
-            <form string="Manpower Contract">
+            <!-- CR5 item 1: hide the cog-menu "Duplicate" action on the
+                 contract. View-only (activeActions.duplicate); the model's
+                 copy() is left intact, so the change is fully reversible and
+                 nothing that copies a contract programmatically is affected. -->
+            <form string="Manpower Contract" duplicate="0">
                 <header>
                     <button
                         name="action_activate"
@@ -355,6 +359,8 @@
                                             invisible="state == 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
                                 </list>
                                 <!-- The block itself: its own grouped line-table. Opens as
                                      a dialog so the whole invoice is built in one place. -->
@@ -430,6 +436,8 @@
                                                        optional="hide"/>
                                                 <field name="contract_id" column_invisible="1"/>
                                                 <field name="currency_id" column_invisible="1"/>
+                                                <field name="attachment_count" string="Files" optional="show"/>
+                                                <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
                                             </list>
                                         </field>
                                     </sheet>
@@ -464,6 +472,7 @@
                                     <field name="quantity"/>
                                     <field name="price"/>
                                     <field name="amount" sum="Total"/>
+                                    <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
@@ -486,6 +495,9 @@
                                         invisible="state == 'draft'"
                                         class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
                                 </list>
                             </field>
                         </page>
@@ -530,6 +542,7 @@
                                     <field name="quantity"/>
                                     <field name="price"/>
                                     <field name="amount" sum="Total"/>
+                                    <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
@@ -552,6 +565,9 @@
                                             invisible="state == 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
                                 </list>
                             </field>
                         </page>
@@ -588,6 +604,7 @@
                                     <field name="quantity"/>
                                     <field name="price"/>
                                     <field name="amount" sum="Total"/>
+                                    <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
@@ -610,6 +627,9 @@
                                             invisible="state == 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
                                 </list>
                             </field>
                         </page>
@@ -656,6 +676,7 @@
                                     <field name="rate"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                     <field name="amount" sum="Total"/>
+                                    <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
@@ -679,6 +700,9 @@
                                         invisible="state == 'draft'"
                                         class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
                                 </list>
                             </field>
                         </page>
@@ -751,6 +775,7 @@
                                     <field name="account_id"
                                            help="GL expense account for this commission. Auto-filled from Payroll &amp; Accounting Setup → Sales Person Commission Rules."/>
                                     <field name="amount" sum="Total"/>
+                                    <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'billed'"/>
@@ -773,6 +798,9 @@
                                             invisible="state == 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
                                 </list>
                             </field>
                         </page>
@@ -806,7 +834,8 @@
         <field name="name">way4tech.manpower.contract.list</field>
         <field name="model">way4tech.manpower.contract</field>
         <field name="arch" type="xml">
-            <list string="Manpower Contracts">
+            <!-- CR5 item 1: hide "Duplicate" from the list Actions menu too. -->
+            <list string="Manpower Contracts" duplicate="0">
                 <!-- CR3-FINAL P5: every Billing Summary / Profitability / KPI%
                      box is now STORED, so all of them roll up here with sum=
                      and appear as Pivot measures. The values shown are the

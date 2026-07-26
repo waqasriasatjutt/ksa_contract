@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CR5 item 2a — the small "Line Files & Document" dialog opened by the
+    paperclip button on each doc-generating line (Project Income, Direct Cost,
+    Operating Exp, Timesheets, Sales Person Commission).
+
+    The many2many_binary uploader is a FORM-only widget (it does not render as a
+    list column), so the line's attachments live here, in a target="new" dialog.
+    Everything is additive and display-layer: the uploader stores standard
+    ir.attachment records; the Download button reads the ALREADY-linked invoice
+    or bill (docline mixin) and renders that one document — creation code is
+    never touched.
+
+    One form per concrete model because a form view binds to a single model, but
+    all four are identical bar the model name — they reference only fields the
+    docline mixin adds (attachment_ids, has_document, action_download_document)
+    plus description / amount / currency_id, which every one of these lines has.
+-->
+<odoo>
+
+    <!-- Project Income line -->
+    <record id="view_income_line_attach_form" model="ir.ui.view">
+        <field name="name">way4tech.income.line.attach.form</field>
+        <field name="model">way4tech.manpower.contract.income.line</field>
+        <field name="arch" type="xml">
+            <form string="Line Files &amp; Document">
+                <sheet>
+                    <group>
+                        <field name="description" readonly="1"/>
+                        <field name="amount" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="has_document" invisible="1"/>
+                    </group>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    <separator string="Generated Document"/>
+                    <div>
+                        <button name="action_download_document" type="object"
+                                string="Download Invoice (PDF)" icon="fa-download"
+                                class="btn-secondary" invisible="not has_document"/>
+                        <span class="text-muted" invisible="has_document">
+                            No invoice has been created from this line yet.
+                        </span>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Project Expense (Direct Cost + Operating Exp) -->
+    <record id="view_project_expense_attach_form" model="ir.ui.view">
+        <field name="name">way4tech.project.expense.attach.form</field>
+        <field name="model">way4tech.manpower.project.expense</field>
+        <field name="arch" type="xml">
+            <form string="Line Files &amp; Document">
+                <sheet>
+                    <group>
+                        <field name="description" readonly="1"/>
+                        <field name="amount" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="has_document" invisible="1"/>
+                    </group>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    <separator string="Generated Document"/>
+                    <div>
+                        <button name="action_download_document" type="object"
+                                string="Download Bill (PDF)" icon="fa-download"
+                                class="btn-secondary" invisible="not has_document"/>
+                        <span class="text-muted" invisible="has_document">
+                            No vendor bill has been created from this line yet.
+                        </span>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Timesheet line -->
+    <record id="view_timesheet_attach_form" model="ir.ui.view">
+        <field name="name">way4tech.timesheet.attach.form</field>
+        <field name="model">way4tech.manpower.timesheet</field>
+        <field name="arch" type="xml">
+            <form string="Line Files &amp; Document">
+                <sheet>
+                    <group>
+                        <field name="description" readonly="1"/>
+                        <field name="amount" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="has_document" invisible="1"/>
+                    </group>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    <separator string="Generated Document"/>
+                    <div>
+                        <button name="action_download_document" type="object"
+                                string="Download Invoice (PDF)" icon="fa-download"
+                                class="btn-secondary" invisible="not has_document"/>
+                        <span class="text-muted" invisible="has_document">
+                            No invoice has been created from this line yet.
+                        </span>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Sales Person Commission line -->
+    <record id="view_commission_line_attach_form" model="ir.ui.view">
+        <field name="name">way4tech.commission.line.attach.form</field>
+        <field name="model">way4tech.manpower.commission.line</field>
+        <field name="arch" type="xml">
+            <form string="Line Files &amp; Document">
+                <sheet>
+                    <group>
+                        <field name="description" readonly="1"/>
+                        <field name="amount" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="has_document" invisible="1"/>
+                    </group>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    <separator string="Generated Document"/>
+                    <div>
+                        <button name="action_download_document" type="object"
+                                string="Download Bill (PDF)" icon="fa-download"
+                                class="btn-secondary" invisible="not has_document"/>
+                        <span class="text-muted" invisible="has_document">
+                            No vendor bill has been created from this line yet.
+                        </span>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

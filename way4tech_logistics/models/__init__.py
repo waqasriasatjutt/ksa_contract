@@ -3,6 +3,8 @@
 # at class-registration time, so a later import gives
 # "Model X inherits from non-existing model way4tech.manpower.approval.mixin".
 from . import manpower_approval_request
+# CR5 item 2: doc-line mixin (attachments + download) — same rule, import first.
+from . import manpower_docline_mixin
 
 from . import platform_config
 from . import payroll_settings

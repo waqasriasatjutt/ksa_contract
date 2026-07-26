@@ -36,10 +36,13 @@ _logger = logging.getLogger(__name__)
 class Way4TechManpowerCommissionLine(models.Model):
     _name = 'way4tech.manpower.commission.line'
     _description = 'Manpower Contract — Sales Person Commission Line'
-    _inherit = ['way4tech.manpower.approval.mixin']
+    _inherit = ['way4tech.manpower.approval.mixin',
+                'way4tech.manpower.docline.mixin']
     # date dropped from _order — sort by editable date in inline lists
     # re-orders rows on every pick → picker loop. See income-line comment.
     _order = 'id desc'
+    # CR5 item 2a: the line's "Files" dialog (docline mixin opener).
+    _way4tech_attach_view_xmlid = 'way4tech_logistics.view_commission_line_attach_form'
 
     contract_id = fields.Many2one(
         'way4tech.manpower.contract', required=True, ondelete='cascade',

@@ -26,7 +26,8 @@ from odoo.exceptions import UserError
 class Way4TechManpowerInvoiceBlock(models.Model):
     _name = 'way4tech.manpower.invoice.block'
     _description = 'Manpower Contract — Invoice Block (multi-line invoice)'
-    _inherit = ['way4tech.manpower.approval.mixin']
+    _inherit = ['way4tech.manpower.approval.mixin',
+                'way4tech.manpower.docline.mixin']
     # Newest block first, and never order by an editable date field — that is
     # the date-picker re-focus loop documented across CR2 G1 / v11.0.
     _order = 'id desc'

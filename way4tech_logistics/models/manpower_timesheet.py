@@ -5,10 +5,13 @@ from odoo.exceptions import UserError, ValidationError
 class Way4TechManpowerTimesheet(models.Model):
     _name = 'way4tech.manpower.timesheet'
     _description = 'Manpower Contract Timesheet'
-    _inherit = ['way4tech.manpower.approval.mixin']
+    _inherit = ['way4tech.manpower.approval.mixin',
+                'way4tech.manpower.docline.mixin']
     # date dropped from _order — see income-line comment: sort by an editable
     # date field in inline lists re-orders rows on every pick → picker loop.
     _order = 'contract_id, id desc'
+    # CR5 item 2a: the line's "Files" dialog (docline mixin opener).
+    _way4tech_attach_view_xmlid = 'way4tech_logistics.view_timesheet_attach_form'
 
     contract_id = fields.Many2one(
         comodel_name='way4tech.manpower.contract',

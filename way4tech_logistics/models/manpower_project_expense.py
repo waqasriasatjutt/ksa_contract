@@ -20,12 +20,15 @@ class ManpowerProjectExpense(models.Model):
     _name = 'way4tech.manpower.project.expense'
     _description = 'Manpower Project Expense'
     _inherit = ['mail.thread', 'mail.activity.mixin',
-                'way4tech.manpower.approval.mixin']
+                'way4tech.manpower.approval.mixin',
+                'way4tech.manpower.docline.mixin']
     # See income-line comment: sorting by an editable date field causes a
     # row-position resort on every date pick in editable inline lists,
     # which re-renders + re-focuses → picker reopen loop. id desc only.
     _order = 'id desc'
     _rec_name = 'description'
+    # CR5 item 2a: the line's "Files" dialog (docline mixin opener).
+    _way4tech_attach_view_xmlid = 'way4tech_logistics.view_project_expense_attach_form'
 
     contract_id = fields.Many2one(
         comodel_name='way4tech.manpower.contract',
@@ -33,6 +36,17 @@ class ManpowerProjectExpense(models.Model):
         required=True,
         ondelete='cascade',
         tracking=True,
+    )
+    # CR5 item 4: the contract's client, stored so the standalone Project
+    # Expenses view can group by and column on Client. Related + store=True is
+    # additive — Odoo maintains it from contract_id.client_id automatically;
+    # no creation logic is touched.
+    client_id = fields.Many2one(
+        comodel_name='res.partner',
+        related='contract_id.client_id',
+        string='Client',
+        store=True,
+        readonly=True,
     )
     # P5 (2026-07-15): rename semantics — "date" kept as accounting_date-alias
     # for BC; new bill_date (invoice_date on the bill) exposed separately.

@@ -23,12 +23,31 @@ class SalespersonProfitabilityWizard(models.TransientModel):
         default=fields.Date.today,
     )
     salesperson_ids = fields.Many2many(
-        comodel_name='res.users',
+        comodel_name='hr.employee',
         string='Filter by Salesperson',
-        help='Leave empty to include all salespersons.',
+        help='Leave empty to include all salespersons. Salesperson is the HR '
+             'employee set on the contract and trip — the same source used '
+             'across the whole Manpower module (CR5 item 5a).',
     )
 
     # ── helpers ───────────────────────────────────────────────────────────────
+
+    def _trip_employee(self, trip):
+        """CR5 item 5a — map a truck trip's salesperson (a res.users) to the
+        hr.employee behind it, so trips are attributed to the SAME employee
+        identity the contract side already uses. Read-only mapping — the trip
+        model and its data are never modified."""
+        user = trip.salesperson_id
+        if not user:
+            return self.env['hr.employee']
+        # res.users.employee_id resolves the employee in the active company;
+        # fall back to a direct search for robustness (no active link set).
+        employee = user.employee_id
+        if not employee:
+            employee = self.env['hr.employee'].search(
+                [('user_id', '=', user.id)], limit=1,
+            )
+        return employee
 
     def get_report_data(self):
         """
@@ -48,7 +67,12 @@ class SalespersonProfitabilityWizard(models.TransientModel):
             ('company_id', '=', company_id),
         ]
         if self.salesperson_ids:
-            trip_domain.append(('salesperson_id', 'in', self.salesperson_ids.ids))
+            # CR5 item 5a: the filter is hr.employee (matching the contract
+            # side), but a trip's salesperson is the linked res.users — so map
+            # the selected employees to their users for the trip domain.
+            trip_domain.append((
+                'salesperson_id', 'in', self.salesperson_ids.mapped('user_id').ids,
+            ))
 
         trips = self.env['way4tech.truck.trip'].search(trip_domain, order='trip_date asc')
 
@@ -58,8 +82,13 @@ class SalespersonProfitabilityWizard(models.TransientModel):
             'cost': 0.0,
             'gross_profit': 0.0,
         })
+        # NB from CR5 item 5a: bucket keys below are hr.employee ids for BOTH
+        # trips and contracts, so the two sides merge on the same salesperson
+        # employee (previously trips keyed on user id, contracts on employee id
+        # — different id spaces that collided and mislabelled people).
         for trip in trips:
-            uid = trip.salesperson_id.id or 0
+            emp = self._trip_employee(trip)
+            uid = emp.id or 0
             b = trip_buckets[uid]
             b['trips'] |= trip
             b['revenue'] += trip.revenue
@@ -97,8 +126,9 @@ class SalespersonProfitabilityWizard(models.TransientModel):
         result = []
         for uid in all_uids:
             if uid:
-                user = self.env['res.users'].browse(uid)
-                name = user.name or _('(Unknown)')
+                # CR5 item 5a: names come from hr.employee, never res.users.
+                employee = self.env['hr.employee'].browse(uid)
+                name = employee.name or _('(Unknown)')
             else:
                 name = _('(No Salesperson)')
 
