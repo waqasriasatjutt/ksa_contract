@@ -261,6 +261,9 @@ DEPENDENCIES
         # ── Model views ───────────────────────────────────────────────────────
         'views/report_salesperson_profitability.xml',
         'views/report_maintenance_history.xml',
+        # CR5 item 11: Expense Category page MUST load before payroll_settings —
+        # the Manpower tab there has a button referencing action_expense_category.
+        'views/expense_category_views.xml',
         'views/payroll_settings_views.xml',
         'views/platform_config_views.xml',
         'views/salary_import_views.xml',
@@ -284,8 +287,6 @@ DEPENDENCIES
         'views/partner_employee_views.xml',
         # ── New BRD v2 views ──────────────────────────────────────────────────
         'views/entry_category_views.xml',
-        # CR5 item 11: Expense Category standalone page + print report.
-        'views/expense_category_views.xml',
         'views/asset_register_views.xml',
         'views/installment_schedule_views.xml',
         'views/cashflow_alert_views.xml',
