@@ -284,6 +284,8 @@ DEPENDENCIES
         'views/partner_employee_views.xml',
         # ── New BRD v2 views ──────────────────────────────────────────────────
         'views/entry_category_views.xml',
+        # CR5 item 11: Expense Category standalone page + print report.
+        'views/expense_category_views.xml',
         'views/asset_register_views.xml',
         'views/installment_schedule_views.xml',
         'views/cashflow_alert_views.xml',

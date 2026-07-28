@@ -31,6 +31,16 @@ class Way4TechManpowerTimesheet(models.Model):
     # default_per_day_allowed_hours → line-level (this field). Line stays
     # editable as the final override. See _onchange_employee_id below.
     per_day_hours = fields.Float(string='Per Day Allowed Hours', digits=(16, 2))
+    # CR5 item 9: off days subtracted from the calendar range before the
+    # per-day-hours multiply. Range mode only — the single-date/hours method
+    # never reads it. Manual whole-day count entered by the user (Fridays,
+    # holidays). See _compute_hours.
+    off_days = fields.Integer(
+        string='Off Days', default=0,
+        help='Range mode only: number of non-working days in the Start/End '
+             'range (Fridays, holidays). Hours = (calendar days in range - Off '
+             'Days) x Per Day Allowed Hours.',
+    )
     employee_id = fields.Many2one(comodel_name='hr.employee', string='Employee')
     description = fields.Char(string='Description')
     # CR3-FINAL P9: in range mode the Hours column used to sit at 0 while the
@@ -110,7 +120,7 @@ class Way4TechManpowerTimesheet(models.Model):
             return (self.end_date - self.start_date).days + 1
         return 0
 
-    @api.depends('start_date', 'end_date', 'per_day_hours')
+    @api.depends('start_date', 'end_date', 'per_day_hours', 'off_days')
     def _compute_hours(self):
         """CR3-FINAL P9: fill Hours from the range, leave it alone otherwise.
 
@@ -119,11 +129,16 @@ class Way4TechManpowerTimesheet(models.Model):
         re-assigning the current value is what preserves the operator's typed
         hours (same technique used for the Accounting Date fix in
         account_move_extension).
+
+        CR5 item 9: in range mode, Off Days are subtracted from the calendar
+        days before the per-day-hours multiply (never below zero). Single-day
+        mode is untouched — Off Days is not read there.
         """
         for line in self:
             days = line._range_days()
             if days:
-                line.hours = days * (line.per_day_hours or 0.0)
+                working_days = max(days - (line.off_days or 0), 0)
+                line.hours = working_days * (line.per_day_hours or 0.0)
             else:
                 line.hours = line.hours
 

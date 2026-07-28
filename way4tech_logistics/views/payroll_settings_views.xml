@@ -194,6 +194,14 @@
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Expense account debited for Other project expense bills. &#10;Example: 5290 — Other Project Expenses."/>
                             </group>
+                            <!-- CR5 item 11: open the Expense Category master
+                                 (name / code / bucket / default account, add /
+                                 edit / print) in its own page. Same records the
+                                 per-company map below and the Project Expense /
+                                 Budget tabs use - one single source. -->
+                            <button name="%(way4tech_logistics.action_expense_category)d"
+                                    type="action" string="Manage Expense Categories"
+                                    class="btn-secondary" icon="fa-tags" colspan="4"/>
                             <group string="Expense Category → GL Account (15-category KSA map, used by Project Expenses + Project Budget tabs)"
                                    colspan="4">
                                 <field name="manpower_expense_category_account_ids"

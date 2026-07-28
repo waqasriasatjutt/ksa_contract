@@ -29,6 +29,44 @@ import hashlib
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+
+def way4tech_first_real_change(record, vals, o2m_fields=None):
+    """CR5 item 7 — the first field in ``vals`` that is a REAL user change to
+    ``record``: a manual scalar whose value actually changes, or a command on a
+    locked one2many / many2many. Computed and related fields, the ``state``
+    field, and idempotent (same-value) writes are ignored — so stored-field
+    recomputes and no-op saves pass straight through the Completed-lock guards.
+
+    ``o2m_fields=None`` treats a command on ANY collection as an edit; pass a
+    set/tuple to limit that to named collections (the contract passes its
+    editable-line o2m set, so result links like ``invoice_ids`` are not counted
+    as edits).
+    """
+    for fname, value in vals.items():
+        field = record._fields.get(fname)
+        if not field or fname == 'state':
+            continue
+        # System-maintained: computed-without-inverse and related fields are
+        # written by the ORM (recompute), never by a user, so never block them.
+        if (field.compute and not field.inverse) or field.related:
+            continue
+        if field.type in ('one2many', 'many2many'):
+            if value and (o2m_fields is None or fname in o2m_fields):
+                return fname
+            continue
+        current = record[fname]
+        new_value = value
+        if field.type == 'many2one':
+            current = current.id if current else False
+        elif field.type == 'date':
+            new_value = fields.Date.to_date(value) if value else False
+        elif field.type == 'datetime':
+            new_value = fields.Datetime.to_datetime(value) if value else False
+        if (new_value or False) != (current or False):
+            return fname
+    return None
+
+
 # Every gated action: model → (label, the field holding the created document)
 GATED_MODELS = {
     'way4tech.manpower.invoice.block': 'Invoice Block',
@@ -695,6 +733,21 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
                 ))
                 request.state = 'cancelled'
 
+    @api.ondelete(at_uninstall=False)
+    def _way4tech_block_delete_when_completed(self):
+        """CR5 item 7: no line may be deleted while its contract is Completed.
+        (A full contract delete cascades at the DB level and does not run this,
+        so archiving a contract is unaffected.) Bypassable via context."""
+        if self.env.context.get('way4tech_skip_lock_guard'):
+            return
+        for rec in self:
+            contract = rec.contract_id if 'contract_id' in rec._fields else False
+            if contract and contract.state == 'completed':
+                raise UserError(_(
+                    'The contract for this line is Completed and locked. Reset '
+                    'it to Draft before deleting its lines.'
+                ))
+
     @api.model
     def _way4tech_default_period_date(self):
         """CR4 item 3: default an accounting/period date from the parent
@@ -728,6 +781,24 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
             },
         }
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """CR5 item 7: a Completed contract is frozen, so no new line may be
+        added under it until it is reopened with Reset to Draft. Covers the
+        inline tabs and the standalone Project Expenses screen alike.
+        Bypassable via context for internal flows."""
+        if not self.env.context.get('way4tech_skip_lock_guard'):
+            Contract = self.env['way4tech.manpower.contract']
+            default_cid = self.env.context.get('default_contract_id')
+            for vals in vals_list:
+                cid = vals.get('contract_id') or default_cid
+                if cid and Contract.browse(cid).state == 'completed':
+                    raise UserError(_(
+                        'This contract is Completed and locked. Reset it to '
+                        'Draft before adding lines.'
+                    ))
+        return super().create(vals_list)
+
     def write(self, vals):
         """Part A point 14: editing an approved row voids its approval.
 
@@ -736,6 +807,20 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
         income lines — editing a line without this would leave the block's
         approval standing against amounts nobody signed off.
         """
+        # CR5 item 7: a Completed contract freezes its lines on every write
+        # path (including the standalone Project Expenses screen). Idempotent
+        # (real user changes only) and bypassable, so ORM recomputes and the
+        # invoice/bill amount sync-back (way4tech_skip_move_sync) pass through.
+        if not (self.env.context.get('way4tech_skip_lock_guard')
+                or self.env.context.get('way4tech_skip_move_sync')):
+            for rec in self:
+                contract = rec.contract_id if 'contract_id' in rec._fields else False
+                if (contract and contract.state == 'completed'
+                        and way4tech_first_real_change(rec, vals)):
+                    raise UserError(_(
+                        'The contract for this line is Completed and locked. '
+                        'Reset it to Draft before changing its lines.'
+                    ))
         result = super().write(vals)
         watched = {'amount', 'amount_total', 'quantity', 'price', 'hours',
                    'rate', 'budget_amount', 'description', 'line_ids'}

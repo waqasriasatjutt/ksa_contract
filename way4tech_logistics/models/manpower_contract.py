@@ -2,6 +2,9 @@ from datetime import date, timedelta
 
 from odoo import api, fields, models, tools, _
 from odoo.exceptions import UserError, ValidationError
+# CR5 item 7: shared "is this a real user change?" helper for the Completed lock
+# (imported earlier in __init__, so it is already loaded here).
+from .manpower_approval_request import way4tech_first_real_change
 
 
 class Way4TechManpowerContract(models.Model):
@@ -1184,7 +1187,37 @@ class Way4TechManpowerContract(models.Model):
     # CR4 item 6: the four month-bearing fields that lock once invoiced.
     _WAY4TECH_LOCKED_FIELDS = ('name', 'start_date', 'end_date', 'reference')
 
+    # CR5 item 7: the editable-line collections frozen when the record is
+    # Completed. Result links (invoice_ids, bill_ids, signature_request_ids)
+    # and mail collections are deliberately NOT here, so system links and the
+    # chatter keep working on a completed record.
+    _WAY4TECH_COMPLETED_LOCK_O2M = (
+        'line_ids', 'timesheet_ids', 'project_expense_ids',
+        'direct_cost_line_ids', 'operating_exp_line_ids', 'commission_line_ids',
+        'income_line_ids', 'invoice_block_ids', 'unassigned_income_line_ids',
+        'budget_line_ids',
+    )
+
     def write(self, vals):
+        # CR5 item 7: a Completed record is frozen whole — header fields AND
+        # every editable line — on every write path (UI, import, RPC), until it
+        # is reopened with Reset to Draft. The transition OUT of Completed is
+        # always allowed; computed/related recomputes and idempotent saves pass
+        # (way4tech_first_real_change), and internal flows use the skip context.
+        if not self.env.context.get('way4tech_skip_lock_guard'):
+            leaving_completed = 'state' in vals and vals['state'] != 'completed'
+            if not leaving_completed:
+                for rec in self:
+                    if rec.state != 'completed':
+                        continue
+                    changed = way4tech_first_real_change(
+                        rec, vals, self._WAY4TECH_COMPLETED_LOCK_O2M)
+                    if changed:
+                        raise UserError(_(
+                            'This record is Completed, so it is locked. Use '
+                            '"Reset to Draft" to reopen it before changing '
+                            '"%(field)s" or any line.'
+                        ) % {'field': rec._fields[changed].string})
         # CR4 item 6: block changes to the locked fields on EVERY write path
         # (UI, import, RPC) once a posted invoice exists — precaution 6. Only
         # a REAL change is blocked; an idempotent write of the same value
@@ -1836,5 +1869,45 @@ class Way4TechManpowerContractLine(models.Model):
         string='Currency',
         readonly=True,
     )
+
+    # ── CR5 item 7: Assigned Manpower lines freeze with a Completed contract ──
+    # This model does not carry the approval mixin, so the same guard is
+    # applied here directly. Inline edits also pass through the contract's own
+    # write() guard; these cover the standalone / import / RPC paths.
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.context.get('way4tech_skip_lock_guard'):
+            Contract = self.env['way4tech.manpower.contract']
+            default_cid = self.env.context.get('default_contract_id')
+            for vals in vals_list:
+                cid = vals.get('contract_id') or default_cid
+                if cid and Contract.browse(cid).state == 'completed':
+                    raise UserError(_(
+                        'This contract is Completed and locked. Reset it to '
+                        'Draft before adding lines.'
+                    ))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.context.get('way4tech_skip_lock_guard'):
+            for rec in self:
+                if (rec.contract_id.state == 'completed'
+                        and way4tech_first_real_change(rec, vals)):
+                    raise UserError(_(
+                        'The contract for this line is Completed and locked. '
+                        'Reset it to Draft before changing its lines.'
+                    ))
+        return super().write(vals)
+
+    @api.ondelete(at_uninstall=False)
+    def _way4tech_block_delete_when_completed(self):
+        if self.env.context.get('way4tech_skip_lock_guard'):
+            return
+        for rec in self:
+            if rec.contract_id.state == 'completed':
+                raise UserError(_(
+                    'The contract for this line is Completed and locked. Reset '
+                    'it to Draft before deleting its lines.'
+                ))
 
 

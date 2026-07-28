@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CR5 item 11 - Expense Category gets its own page (list / form / search),
+    reachable from Configuration and from the Manpower settings tab, plus a
+    simple print. It manages the SAME way4tech.expense.category records the
+    Project Expense / Budget tabs and the per-company account map already use,
+    so it is one single source. The per-company GL-account override map on the
+    Manpower settings tab (manpower_expense_category_account_ids) is a separate,
+    per-company setting and is left untouched.
+-->
+<odoo>
+
+    <!-- List -->
+    <record id="view_expense_category_list" model="ir.ui.view">
+        <field name="name">way4tech.expense.category.list</field>
+        <field name="model">way4tech.expense.category</field>
+        <field name="arch" type="xml">
+            <list string="Expense Categories" editable="top">
+                <field name="sequence" widget="handle"/>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="expense_type" string="Bucket"/>
+                <field name="default_expense_account_id"/>
+                <field name="active" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form -->
+    <record id="view_expense_category_form" model="ir.ui.view">
+        <field name="name">way4tech.expense.category.form</field>
+        <field name="model">way4tech.expense.category</field>
+        <field name="arch" type="xml">
+            <form string="Expense Category">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="expense_type"/>
+                        </group>
+                        <group>
+                            <field name="sequence"/>
+                            <field name="default_expense_account_id"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        The Default Expense Account here is the category-level
+                        account. A per-company override can be set in
+                        Configuration, Payroll and Accounting Setup, Manpower
+                        Contracts, Expense Category map.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search -->
+    <record id="view_expense_category_search" model="ir.ui.view">
+        <field name="name">way4tech.expense.category.search</field>
+        <field name="model">way4tech.expense.category</field>
+        <field name="arch" type="xml">
+            <search string="Search Expense Categories">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="default_expense_account_id"/>
+                <separator/>
+                <filter string="Direct Cost" name="direct" domain="[('expense_type','=','direct')]"/>
+                <filter string="Operating Exp" name="operating" domain="[('expense_type','=','operating')]"/>
+                <separator/>
+                <filter string="Bucket" name="group_bucket" context="{'group_by': 'expense_type'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_expense_category" model="ir.actions.act_window">
+        <field name="name">Expense Categories</field>
+        <field name="res_model">way4tech.expense.category</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_expense_category_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Expense Category
+            </p>
+            <p>
+                Expense categories bucket every Project Expense and Budget line
+                into Direct Cost or Operating Exp, and carry a default GL
+                account. Add, edit or print them here.
+            </p>
+        </field>
+    </record>
+
+    <!-- Print: a plain list of categories with their default accounts -->
+    <record id="action_report_expense_category" model="ir.actions.report">
+        <field name="name">Expense Categories</field>
+        <field name="model">way4tech.expense.category</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">way4tech_logistics.report_expense_category_doc</field>
+        <field name="report_file">way4tech_logistics.report_expense_category_doc</field>
+        <field name="binding_model_id" ref="model_way4tech_expense_category"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_expense_category_doc">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <h2 style="color:#003366">Expense Categories</h2>
+                    <table class="table table-sm table-bordered" style="font-size:12px;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Bucket</th>
+                                <th>Default Expense Account</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="docs" t-as="cat">
+                                <tr>
+                                    <td><t t-esc="cat.code"/></td>
+                                    <td><t t-esc="cat.name"/></td>
+                                    <td><span t-field="cat.expense_type"/></td>
+                                    <td><t t-esc="cat.default_expense_account_id.display_name or ''"/></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+                </div>
+            </t>
+        </t>
+    </template>
+
+</odoo>

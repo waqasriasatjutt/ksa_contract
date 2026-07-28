@@ -169,11 +169,14 @@
                             <field name="client_id" readonly="state != 'draft'"
                                    help="The client company or individual who has contracted your manpower services. Used as the customer on all invoices created from this contract."/>
                             <field name="po_id"
+                                   readonly="state == 'completed'"
                                    domain="[('client_id', '=', client_id), ('state', '!=', 'closed')]"
                                    help="Link to a Client PO. Invoices from this contract count against the PO balance."/>
                             <field name="salesperson_id"
+                                   readonly="state == 'completed'"
                                    help="Internal HR employee acting as salesperson on this contract."/>
                             <field name="commission_type"
+                                   readonly="state == 'completed'"
                                    help="CR2 G3 — how the salesperson earns commission on this contract. Rate is looked up on Payroll &amp; Accounting Setup → Sales Person Commission Rules by employee. Percentage modes are gated: Actual Profit must be &gt; 0 for a payout."/>
                             <!-- Hidden per client request (kept in view as invisible so any
                                  code that references them keeps working; underlying DB
@@ -209,7 +212,7 @@
                             <!-- CR4 item 2: auto-fills to the last day of the Start
                                  Date month, editable, mandatory while unlocked. -->
                             <field name="end_date"
-                                   readonly="is_locked"
+                                   readonly="is_locked or state == 'completed'"
                                    required="not is_locked"
                                    help="End of this record's period. Defaults to the last day of the Start Date month on every Start Date change; editable, and required while the record is unlocked."/>
                             <field name="contract_month" readonly="1" force_save="1"
@@ -231,6 +234,7 @@
                                    readonly="state != 'draft'"
                                    help="Reused from customer invoices / vendor bills (e.g. 'Manpower Revenue'). Propagates onto every generated invoice + bill."/>
                             <field name="tag_ids" widget="many2many_tags"
+                                   readonly="state == 'completed'"
                                    options="{'no_create': True}"
                                    help="Contract Tags. Propagate onto every generated invoice + bill (way4tech_tag_ids on the header)."/>
                             <!-- Hidden per client request. Underlying data preserved. -->
@@ -293,6 +297,15 @@
                                    readonly="1" class="o_field_highlight"/>
                         </group>
                     </group>
+                    <!-- CR5 item 7: Completed = frozen. The header fields and every
+                         line tab below are read-only; the write path is guarded too.
+                         Reopen with "Reset to Draft" (top-left) to edit. -->
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state != 'completed'">
+                        <strong>This record is Completed and locked.</strong>
+                        Every field and line is read-only. Use
+                        <strong>Reset to Draft</strong> to reopen it for editing.
+                    </div>
                     <notebook>
                         <!-- 1. CR3-FINAL P6: Project Income is now built from INVOICE
                              BLOCKS. Each block is one future invoice; add as many lines
@@ -311,7 +324,7 @@
                                 Repeat for as many invoices as the month needs.
                             </div>
                             <field name="invoice_block_ids"
-                                   readonly="state == 'cancelled'"
+                                   readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
                                 <list decoration-muted="state == 'invoiced'">
                                     <control>
@@ -456,7 +469,7 @@
                                  keep their Create Invoice button, so nothing in flight
                                  breaks. -->
                             <field name="unassigned_income_line_ids"
-                                   readonly="state == 'cancelled'"
+                                   readonly="state in ('cancelled', 'completed')"
                                    invisible="unassigned_income_count == 0"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" create="0"
@@ -519,7 +532,7 @@
                                 — the bill's Payment Reference is composed from the invoice number.
                             </div>
                             <field name="direct_cost_line_ids"
-                                   readonly="state == 'cancelled'"
+                                   readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
                                     <!-- Bug 7 mitigation: description leads so a new row
@@ -587,7 +600,7 @@
                                 No customer-invoice prerequisite.
                             </div>
                             <field name="operating_exp_line_ids"
-                                   readonly="state == 'cancelled'"
+                                   readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'operating'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
                                     <field name="date" string="Accounting Date" widget="date"/>
@@ -668,6 +681,11 @@
                                     <field name="per_day_hours" string="Per Day Allowed"
                                            invisible="not start_date or not end_date"
                                            readonly="not start_date or not end_date"/>
+                                    <!-- CR5 item 9: Off Days, range mode only. Hours =
+                                         (calendar days - Off Days) x Per Day Allowed. -->
+                                    <field name="off_days" string="Off Days"
+                                           invisible="not start_date or not end_date"
+                                           readonly="not start_date or not end_date"/>
                                     <!-- CR3-FINAL P9: shows days × per-day-hours in range
                                          mode (e.g. 6 × 8 = 48), typed directly in
                                          single-day mode. Amount = Hours × Rate. -->
@@ -710,7 +728,7 @@
                              Actual auto-sums posted journal items matching the contract's
                              analytic AND this line's expense_account. Status: ✅ / ⛔. -->
                         <page string="Project Budget" name="project_budget">
-                            <field name="budget_line_ids" readonly="state == 'cancelled'"
+                            <field name="budget_line_ids" readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
                                 <list editable="top">
                                     <field name="category_id" string="Expense Type"/>
@@ -761,7 +779,7 @@
                                 frozen so it can't drift from the GL.
                             </div>
                             <field name="commission_line_ids"
-                                   readonly="state == 'cancelled'"
+                                   readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" decoration-muted="state == 'billed'">
                                     <!-- bill_month removed from list (2026-07-18 v11.0):

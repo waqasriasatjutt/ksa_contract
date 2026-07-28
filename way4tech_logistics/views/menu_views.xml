@@ -281,6 +281,17 @@
         groups="way4tech_logistics.group_logistics_manager"
     />
 
+    <!-- CR5 item 11: Expense Category own page (also opened from the Manpower
+         settings tab; same records). Manager-gated like Entry Categories. -->
+    <menuitem
+        id="menu_expense_categories"
+        name="Expense Categories"
+        parent="menu_way4tech_config"
+        action="way4tech_logistics.action_expense_category"
+        sequence="21"
+        groups="way4tech_logistics.group_logistics_manager"
+    />
+
     <menuitem
         id="menu_way4tech_projects"
         name="Projects"
