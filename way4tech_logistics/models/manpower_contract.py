@@ -298,6 +298,25 @@ class Way4TechManpowerContract(models.Model):
         inverse_name='contract_id',
         string='Timesheets',
     )
+    # CR6 item 1: timesheet invoice blocks — bill several timesheet lines on one
+    # customer invoice (mirrors invoice_block_ids on the income side).
+    timesheet_block_ids = fields.One2many(
+        'way4tech.manpower.timesheet.block',
+        'contract_id',
+        string='Timesheet Invoice Blocks',
+        help='Each block is one future customer invoice built from several '
+             'timesheet lines. Add lines to a block and its Create Invoice '
+             'button bills them all on a single document.',
+    )
+    # CR6 item 1: flat timesheets NOT in a block — the single-line billing path.
+    # Blocked timesheets show under their block instead, so a timesheet never
+    # appears twice. Mirrors unassigned_income_line_ids on the income side.
+    unassigned_timesheet_ids = fields.One2many(
+        'way4tech.manpower.timesheet',
+        'contract_id',
+        domain=[('timesheet_block_id', '=', False)],
+        string='Timesheets (not in a block)',
+    )
     invoice_ids = fields.Many2many(
         comodel_name='account.move',
         string='Invoices',
@@ -1195,7 +1214,7 @@ class Way4TechManpowerContract(models.Model):
         'line_ids', 'timesheet_ids', 'project_expense_ids',
         'direct_cost_line_ids', 'operating_exp_line_ids', 'commission_line_ids',
         'income_line_ids', 'invoice_block_ids', 'unassigned_income_line_ids',
-        'budget_line_ids',
+        'budget_line_ids', 'timesheet_block_ids', 'unassigned_timesheet_ids',
     )
 
     def write(self, vals):

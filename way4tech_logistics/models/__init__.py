@@ -51,6 +51,8 @@ from . import account_move_sync
 from . import manpower_contract_signature_request
 # 2026-07-21 — CR3-FINAL P6 multi-line invoice blocks (19.0.3.1.0)
 from . import manpower_invoice_block
+# 2026-07-29 — CR6 item 1: multi-line timesheet invoice blocks (19.0.3.11.0)
+from . import manpower_timesheet_block
 # 2026-07-22 — CR3-FINAL round 2: date format + decimal precision (19.0.3.3.0)
 from . import ksa_display_setup
 # CR3-FINAL Part A approvals are imported at the TOP of this file — the mixin

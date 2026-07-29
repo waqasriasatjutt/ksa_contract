@@ -20,6 +20,16 @@ class Way4TechManpowerTimesheet(models.Model):
         ondelete='cascade',
         index=True,
     )
+    # CR6 item 1: when set, this timesheet is one line of a multi-line invoice
+    # block rather than a standalone single-line invoice. ondelete='set null' so
+    # deleting a draft block returns the timesheets to the unblocked pool.
+    timesheet_block_id = fields.Many2one(
+        'way4tech.manpower.timesheet.block',
+        string='Timesheet Invoice Block',
+        ondelete='set null', index=True, copy=False,
+        help='The multi-line timesheet invoice block this row belongs to. Rows '
+             'sharing a block are billed together on ONE customer invoice.',
+    )
     date = fields.Date(string='Date', default=fields.Date.today)
     # P6: dual-entry mode. Way 1 uses (start_date, end_date, per_day_hours);
     # Way 2 uses (date, hours). Only one mode is active per line — the other
@@ -217,6 +227,14 @@ class Way4TechManpowerTimesheet(models.Model):
         for line in self:
             if line.invoice_id:
                 raise UserError(_('This timesheet line has already been invoiced.'))
+            # CR6 item 1: a timesheet that belongs to a block must be billed
+            # through the block, so all its siblings land on the same invoice.
+            if line.timesheet_block_id:
+                raise UserError(_(
+                    'This timesheet belongs to invoice block "%s". Use that '
+                    'block\'s "Create Invoice" button so every line in the '
+                    'block is billed on the same invoice.'
+                ) % (line.timesheet_block_id.name or ''))
             # CR2 G5 (19.0.2.9.0): monthly signature-approval gate.
             line.contract_id._require_month_approval(record=line)
             contract = line.contract_id

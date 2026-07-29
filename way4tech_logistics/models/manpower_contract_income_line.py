@@ -101,9 +101,16 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     # Float renders at the generic precision, so the block grid showed
     # 2.000000 / 1,000.000000.
     quantity = fields.Float(string="Quantity", default=1.0, digits=(16, 2))
-    price = fields.Float(string="Price", digits=(16, 2))
+    # CR6 item 2: Price now carries the "Product Price" precision (raised to 6
+    # dp) so a precise unit price can be typed / back-solved and reach the
+    # invoice exactly. Quantity stays 2 dp.
+    price = fields.Float(string="Price", digits='Product Price')
     amount = fields.Monetary(
-        string="Amount", compute="_compute_amount", store=True, currency_field="currency_id",
+        string="Amount", compute="_compute_amount", store=True, readonly=False,
+        currency_field="currency_id",
+        help="CR6 item 2 (three-way): enter any two of Quantity / Price / "
+             "Amount and the third fills. Typing the exact Amount back-solves "
+             "Price, so the invoice matches the client figure to the halalah.",
     )
     invoice_id = fields.Many2one("account.move", string="Invoice", readonly=True, copy=False)
     # CR2 G4 amendment A: pin the specific invoice_line the create action
@@ -133,6 +140,17 @@ class Way4TechManpowerContractIncomeLine(models.Model):
     def _compute_amount(self):
         for line in self:
             line.amount = (line.quantity or 0.0) * (line.price or 0.0)
+
+    @api.onchange('amount')
+    def _onchange_amount_threeway(self):
+        """CR6 item 2: back-solve Price from a typed Amount (three-way).
+
+        Only THIS one direction is an onchange. Qty x Price -> Amount stays the
+        stored compute above, which then re-derives the SAME amount from the
+        new price (needs the 6-dp Product Price precision), so there is no
+        onchange loop. Skipped when Quantity is 0 (nothing to divide by)."""
+        if self.quantity:
+            self.price = self.amount / self.quantity
 
     def _way4tech_invoice_line_name(self):
         """CR4 item 5c: what to print on the invoice line.

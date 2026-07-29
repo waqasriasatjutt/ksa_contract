@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- CR6 item 2 (client-approved): raise the "Product Price" decimal
+         precision to 6 so a precise unit price (e.g. 2.002000) can be entered
+         on Manpower Project Income and Project Direct Cost lines and carried
+         onto the generated invoice / bill line. This removes the 0.01 Qty x
+         Price rounding mismatch the client's system rejects.
+
+         Monetary TOTALS still round to the currency (2 dp for SAR), so nothing
+         about how documents post changes; only the unit price can now hold
+         more decimals. This is a global technical setting (affects the unit
+         price field wherever it is shown), applied here as the approved fix. -->
+    <record id="product.decimal_price" model="decimal.precision">
+        <field name="digits">6</field>
+    </record>
+</odoo>

@@ -169,11 +169,15 @@ class ManpowerProjectExpense(models.Model):
         help='Quantity for the vendor bill line. Amount auto-computes as '
              'Quantity × Price. Defaults to 1.',
     )
-    price = fields.Monetary(
+    # CR6 item 2: Float at "Product Price" precision (6 dp) instead of Monetary
+    # (which rounds to the 2-dp currency), so a precise unit price reaches the
+    # bill line exactly. The Amount column stays Monetary (currency-rounded).
+    price = fields.Float(
         string='Price',
-        currency_field='currency_id',
-        help='Unit price for the vendor bill line. Amount auto-computes as '
-             'Quantity × Price.',
+        digits='Product Price',
+        help='Unit price for the vendor bill line (6-dp). Amount auto-computes '
+             'as Quantity x Price; typing the exact Amount back-solves Price '
+             '(three-way).',
     )
     amount = fields.Monetary(
         string='Amount',
@@ -207,6 +211,15 @@ class ManpowerProjectExpense(models.Model):
                     rec.amount = 0.0
                 continue
             rec.amount = (rec.quantity or 0.0) * (rec.price or 0.0)
+
+    @api.onchange('amount')
+    def _onchange_amount_threeway(self):
+        """CR6 item 2: three-way back-solve Price from a typed Amount. Only
+        this one direction is an onchange; the stored compute above re-derives
+        amount = qty x price from the new price (6-dp), so there is no loop.
+        Skipped when Quantity is 0."""
+        if self.quantity:
+            self.price = self.amount / self.quantity
     currency_id = fields.Many2one(
         comodel_name='res.currency',
         related='contract_id.currency_id',
