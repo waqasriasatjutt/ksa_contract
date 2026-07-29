@@ -222,6 +222,25 @@
         sequence="60"
     />
 
+    <!-- CR8 (2026-07-29): hide three report entries from the Manpower dropdown.
+         The three menuitems above are kept intact and only ARCHIVED (active =
+         False), so they disappear from the menu while the report actions,
+         wizards and QWeb templates stay fully functional and reachable directly
+         by action id (1382 Staff Cost, 1383 Rider/Driver Margin, 1381 Employee
+         Category). Salesperson Profitability (seq 30) and every other entry are
+         untouched. Menu-visibility only; nothing at the report/data level and
+         no shared parent is changed. Reversible: delete these three records (or
+         set active = True). -->
+    <record id="menu_staff_cost_report" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_employee_margin_report" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_employee_category_report" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
     <!-- ── Commission ── -->
     <menuitem
         id="menu_way4tech_commission"
