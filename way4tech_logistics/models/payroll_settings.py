@@ -442,6 +442,19 @@ class PayrollSettings(models.Model):
         return settings
 
     @api.model
+    def _way4tech_ensure_price_precision(self):
+        """CR6 item 2: force the "Product Price" decimal precision to 6 so a
+        precise unit price reaches the invoice / bill. The product module's
+        decimal_price record is noupdate, so a plain data <record> cannot raise
+        it — this runs from a data <function> on install and on every upgrade.
+        Only raises it (never lowers a value the user set higher)."""
+        prec = self.env['decimal.precision'].search(
+            [('name', '=', 'Product Price')], limit=1)
+        if prec and prec.digits < 6:
+            prec.sudo().write({'digits': 6})
+        return True
+
+    @api.model
     def action_open_for_company(self):
         """Open the settings record for the current company (creates one if missing).
         Used as the menu action so the user always lands on the existing record,

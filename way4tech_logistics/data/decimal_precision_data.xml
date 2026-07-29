@@ -10,7 +10,9 @@
          about how documents post changes; only the unit price can now hold
          more decimals. This is a global technical setting (affects the unit
          price field wherever it is shown), applied here as the approved fix. -->
-    <record id="product.decimal_price" model="decimal.precision">
-        <field name="digits">6</field>
-    </record>
+    <!-- The product module's decimal_price record is noupdate, so a plain
+         <record> override is ignored on upgrade. Force it via a method call
+         instead (runs on install and on every upgrade). -->
+    <function model="way4tech.payroll.settings"
+              name="_way4tech_ensure_price_precision"/>
 </odoo>
