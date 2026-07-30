@@ -5,6 +5,18 @@
             <t t-foreach="docs" t-as="o">
                 <t t-set="doc" t-value="o"/>
                 <t t-set="company" t-value="o.company_id"/>
+                <!-- CR7 item 2 (2026-07-30): the letterhead theme colour now follows the
+                     invoice's OWN company colour instead of the hardcoded red. `brand` is the
+                     company tag colour (res.company.color palette index 0-11) mapped to a
+                     print-legible hex; any company with no colour set falls back to the
+                     original red (#8a1c1c) so its invoices render exactly as before. Reads the
+                     colour defensively (company, else its partner) so it never errors if the
+                     field lives on partner. Index 1 (red) is deliberately kept at the current
+                     #8a1c1c so Al Zain Towers is unchanged. Nothing else (numbering, VAT, QR,
+                     posting) is touched — see the override <style> after the base block. -->
+                <t t-set="brand_palette" t-value="{1: '#8a1c1c', 2: '#b45309', 3: '#9a7d0a', 4: '#2980b9', 5: '#6c3483', 6: '#a93226', 7: '#148f77', 8: '#2471a3', 9: '#a93265', 10: '#1e8449', 11: '#7d3c98'}"/>
+                <t t-set="brand_color_idx" t-value="company.color if 'color' in company._fields else (company.partner_id.color if company.partner_id else 0)"/>
+                <t t-set="brand" t-value="brand_palette.get(brand_color_idx, '#8a1c1c') if brand_color_idx else '#8a1c1c'"/>
                 <t t-set="disable_atco_address_layout" t-value="True"/>
                 <t t-set="layout_document_title" t-value="''"/>
                 <t t-call="web.external_layout">
@@ -56,6 +68,21 @@
                             }
                             .ksa-right { text-align:right; }
                             .ksa-center { text-align:center; }
+                        </style>
+
+                        <!-- CR7 item 2: brand-colour override. Additive only — the base rules
+                             above keep their literal #8a1c1c; these later rules carry a higher/
+                             equal specificity and win by source order, recolouring only the red
+                             theme elements to `brand`. The section-header pink background is
+                             neutralised to a light grey so it reads cleanly under any brand
+                             colour. Slate Vendor/Customer headers, borders and body text are
+                             intentionally left as-is. -->
+                        <style>
+                            .ksa-inv .ksa-red { color: <t t-out="brand"/>; }
+                            .ksa-inv .ksa-title { background: <t t-out="brand"/>; }
+                            .ksa-inv .ksa-sec { background:#eef1f4; color: <t t-out="brand"/>; border-color: <t t-out="brand"/>; }
+                            .ksa-inv .lbl { color: <t t-out="brand"/>; }
+                            .ksa-inv .ksa-th { background: <t t-out="brand"/>; }
                         </style>
 
                         <!-- ══ TITLE ══ (kept here because ATCO letterhead does not include "TAX INVOICE" wording) -->

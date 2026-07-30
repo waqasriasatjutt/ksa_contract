@@ -55,32 +55,74 @@ class Way4TechExpenseCategory(models.Model):
     )
     active = fields.Boolean(default=True)
 
+    # ── CR9 hardening (2026-07-30) ────────────────────────────────────────
+    def _acct_ok_for_company(self, account, company):
+        """True if `account` may be used by `company` — i.e. it is either a
+        shared account (no company_ids) or scoped to `company`.
+
+        Read via ``sudo()`` on purpose: a cross-company account is precisely
+        the one the multi-company record rule would block, so a plain read of
+        its ``company_ids`` here would itself raise the Access Error we are
+        trying to prevent. Sudo only reads the scoping columns; it never posts
+        or resolves anything.
+        """
+        if not account:
+            return False
+        acct = account.sudo()
+        # Odoo 17+: account.account is multi-company via company_ids (empty =
+        # shared across all companies). Keep a single-company fallback in case
+        # a future/base variant exposes company_id instead.
+        if 'company_ids' in acct._fields:
+            return (not acct.company_ids) or (company in acct.company_ids)
+        if 'company_id' in acct._fields:
+            return (not acct.company_id) or (acct.company_id == company)
+        return True
+
     # ── CR3-FINAL round 3, item 10 ────────────────────────────────────────
     def resolve_expense_account(self, company=None, raise_if_missing=False):
         """The GL account this category posts to, or an empty recordset.
 
         Order: the per-company map in Payroll & Accounting Setup, then the
-        category's own default. A candidate is only accepted if it is a P&L
-        cost account — a mapped-but-wrong account (asset, cash, receivable)
-        is treated as no account at all, because posting a project cost to a
-        balance-sheet account corrupts the P&L silently.
+        category's own default. A candidate is only accepted if it is (1) a P&L
+        cost account and (2) usable by `company`. A mapped-but-wrong account
+        (asset, cash, receivable) is treated as no account at all, because
+        posting a project cost to a balance-sheet account corrupts the P&L
+        silently.
+
+        CR9 hardening: the category's ``default_expense_account_id`` is a single
+        SHARED field pointing at exactly one company's account. Previously it
+        was appended unconditionally, so resolving for any OTHER company handed
+        back that company's account and the caller then hit a multi-company
+        Access Error on save. Now the default (and every candidate) is only
+        accepted when it belongs to — or is shared with — the requesting
+        company. When nothing company-valid is found the resolver returns
+        empty and the callers show a clear "configure an account for this
+        company" message, instead of silently reaching across companies.
         """
         self.ensure_one()
         Account = self.env['account.account']
         company = company or self.env.company
         settings = self.env['way4tech.payroll.settings'].get_for_company(company.id)
+        # The per-company map is already company-scoped (settings is per company
+        # and the map's account carries check_company), so its account is safe.
         candidates = settings.manpower_expense_category_account_ids.filtered(
             lambda m: m.category_id == self
         )[:1].mapped('account_id')
-        if self.default_expense_account_id:
+        # Only fall back to the shared category default when it is valid for
+        # THIS company — never leak another company's account across.
+        if self.default_expense_account_id and self._acct_ok_for_company(
+                self.default_expense_account_id, company):
             candidates |= self.default_expense_account_id
         account = candidates.filtered(
             lambda a: a.account_type in VALID_EXPENSE_ACCOUNT_TYPES
+            and self._acct_ok_for_company(a, company)
         )[:1]
         if account:
             return account
         if raise_if_missing:
-            wrong = candidates - account
+            wrong = candidates.filtered(
+                lambda a: self._acct_ok_for_company(a, company)
+            ) - account
             if wrong:
                 raise UserError(_(
                     'Category "%(cat)s" is mapped to account %(code)s '
@@ -93,11 +135,11 @@ class Way4TechExpenseCategory(models.Model):
                      'name': wrong[:1].name or '',
                      'type': wrong[:1].account_type or ''})
             raise UserError(_(
-                'No expense account configured for category "%(cat)s".\n\n'
-                'Set it in Configuration → Payroll & Accounting Setup → '
-                'Manpower Contracts → Expense Category map before using this '
-                'category.'
-            ) % {'cat': self.display_name})
+                'No expense account configured for category "%(cat)s" in '
+                'company "%(company)s".\n\nSet it in Configuration → Payroll & '
+                'Accounting Setup → Manpower Contracts → Expense Category map '
+                '(for this company) before using this category.'
+            ) % {'cat': self.display_name, 'company': company.display_name})
         return Account.browse()
 
     @api.model

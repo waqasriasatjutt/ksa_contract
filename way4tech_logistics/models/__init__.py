@@ -59,3 +59,7 @@ from . import ksa_display_setup
 # has to exist before the models that inherit it.
 # 2026-07-24 — CR4 item 5: module-local product list
 from . import manpower_product
+# 2026-07-30 — CR7 item 1: read-only Project Expenses union (expense + commission).
+# Imported LAST: its SQL VIEW references the project-expense, commission-line,
+# contract and expense-category tables, which must all exist before init() runs.
+from . import manpower_project_expense_report
