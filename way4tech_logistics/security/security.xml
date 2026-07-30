@@ -154,6 +154,14 @@
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- CR7 item 1: same multi-company scoping on the read-only Project Expenses
+         union report, so a user only sees rows for their allowed companies. -->
+    <record id="rule_manpower_project_expense_report_company" model="ir.rule">
+        <field name="name">Project Expenses (report): multi-company</field>
+        <field name="model_id" ref="model_way4tech_manpower_project_expense_report"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
     <record id="rule_equipment_rental_company" model="ir.rule">
         <field name="name">Equipment Rental: multi-company</field>
         <field name="model_id" ref="model_way4tech_equipment_rental"/>
