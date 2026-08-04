@@ -1,334 +1,216 @@
+# -*- coding: utf-8 -*-
+"""CB1 (19.0.4.0.0) — Commissioning Business record (project header).
+
+Business model: AlZain Towers holds the CR + VAT registration. A subcontractor
+with no company of his own uses AlZain's documents to bill his clients. AlZain
+issues the client invoice in its own name; for lending the documents it keeps
+5% of the ex-VAT amount and the subcontractor gets 95%. VAT is AlZain's and is
+remitted to ZATCA, never shared.
+
+This model is the PROJECT record: one subcontractor + one client pair. It stays
+open from start to end; work is recorded over time as SETTLEMENT lines
+(``way4tech.commission.settlement``), each one a receipt with its own date.
+ALL amounts, reporting and period grouping derive from the settlement line's
+own date — the header carries no period of its own.
+
+Standard accrual accounting only. No holding accounts, no deferral. The client
+invoice already posts the full ex-VAT to Commissioning Biz Sale (410002); the
+subcontractor bill posts the 95% to 520002 / 210002; the 5% gross profit is the
+residual margin. No separate commission invoice is raised (that would double
+count 410002).
+
+Evolved in place from the old simple commission-receipt model (CB1 §-decision).
+Old per-receipt amount fields (vat_amount, total_invoice_amount and the
+commission-invoice flow) are removed — the calculation bug they carried is
+gone. The 2 pre-existing test records are disposable; no migration.
+"""
+from datetime import date, timedelta
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 
 class CommissionReceipt(models.Model):
     _name = 'way4tech.commission.receipt'
-    _description = 'Commission Receipt'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'date desc, name desc'
+    _description = 'Commissioning Business Record'
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'analytic.mixin']
+    _order = 'start_date desc, reference desc, id desc'
+    _rec_name = 'name'
 
+    # ── Identity ──────────────────────────────────────────────────────────
     name = fields.Char(
-        string='Reference',
-        copy=False,
-        readonly=True,
-        default=lambda self: _('New'),
-        tracking=True,
-    )
-    date = fields.Date(
-        string='Date',
-        required=True,
-        default=fields.Date.today,
-        tracking=True,
-    )
+        string='Name', copy=False, tracking=True,
+        help='Auto-generated as "Subcontractor - Client - Start Month" when '
+             'left blank. Editable; a name you type is kept.')
+    name_is_auto = fields.Boolean(
+        string='Name Auto-Generated', default=False, copy=False, readonly=True)
+    reference = fields.Char(
+        string='Reference', readonly=True, copy=False, index=True,
+        help='SUB/YYYY/MM/NNNN — month from the Start Date, counter resetting '
+             'each month. Minted by a Python counter, not an ir.sequence '
+             'date-range (which had the yearly-bucket defect on the Manpower '
+             'PRO series).')
+
+    # ── Parties ───────────────────────────────────────────────────────────
     partner_id = fields.Many2one(
-        comodel_name='res.partner',
-        string='Customer',
-        required=True,
-        tracking=True,
-    )
+        'res.partner', string='Client', required=True, tracking=True,
+        help='The client AlZain invoices (in its own name) on the '
+             "subcontractor's behalf.")
     subcontractor_id = fields.Many2one(
-        comodel_name='res.partner',
-        string='Subcontractor',
-        required=True,
-        domain=[('supplier_rank', '>', 0)],
-        tracking=True,
-    )
-    salesperson_id = fields.Many2one('res.users', string='Salesperson', tracking=True)
-    receipt_amount = fields.Monetary(
-        string='Full Receipt Amount',
-        required=True,
-        currency_field='currency_id',
-        tracking=True,
-    )
-    commission_rate = fields.Float(
-        string='Commission %',
-        required=True,
-        default=5.0,
-        digits=(5, 2),
-    )
-    commission_amount = fields.Monetary(
-        string='Commission Amount',
-        compute='_compute_amounts',
-        store=True,
-        currency_field='currency_id',
-    )
-    vat_rate = fields.Float(
-        string='VAT %',
-        default=15.0,
-        digits=(5, 2),
-    )
-    vat_amount = fields.Monetary(
-        string='VAT Amount',
-        compute='_compute_amounts',
-        store=True,
-        currency_field='currency_id',
-    )
-    total_invoice_amount = fields.Monetary(
-        string='Amount to Invoice',
-        compute='_compute_amounts',
-        store=True,
-        currency_field='currency_id',
-    )
-    subcontractor_payable = fields.Monetary(
-        string='Subcontractor Payable',
-        compute='_compute_amounts',
-        store=True,
-        currency_field='currency_id',
-    )
+        'res.partner', string='Subcontractor', required=True,
+        domain=[('supplier_rank', '>', 0)], tracking=True,
+        help='The subcontractor doing the work, who gets 95% of the ex-VAT.')
+    client_po_id = fields.Many2one(
+        'way4tech.client.po', string='Client PO',
+        help='Optional link to the client PO this work is against.')
+    salesperson_id = fields.Many2one(
+        'hr.employee', string='Salesperson', tracking=True,
+        help='Optional referrer. If none, no salesperson commission. '
+             'Freelancers are entered as employees too (with a linked '
+             'partner so the commission bill has a payee).')
+
+    # ── Commission basis (default; each settlement can override) ──────────
+    commission_is_fix = fields.Boolean(
+        string='Fix Commission',
+        help='Default basis copied onto new settlements: On = a fix amount, '
+             'Off = a percent of the ex-VAT receipt.')
+    commission_percent = fields.Float(
+        string='Commission %', digits=(5, 2), default=5.0)
+    commission_fix = fields.Monetary(
+        string='Fix Commission Amount', currency_field='currency_id')
+
+    # ── Reference / period ────────────────────────────────────────────────
+    start_date = fields.Date(
+        string='Start Date', required=True, default=fields.Date.context_today,
+        tracking=True, index=True,
+        help="Start of this record. Drives the auto-name and the SUB "
+             "reference month only. Period reporting uses the settlement "
+             "line date, never this.")
+    end_date = fields.Date(
+        string='End Date', tracking=True,
+        help='Set when work with this client ends. The record stays open '
+             'until then.')
+    period = fields.Char(string='Period / Reference')
+    way4tech_project_id = fields.Many2one('way4tech.project', string='Project')
+    way4tech_category_id = fields.Many2one(
+        'way4tech.entry.category', string='Entry Category')
+    tag_ids = fields.Many2many(
+        'way4tech.tag', 'way4tech_commissioning_tag_rel',
+        'receipt_id', 'tag_id', string='Contract Tags')
+    # analytic_distribution comes from analytic.mixin (allows >2 accounts).
+
+    # ── Settlements ───────────────────────────────────────────────────────
+    settlement_ids = fields.One2many(
+        'way4tech.commission.settlement', 'receipt_id', string='Settlements')
+    settlement_count = fields.Integer(
+        compute='_compute_rollups', string='Settlements')
+    total_receipt = fields.Monetary(
+        compute='_compute_rollups', currency_field='currency_id',
+        string='Total Received (incl. VAT)')
+    total_commission = fields.Monetary(
+        compute='_compute_rollups', currency_field='currency_id',
+        string='Total Commission (Gross Profit)')
+    total_gross_payable = fields.Monetary(
+        compute='_compute_rollups', currency_field='currency_id',
+        string='Total Subcontractor Payable')
+    bill_count = fields.Integer(compute='_compute_rollups', string='Bills')
+
     state = fields.Selection(
-        selection=[
-            ('draft', 'Draft'),
-            ('confirmed', 'Confirmed'),
-            ('invoiced', 'Invoiced'),
-            ('settled', 'Settled'),
-        ],
-        string='Status',
-        default='draft',
-        tracking=True,
-        copy=False,
-    )
-    invoice_id = fields.Many2one(
-        comodel_name='account.move',
-        string='Invoice',
-        readonly=True,
-        copy=False,
-    )
+        selection=[('draft', 'Draft'), ('open', 'Open'), ('closed', 'Closed')],
+        string='Status', default='draft', tracking=True, copy=False)
+
     company_id = fields.Many2one(
-        comodel_name='res.company',
-        string='Company',
-        default=lambda self: self.env.company,
-        required=True,
-    )
+        'res.company', string='Company', required=True,
+        default=lambda self: self.env.company)
     currency_id = fields.Many2one(
-        comodel_name='res.currency',
-        related='company_id.currency_id',
-        string='Currency',
-        readonly=True,
-        store=True,
-    )
-    journal_id = fields.Many2one(
-        comodel_name='account.journal',
-        string='Journal',
-        domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]",
-        check_company=True,
-    )
-    analytic_account_id = fields.Many2one(
-        comodel_name='account.analytic.account',
-        string='Analytic Account',
-    )
-    subcontractor_bill_id = fields.Many2one(
-        comodel_name='account.move',
-        string='Subcontractor Vendor Bill',
-        readonly=True,
-        copy=False,
-    )
+        related='company_id.currency_id', string='Currency',
+        readonly=True, store=True)
     notes = fields.Text(string='Notes')
-    period = fields.Char(string='Period/Reference')
-    is_paid_to_subcontractor = fields.Boolean(
-        string='Paid to Subcontractor',
-        default=False,
-        tracking=True,
-    )
-    subcontractor_payment_date = fields.Date(
-        string='Payment Date to Subcontractor',
-    )
-    subcontractor_payment_ref = fields.Char(
-        string='Payment Reference',
-    )
+
+    # ── Rollups ───────────────────────────────────────────────────────────
+    @api.depends('settlement_ids.full_receipt_amount',
+                 'settlement_ids.commission_amount',
+                 'settlement_ids.gross_payable',
+                 'settlement_ids.bill_id')
+    def _compute_rollups(self):
+        for rec in self:
+            s = rec.settlement_ids
+            rec.settlement_count = len(s)
+            rec.total_receipt = sum(s.mapped('full_receipt_amount'))
+            rec.total_commission = sum(s.mapped('commission_amount'))
+            rec.total_gross_payable = sum(s.mapped('gross_payable'))
+            rec.bill_count = len(s.mapped('bill_id'))
+
+    # ── Auto-name + SUB reference ─────────────────────────────────────────
+    @api.model
+    def _next_sub_reference(self, start_dt):
+        """SUB/YYYY/MM/NNNN for start_dt's month — counter resets monthly.
+        Same self-contained minter as the Manpower PRO series (never the
+        yearly-range ir.sequence that resolved the month to 01)."""
+        if not start_dt:
+            start_dt = date.today()
+        prefix = 'SUB/%s/%s/' % (start_dt.strftime('%Y'), start_dt.strftime('%m'))
+        highest = 0
+        for other in self.with_context(active_test=False).search(
+                [('reference', '=like', prefix + '%')]):
+            tail = (other.reference or '').rsplit('/', 1)[-1]
+            if tail.isdigit():
+                highest = max(highest, int(tail))
+        return '%s%04d' % (prefix, highest + 1)
+
+    def _build_auto_name(self, subcontractor, client, start_dt):
+        sub = subcontractor.name or ''
+        cli = client.name or ''
+        mon = start_dt.strftime('%m/%Y') if start_dt else ''
+        return '%s - %s - %s' % (sub, cli, mon)
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            if vals.get('name', _('New')) == _('New'):
-                vals['name'] = self.env['ir.sequence'].next_by_code(
-                    'way4tech.commission.receipt'
-                ) or _('New')
+            sd = fields.Date.to_date(vals.get('start_date')) or date.today()
+            if not vals.get('reference'):
+                vals['reference'] = self._next_sub_reference(sd)
+            if not vals.get('name') and vals.get('subcontractor_id') and vals.get('partner_id'):
+                sub = self.env['res.partner'].browse(vals['subcontractor_id'])
+                cli = self.env['res.partner'].browse(vals['partner_id'])
+                vals['name'] = self._build_auto_name(sub, cli, sd)
+                vals['name_is_auto'] = True
         return super().create(vals_list)
 
-    receipt_excl_vat = fields.Monetary(
-        string='Receipt Ex-VAT',
-        compute='_compute_amounts',
-        store=True,
-        currency_field='currency_id',
-        help='Receipt amount excluding the embedded VAT (receipt / (1 + VAT%))',
-    )
+    def write(self, vals):
+        res = super().write(vals)
+        # Keep an auto name in step when the driving fields change.
+        drivers = {'subcontractor_id', 'partner_id', 'start_date'}
+        if drivers & set(vals.keys()):
+            for rec in self.filtered('name_is_auto'):
+                rec.with_context(_skip_name_auto=True).name = rec._build_auto_name(
+                    rec.subcontractor_id, rec.partner_id, rec.start_date)
+        return res
 
-    @api.depends('receipt_amount', 'commission_rate', 'vat_rate')
-    def _compute_amounts(self):
+    # ── State + smart buttons ─────────────────────────────────────────────
+    def action_open(self):
+        self.write({'state': 'open'})
+
+    def action_close(self):
         for rec in self:
-            # Commission is calculated on the ex-VAT portion of the receipt
-            divisor = 1.0 + rec.vat_rate / 100.0
-            excl_vat = rec.receipt_amount / divisor if divisor else rec.receipt_amount
-            commission = excl_vat * rec.commission_rate / 100.0
-            vat = commission * rec.vat_rate / 100.0
-            total_invoice = commission + vat
-            rec.receipt_excl_vat = excl_vat
-            rec.commission_amount = commission
-            rec.vat_amount = vat
-            rec.total_invoice_amount = total_invoice
-            rec.subcontractor_payable = rec.receipt_amount - total_invoice
-
-    def action_confirm(self):
-        self.ensure_one()
-        self.state = 'confirmed'
-
-    def action_create_invoice(self):
-        self.ensure_one()
-        if self.state not in ('confirmed',):
-            raise UserError(_('Commission receipt must be confirmed before creating an invoice.'))
-
-        # Find VAT tax for sales
-        vat_tax = self.env['account.tax'].search([
-            ('type_tax_use', '=', 'sale'),
-            ('amount', '=', self.vat_rate),
-            ('amount_type', '=', 'percent'),
-            ('company_id', '=', self.company_id.id),
-        ], limit=1)
-        if not vat_tax and self.vat_rate:
-            raise UserError(_(
-                'No %.0f%% sales tax found. Please create a sales tax with amount %.0f%% '
-                'before creating the invoice, or set VAT %% to 0.'
-            ) % (self.vat_rate, self.vat_rate))
-
-        # Load settings for this company
-        settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = self.analytic_account_id or settings.default_analytic_account_id
-        analytic_distribution = {str(analytic.id): 100} if analytic else {}
-
-        invoice_line_vals = {
-            'name': 'Commission - %s' % self.name,
-            'quantity': 1.0,
-            'price_unit': self.commission_amount,
-        }
-        if vat_tax:
-            invoice_line_vals['tax_ids'] = [(6, 0, [vat_tax.id])]
-        # Use commission income account from settings
-        if settings.commission_income_account_id:
-            invoice_line_vals['account_id'] = settings.commission_income_account_id.id
-        if analytic_distribution:
-            invoice_line_vals['analytic_distribution'] = analytic_distribution
-
-        # Add period/reference if set
-        if self.period:
-            invoice_line_vals['name'] = '%s (%s)' % (
-                invoice_line_vals['name'], self.period
-            )
-
-        invoice_vals = {
-            'move_type': 'out_invoice',
-            'partner_id': self.subcontractor_id.id,
-            'invoice_date': self.date,
-            'company_id': self.company_id.id,
-            'invoice_line_ids': [(0, 0, invoice_line_vals)],
-            'narration': self.notes or '',
-        }
-        # Use commission journal from settings, then from record, then Odoo default
-        journal = self.journal_id or settings.commission_journal_id
-        if journal:
-            invoice_vals['journal_id'] = journal.id
-
-        _category = self.env.ref('way4tech_logistics.category_commission', raise_if_not_found=False)
-        if _category:
-            invoice_vals['way4tech_category_id'] = _category.id
-        invoice = self.env['account.move'].create(invoice_vals)
-        self.write({
-            'invoice_id': invoice.id,
-            'state': 'invoiced',
-        })
-
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Invoice'),
-            'res_model': 'account.move',
-            'res_id': invoice.id,
-            'view_mode': 'form',
-            'target': 'current',
-        }
-
-    def action_create_subcontractor_bill(self):
-        """Create a vendor bill payable to the subcontractor for their cut (receipt - commission - VAT)."""
-        self.ensure_one()
-        if self.state != 'invoiced':
-            raise UserError(_('Please create the commission invoice first.'))
-        if self.subcontractor_bill_id:
-            raise UserError(_('A vendor bill for this subcontractor already exists.'))
-
-        settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = self.analytic_account_id or settings.default_analytic_account_id
-        analytic_distribution = {str(analytic.id): 100} if analytic else {}
-
-        bill_line_vals = {
-            'name': 'Subcontractor Payment - %s' % self.name,
-            'quantity': 1.0,
-            'price_unit': self.subcontractor_payable,
-        }
-        if self.period:
-            bill_line_vals['name'] = '%s (%s)' % (bill_line_vals['name'], self.period)
-        if settings.subcontractor_expense_account_id:
-            bill_line_vals['account_id'] = settings.subcontractor_expense_account_id.id
-        if analytic_distribution:
-            bill_line_vals['analytic_distribution'] = analytic_distribution
-
-        bill_vals = {
-            'move_type': 'in_invoice',
-            'partner_id': self.subcontractor_id.id,
-            'invoice_date': self.date,
-            'company_id': self.company_id.id,
-            'invoice_line_ids': [(0, 0, bill_line_vals)],
-            'narration': self.notes or '',
-        }
-        _category = self.env.ref('way4tech_logistics.category_commission', raise_if_not_found=False)
-        if _category:
-            bill_vals['way4tech_category_id'] = _category.id
-        bill = self.env['account.move'].create(bill_vals)
-        self.write({'subcontractor_bill_id': bill.id})
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Subcontractor Vendor Bill'),
-            'res_model': 'account.move',
-            'res_id': bill.id,
-            'view_mode': 'form',
-            'target': 'current',
-        }
-
-    def action_view_subcontractor_bill(self):
-        self.ensure_one()
-        if not self.subcontractor_bill_id:
-            raise UserError(_('No vendor bill linked to this commission receipt.'))
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Subcontractor Vendor Bill'),
-            'res_model': 'account.move',
-            'res_id': self.subcontractor_bill_id.id,
-            'view_mode': 'form',
-            'target': 'current',
-        }
-
-    def action_settle(self):
-        self.ensure_one()
-        self.state = 'settled'
+            if not rec.end_date:
+                rec.end_date = fields.Date.context_today(rec)
+        self.write({'state': 'closed'})
 
     def action_reset_draft(self):
-        self.ensure_one()
-        self.state = 'draft'
+        self.write({'state': 'draft'})
 
-    def action_mark_subcontractor_paid(self):
+    def action_view_bills(self):
         self.ensure_one()
-        self.write({
-            'is_paid_to_subcontractor': True,
-            'subcontractor_payment_date': fields.Date.today(),
-        })
-
-    def action_view_invoice(self):
-        self.ensure_one()
-        if not self.invoice_id:
-            raise UserError(_('No invoice linked to this commission receipt.'))
+        bills = self.settlement_ids.mapped('bill_id')
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Invoice'),
+            'name': _('Subcontractor Bills'),
             'res_model': 'account.move',
-            'res_id': self.invoice_id.id,
-            'view_mode': 'form',
-            'target': 'current',
+            'domain': [('id', 'in', bills.ids)],
+            'view_mode': 'list,form',
         }
+
+    def _settings(self):
+        return self.env['way4tech.payroll.settings'].get_for_company(
+            self.company_id.id)

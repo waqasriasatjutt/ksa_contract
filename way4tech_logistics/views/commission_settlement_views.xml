@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Settlement form (default form; opened as a dialog from the record) -->
+    <record id="view_commission_settlement_form" model="ir.ui.view">
+        <field name="name">way4tech.commission.settlement.form</field>
+        <field name="model">way4tech.commission.settlement</field>
+        <field name="arch" type="xml">
+            <form string="Settlement">
+                <header>
+                    <button name="action_select_invoices" type="object"
+                            string="Select Client Invoices" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_create_bill" type="object"
+                            string="Create Subcontractor Bill" class="btn-primary"
+                            invisible="state != 'draft' or not id"
+                            confirm="Create and post the subcontractor vendor bill for the gross payable?"/>
+                    <button name="action_pay" type="object"
+                            string="Pay Voucher" class="btn-primary"
+                            invisible="state != 'billed'"
+                            confirm="Register the payment and apply any advance recovery?"/>
+                    <button name="action_create_salesperson_commission" type="object"
+                            string="Salesperson Commission"
+                            invisible="not id or salesperson_bill_id"/>
+                    <button name="action_print_voucher" type="object"
+                            string="Print Voucher" invisible="state != 'paid'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,billed,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_print_voucher" type="object"
+                                class="oe_stat_button" icon="fa-print"
+                                invisible="state != 'paid'">
+                            <div class="o_stat_info"><span class="o_stat_text">Voucher</span></div>
+                        </button>
+                    </div>
+                    <group>
+                        <group string="Settlement">
+                            <field name="receipt_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="date"/>
+                            <field name="voucher_number" readonly="1" invisible="not voucher_number"/>
+                            <field name="bill_id" readonly="1" invisible="not bill_id"/>
+                            <field name="payment_id" readonly="1" invisible="not payment_id"/>
+                        </group>
+                        <group string="Salesperson">
+                            <field name="salesperson_commission_amount" readonly="1"/>
+                            <field name="salesperson_bill_id" readonly="1" invisible="not salesperson_bill_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Client Invoices" name="invoices">
+                            <field name="allocation_ids" readonly="state != 'draft'">
+                                <list editable="bottom">
+                                    <field name="invoice_id" readonly="1"/>
+                                    <field name="invoice_date" readonly="1"/>
+                                    <field name="invoice_total" readonly="1"/>
+                                    <field name="allocated_amount"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                            <p class="text-muted">Use "Select Client Invoices" to pick invoices; the allocation is FIFO (oldest first) from the Full Receipt Amount.</p>
+                        </page>
+                        <page string="Receipt &amp; Commission" name="amounts">
+                            <group>
+                                <group string="Receipt &amp; Commission">
+                                    <field name="full_receipt_amount" readonly="state != 'draft'"/>
+                                    <field name="vat_rate" readonly="state != 'draft'"/>
+                                    <field name="receipt_excl_vat" readonly="1"/>
+                                    <label for="commission_percent" string="Commission"/>
+                                    <div class="o_row">
+                                        <field name="commission_is_fix" readonly="state != 'draft'"/>
+                                        <field name="commission_percent" invisible="commission_is_fix" nolabel="1" readonly="state != 'draft'"/>
+                                        <field name="commission_fix" invisible="not commission_is_fix" nolabel="1" readonly="state != 'draft'"/>
+                                    </div>
+                                    <field name="advance_balance" readonly="1"/>
+                                    <field name="advance_recovered" readonly="state == 'paid'"/>
+                                    <field name="previous_outstanding" readonly="1"/>
+                                    <field name="outstanding_paid" readonly="state == 'paid'"/>
+                                </group>
+                                <group string="Computed Amounts">
+                                    <field name="commission_amount" readonly="1"/>
+                                    <field name="gross_payable" readonly="1" class="oe_subtotal_footer_separator"/>
+                                    <field name="net_payable" readonly="1"/>
+                                    <field name="consolidated_payable" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_commission_settlement_list" model="ir.ui.view">
+        <field name="name">way4tech.commission.settlement.list</field>
+        <field name="model">way4tech.commission.settlement</field>
+        <field name="arch" type="xml">
+            <list string="Settlements">
+                <field name="date"/>
+                <field name="subcontractor_id"/>
+                <field name="partner_id"/>
+                <field name="full_receipt_amount" sum="Received"/>
+                <field name="commission_amount" sum="Commission"/>
+                <field name="gross_payable" sum="Gross"/>
+                <field name="net_payable" sum="Net"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+</odoo>

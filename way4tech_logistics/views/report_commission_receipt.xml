@@ -2,124 +2,94 @@
 <odoo>
 
     <!-- ===================================================
-         Commission Receipt — Report Action
+         CB1 §9 — Subcontractor Payment Voucher (Receipt of Payment)
+         Bound to the settlement. Company (AlZain Towers) comes from the
+         external layout, so the letterhead already carries AlZain, not
+         Way4Tech (CB1 §13 branding).
          =================================================== -->
-    <record id="action_report_commission_receipt" model="ir.actions.report">
-        <field name="name">Commission Receipt</field>
-        <field name="model">way4tech.commission.receipt</field>
+    <record id="action_report_commissioning_voucher" model="ir.actions.report">
+        <field name="name">Payment Voucher</field>
+        <field name="model">way4tech.commission.settlement</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">way4tech_logistics.report_commission_receipt_doc</field>
-        <field name="report_file">way4tech_logistics.report_commission_receipt_doc</field>
-        <field name="binding_model_id" ref="model_way4tech_commission_receipt"/>
+        <field name="report_name">way4tech_logistics.report_commissioning_voucher_doc</field>
+        <field name="report_file">way4tech_logistics.report_commissioning_voucher_doc</field>
+        <field name="binding_model_id" ref="model_way4tech_commission_settlement"/>
         <field name="binding_type">report</field>
     </record>
 
-    <!-- ===================================================
-         Commission Receipt — QWeb Template
-         =================================================== -->
-    <template id="report_commission_receipt_doc">
+    <template id="report_commissioning_voucher_doc">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-call="web.external_layout">
                     <div class="page">
-                        <div class="row mb-4">
-                            <div class="col-6">
-                                <h2>Commission Receipt</h2>
-                                <p class="text-muted">
-                                    <strong>Reference:</strong> <t t-esc="o.name"/><br/>
-                                    <strong>Date:</strong> <t t-esc="o.date"/><br/>
-                                    <t t-if="o.period">
-                                        <strong>Period:</strong> <t t-esc="o.period"/><br/>
-                                    </t>
-                                </p>
+                        <div class="row mb-3">
+                            <div class="col-8">
+                                <h2 class="mb-0"><t t-esc="o.company_id.name"/></h2>
+                                <h4 class="text-muted">Receipt of Payment</h4>
                             </div>
-                            <div class="col-6 text-end">
-                                <span t-attf-class="badge #{o.state == 'settled' and 'bg-success' or o.state == 'invoiced' and 'bg-primary' or o.state == 'confirmed' and 'bg-warning' or 'bg-secondary'} fs-6">
-                                    <t t-esc="dict(o.fields_get(['state'])['state']['selection'])[o.state]"/>
-                                </span>
+                            <div class="col-4 text-end">
+                                <strong>Voucher No:</strong> <t t-esc="o.voucher_number or '-'"/><br/>
+                                <strong>Date:</strong> <t t-esc="o.date"/><br/>
+                                <strong>Ref:</strong> <t t-esc="o.receipt_id.reference or ''"/>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Subcontractor:</strong> <t t-esc="o.subcontractor_id.name"/><br/>
+                                <strong>Client:</strong> <t t-esc="o.partner_id.name"/>
                             </div>
                         </div>
 
-                        <div class="row mb-4">
-                            <div class="col-6">
-                                <strong>Customer:</strong>
-                                <address>
-                                    <t t-esc="o.partner_id.name"/><br/>
-                                    <t t-if="o.partner_id.street"><t t-esc="o.partner_id.street"/><br/></t>
-                                    <t t-if="o.partner_id.city"><t t-esc="o.partner_id.city"/></t>
-                                    <t t-if="o.partner_id.country_id"> — <t t-esc="o.partner_id.country_id.name"/></t>
-                                </address>
-                            </div>
-                            <div class="col-6">
-                                <strong>Subcontractor:</strong>
-                                <address>
-                                    <t t-esc="o.subcontractor_id.name"/><br/>
-                                    <t t-if="o.subcontractor_id.street"><t t-esc="o.subcontractor_id.street"/><br/></t>
-                                    <t t-if="o.subcontractor_id.city"><t t-esc="o.subcontractor_id.city"/></t>
-                                </address>
-                            </div>
-                        </div>
-
-                        <table class="table table-bordered">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Description</th>
-                                    <th class="text-end">Amount (<t t-esc="o.currency_id.symbol"/>)</th>
-                                </tr>
-                            </thead>
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light"><tr><th>Calculation</th><th class="text-end">Amount</th></tr></thead>
                             <tbody>
-                                <tr>
-                                    <td>Full Receipt Amount (incl. VAT)</td>
-                                    <td class="text-end"><t t-esc="'%.2f' % o.receipt_amount"/></td>
-                                </tr>
-                                <tr>
-                                    <td>Receipt Amount (excl. <t t-esc="'%.0f' % o.vat_rate"/>% VAT)</td>
-                                    <td class="text-end"><t t-esc="'%.2f' % o.receipt_excl_vat"/></td>
-                                </tr>
-                                <tr>
-                                    <td>Commission (<t t-esc="'%.1f' % o.commission_rate"/>% of Ex-VAT Receipt)</td>
-                                    <td class="text-end"><t t-esc="'%.2f' % o.commission_amount"/></td>
-                                </tr>
-                                <tr>
-                                    <td>VAT on Commission (<t t-esc="'%.0f' % o.vat_rate"/>%)</td>
-                                    <td class="text-end"><t t-esc="'%.2f' % o.vat_amount"/></td>
-                                </tr>
-                                <tr class="table-warning fw-bold">
-                                    <td>Total Commission Invoice</td>
-                                    <td class="text-end"><t t-esc="'%.2f' % o.total_invoice_amount"/></td>
-                                </tr>
-                                <tr class="table-success fw-bold">
-                                    <td>Subcontractor Payable (Receipt − Commission Invoice)</td>
-                                    <td class="text-end"><t t-esc="'%.2f' % o.subcontractor_payable"/></td>
+                                <tr><td>Amount After VAT (received)</td><td class="text-end"><t t-esc="'%.2f' % o.full_receipt_amount"/></td></tr>
+                                <tr><td>VAT (<t t-esc="'%.0f' % o.vat_rate"/>%)</td><td class="text-end"><t t-esc="'%.2f' % (o.full_receipt_amount - o.receipt_excl_vat)"/></td></tr>
+                                <tr><td>Amount Before VAT</td><td class="text-end"><t t-esc="'%.2f' % o.receipt_excl_vat"/></td></tr>
+                                <tr><td>Company Commission</td><td class="text-end"><t t-esc="'%.2f' % o.commission_amount"/></td></tr>
+                                <tr class="fw-bold"><td>Net Amount (Subcontractor)</td><td class="text-end"><t t-esc="'%.2f' % o.gross_payable"/></td></tr>
+                            </tbody>
+                        </table>
+
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light"><tr><th>Adjustments</th><th class="text-end">Amount</th></tr></thead>
+                            <tbody>
+                                <tr><td>Advance Recovered / Deducted</td><td class="text-end"><t t-esc="'%.2f' % o.advance_recovered"/></td></tr>
+                                <tr><td>Previous Outstanding</td><td class="text-end"><t t-esc="'%.2f' % o.previous_outstanding"/></td></tr>
+                                <tr><td>Outstanding Paid</td><td class="text-end"><t t-esc="'%.2f' % o.outstanding_paid"/></td></tr>
+                                <tr class="fw-bold table-success"><td>Net Amount Payable</td><td class="text-end"><t t-esc="'%.2f' % o.consolidated_payable"/></td></tr>
+                            </tbody>
+                        </table>
+
+                        <h5 class="mt-3">Source of Funds</h5>
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light"><tr><th>Client Invoice</th><th>Date</th><th class="text-end">Allocated</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="o.allocation_ids" t-as="a">
+                                    <td><t t-esc="a.invoice_id.name"/></td>
+                                    <td><t t-esc="a.invoice_date"/></td>
+                                    <td class="text-end"><t t-esc="'%.2f' % a.allocated_amount"/></td>
                                 </tr>
                             </tbody>
                         </table>
 
-                        <div class="row mt-4">
+                        <h5 class="mt-3">Client Exposure (pending invoices)</h5>
+                        <p>
+                            <strong>Count:</strong> <t t-esc="o.client_pending_count"/> &#8226;
+                            <strong>Total (incl VAT):</strong> <t t-esc="'%.2f' % o.client_pending_total"/> &#8226;
+                            <strong>VAT:</strong> <t t-esc="'%.2f' % o.client_pending_vat"/><br/>
+                            <t t-if="o.client_pending_names"><strong>Invoices:</strong> <t t-esc="o.client_pending_names"/></t>
+                        </p>
+
+                        <div class="row mt-5">
                             <div class="col-6">
-                                <t t-if="o.invoice_id">
-                                    <strong>Commission Invoice:</strong> <t t-esc="o.invoice_id.name"/><br/>
-                                </t>
-                                <t t-if="o.subcontractor_bill_id">
-                                    <strong>Subcontractor Bill:</strong> <t t-esc="o.subcontractor_bill_id.name"/><br/>
-                                </t>
+                                <p>Receiver: ____________________</p>
+                                <p><t t-esc="o.subcontractor_id.name"/></p>
                             </div>
-                            <div class="col-6">
-                                <t t-if="o.is_paid_to_subcontractor">
-                                    <span class="badge bg-success">Subcontractor Paid</span>
-                                    <t t-if="o.subcontractor_payment_date">
-                                        on <t t-esc="o.subcontractor_payment_date"/>
-                                    </t>
-                                </t>
+                            <div class="col-6 text-end">
+                                <p>For <t t-esc="o.company_id.name"/>: ____________________</p>
                             </div>
                         </div>
-
-                        <t t-if="o.notes">
-                            <div class="mt-3">
-                                <strong>Notes:</strong>
-                                <p><t t-esc="o.notes"/></p>
-                            </div>
-                        </t>
                     </div>
                 </t>
             </t>

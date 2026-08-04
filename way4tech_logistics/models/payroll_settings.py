@@ -136,6 +136,54 @@ class PayrollSettings(models.Model):
         help='Expense account on the vendor bill created for the subcontractor\'s share.',
     )
 
+    # ── CB1 (v19.0.4.0.0) — Commissioning Business ────────────────────────────
+    # New config slots for the Commissioning ("lend the CR/VAT documents")
+    # flow. All additive; the Manpower fields above are untouched. Each is a
+    # dedicated field so the Commissioning subcontractor bill / voucher /
+    # advance resolve to the RIGHT Commissioning account, never Manpower's.
+    commissioning_payable_account_id = fields.Many2one(
+        'account.account',
+        string='Commissioning Subcontractor Payable',
+        check_company=True,
+        help='Liability (payable) account credited on the Commissioning '
+             'subcontractor vendor bill. Example: 210002 Commissioning '
+             'Business Payable. Set on the subcontractor bills created here so '
+             'the credit lands on this account, not the generic AP.',
+    )
+    commissioning_purchase_journal_id = fields.Many2one(
+        'account.journal',
+        string='Commissioning Purchases Journal',
+        check_company=True,
+        domain=[('type', '=', 'purchase')],
+        help='Purchase journal used for the Commissioning subcontractor bill. '
+             'Example: BILL2 Commissioning Biz Purchases. Scopes the bill to '
+             'the Commissioning journal — never the Direct Business / Manpower '
+             'purchase journal.',
+    )
+    subcontractor_advance_account_id = fields.Many2one(
+        'account.account',
+        string='Subcontractor Advance Account',
+        check_company=True,
+        help='Asset (receivable) account holding advances paid to '
+             'subcontractors. Example: 142005 Advance To Subcontractor. The '
+             'settlement/voucher READS the subcontractor balance here and '
+             'recovers it against the payable; advances themselves are paid '
+             'through normal Accounting.',
+    )
+    commissioning_subcontractor_rule_ids = fields.One2many(
+        'way4tech.commissioning.subcontractor.rule', 'settings_id',
+        string='Commissioning Subcontractor Rules',
+        help='Per-subcontractor commission basis (percent of ex-VAT, or a '
+             'fix amount). One row per subcontractor partner per company.',
+    )
+    commissioning_salesperson_rule_ids = fields.One2many(
+        'way4tech.commissioning.salesperson.rule', 'settings_id',
+        string='Commissioning Salesperson Rules',
+        help='Per-employee salesperson commission rules for Commissioning. '
+             'Two modes only: Fix Amount (once per client) and Gross Profit %. '
+             'Separate from the Manpower Sales Person Commission Rules.',
+    )
+
     # ── Trucks / Fleet ────────────────────────────────────────────────────────
     truck_revenue_account_id = fields.Many2one(
         'account.account',
@@ -587,6 +635,10 @@ class PayrollSettings(models.Model):
         _set('commission_income_account_id',  '500003', 'Commission Income',       'income',            'commission income', 'commission', 'service income')
         _set('subcontractor_expense_account_id','400003','Basic Salary',           'expense',           'subcontractor', 'freelancer', 'labour')
 
+        # ── COMMISSIONING BUSINESS (CB1) ─────────────────────────────────────
+        _set('commissioning_payable_account_id',  '210002', 'Commissioning Business Payable', 'liability_payable', 'commissioning business payable', 'commissioning payable', 'subcontractor payable')
+        _set('subcontractor_advance_account_id',   '142005', 'Advance To Subcontractor',      'asset_receivable',  'advance to subcontractor', 'subcontractor advance', 'commissioning advance')
+
         # ── FLEET / TRUCKS ───────────────────────────────────────────────────
         _set('truck_revenue_account_id',   '500008', 'Transport Revenue',          'income',            'transport revenue', 'fleet income', 'vehicle income')
         _set('truck_expense_account_id',   '400048', 'Vehicle & Fleet Expenses',   'expense',           'vehicle', 'fleet expense', 'truck expense')
@@ -615,6 +667,7 @@ class PayrollSettings(models.Model):
         # ── JOURNALS ─────────────────────────────────────────────────────────
         _journal('payroll_journal_id',        'general',  'payroll', 'salary', 'miscellaneous')
         _journal('commission_journal_id',     'sale',     'customer', 'sales', 'invoice')
+        _journal('commissioning_purchase_journal_id', 'purchase', 'commissioning biz purchases', 'commissioning', 'purchase')
         _journal('truck_trip_journal_id',     'sale',     'customer', 'sales', 'invoice')
         _journal('manpower_journal_id',       'sale',     'customer', 'sales', 'invoice')
         _journal('truck_expense_journal_id',  'general',  'miscellaneous', 'general', 'payroll')

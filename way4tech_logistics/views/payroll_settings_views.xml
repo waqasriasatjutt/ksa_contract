@@ -78,6 +78,56 @@
                             </group>
                         </page>
 
+                        <!-- ── COMMISSIONING BUSINESS (CB1) ── -->
+                        <page string="Commissioning Business" name="commissioning">
+                            <group>
+                                <group string="Accounts &amp; Journal">
+                                    <field name="commissioning_payable_account_id"
+                                           domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'liability_payable')]"
+                                           help="Example: 210002 Commissioning Business Payable. Credited on the subcontractor bill."/>
+                                    <field name="subcontractor_expense_account_id" string="Subcontractor Cost (Expense)"
+                                           domain="[('company_ids', 'in', [company_id])]"
+                                           help="Example: 520002 Commissioning Biz Exp. Debited on the subcontractor bill."/>
+                                    <field name="commissioning_purchase_journal_id"
+                                           domain="[('type', '=', 'purchase'), ('company_id', '=', company_id)]"
+                                           help="Example: BILL2 Commissioning Biz Purchases."/>
+                                    <field name="subcontractor_advance_account_id"
+                                           domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'asset_receivable')]"
+                                           help="Example: 142005 Advance To Subcontractor. Read for advance recovery."/>
+                                    <field name="commission_journal_id" string="Client Sales Journal (read only)" readonly="1"
+                                           help="The Commissioning sales journal (e.g. INV1). Its invoices feed the settlement's invoice picker."/>
+                                </group>
+                                <group string="Salesperson Commission">
+                                    <field name="commission_expense_account_id"
+                                           domain="[('company_ids', 'in', [company_id])]"
+                                           help="Expense account debited on the salesperson commission bill."/>
+                                </group>
+                            </group>
+                            <separator string="Subcontractor Commission Rules (per subcontractor)"/>
+                            <field name="commissioning_subcontractor_rule_ids">
+                                <list editable="bottom">
+                                    <field name="partner_id"/>
+                                    <field name="is_fix"/>
+                                    <field name="percent" invisible="is_fix"/>
+                                    <field name="fix_amount" invisible="not is_fix"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                            <separator string="Salesperson Commission Rules (per employee) — 2 modes"/>
+                            <field name="commissioning_salesperson_rule_ids">
+                                <list editable="bottom">
+                                    <field name="employee_id"/>
+                                    <field name="mode"/>
+                                    <field name="percent" invisible="mode != 'gp_percent'"/>
+                                    <field name="fix_amount" invisible="mode != 'fix'"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                            <div class="text-muted mt-2">
+                                Fix salesperson commission is applied once per client (not multiplied by invoice count). Gross Profit % is a percent of the realised commission (gross profit).
+                            </div>
+                        </page>
+
                         <!-- ── FLEET / TRUCKS ── -->
                         <page string="Fleet &amp; Trucks">
                             <group string="Income Accounts">

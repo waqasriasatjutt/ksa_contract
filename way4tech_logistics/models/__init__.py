@@ -63,3 +63,8 @@ from . import manpower_product
 # Imported LAST: its SQL VIEW references the project-expense, commission-line,
 # contract and expense-category tables, which must all exist before init() runs.
 from . import manpower_project_expense_report
+# 2026-08-04 — CB1: Commissioning Business (config rules, settlement lines,
+# invoice-selection wizard). commission_receipt (header) is imported above.
+from . import commissioning_rules
+from . import commission_settlement
+from . import commission_invoice_select_wizard

@@ -2,271 +2,162 @@
 <odoo>
 
     <!-- ===================================================
-         Form View
+         CB1 — Commissioning Business record (project header)
          =================================================== -->
     <record id="view_commission_receipt_form" model="ir.ui.view">
         <field name="name">way4tech.commission.receipt.form</field>
         <field name="model">way4tech.commission.receipt</field>
         <field name="arch" type="xml">
-            <form string="Commission Receipt">
+            <form string="Commissioning Business">
                 <header>
-                    <button
-                        name="action_confirm"
-                        type="object"
-                        string="Confirm"
-                        class="btn-primary"
-                        invisible="state != 'draft'"
-                    />
-                    <button
-                        name="action_create_invoice"
-                        type="object"
-                        string="Create Commission Invoice"
-                        class="btn-primary"
-                        invisible="state != 'confirmed'"
-                        confirm="This will create a commission invoice for the subcontractor. Continue?"
-                    />
-                    <button
-                        name="action_create_subcontractor_bill"
-                        type="object"
-                        string="Create Subcontractor Bill"
-                        class="btn-secondary"
-                        invisible="state not in ('invoiced', 'settled') or subcontractor_bill_id != False"
-                        confirm="This will create a vendor bill to pay the subcontractor their share. Continue?"
-                    />
-                    <button
-                        name="action_settle"
-                        type="object"
-                        string="Mark as Settled"
-                        class="btn-secondary"
-                        invisible="state != 'invoiced'"
-                    />
-                    <button
-                        name="action_reset_draft"
-                        type="object"
-                        string="Reset to Draft"
-                        class="btn-secondary"
-                        invisible="state not in ('confirmed',)"
-                    />
-                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,invoiced,settled"/>
+                    <button name="action_open" type="object" string="Open"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_close" type="object" string="Close"
+                            invisible="state != 'open'"
+                            confirm="Close this record? The End Date will be set if blank."/>
+                    <button name="action_reset_draft" type="object"
+                            string="Reset to Draft" invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,open,closed"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button
-                            name="action_view_invoice"
-                            type="object"
-                            class="oe_stat_button"
-                            icon="fa-pencil-square-o"
-                            invisible="not invoice_id"
-                        >
-                            <div class="o_stat_info">
-                                <span class="o_stat_text">Commission Invoice</span>
-                            </div>
+                        <button name="action_view_bills" type="object"
+                                class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="bill_count == 0">
+                            <field name="bill_count" widget="statinfo" string="Bills"/>
                         </button>
-                        <button
-                            name="action_view_subcontractor_bill"
-                            type="object"
-                            class="oe_stat_button"
-                            icon="fa-file-text-o"
-                            invisible="not subcontractor_bill_id"
-                        >
-                            <div class="o_stat_info">
-                                <span class="o_stat_text">Subcontractor Bill</span>
-                            </div>
+                        <button class="oe_stat_button" icon="fa-list" disabled="1">
+                            <field name="settlement_count" widget="statinfo" string="Settlements"/>
                         </button>
                     </div>
                     <div class="oe_title">
-                        <h1>
-                            <field name="name" readonly="1"/>
-                        </h1>
+                        <h1><field name="name" placeholder="auto: Subcontractor - Client - Month"/></h1>
+                        <h3><field name="reference" readonly="1"/></h3>
                     </div>
                     <group>
                         <group string="Parties">
-                            <field name="partner_id" readonly="state != 'draft'"
-                                   help="The food delivery platform client (customer) from whom the full receipt was collected. Example: HungerStation, Keeta. &#10;This partner will NOT appear on the commission invoice — the invoice goes to the subcontractor."/>
-                            <field name="subcontractor_id" readonly="state != 'draft'"
-                                   help="The subcontractor who collected the full receipt on your behalf and owes you the commission. &#10;The commission customer invoice is raised AGAINST this subcontractor (they owe you the commission + VAT). &#10;The subcontractor vendor bill is also raised for this partner (you owe them the receipt minus your commission)."/>
-                            <field name="salesperson_id" readonly="state != 'draft'"
-                                   help="The salesperson responsible for this commission deal. &#10;&#10;Used in the Salesperson Profitability Report to aggregate commission income by sales rep alongside their truck trip and manpower contract performance."/>
-                            <field name="company_id" groups="base.group_multi_company"
-                                   help="Branch company this commission record belongs to. Determines which accounts, journals, and VAT rates are used."/>
+                            <field name="partner_id" readonly="state == 'closed'"/>
+                            <field name="subcontractor_id" readonly="state == 'closed'"/>
+                            <field name="client_po_id" readonly="state == 'closed'"/>
+                            <field name="salesperson_id" readonly="state == 'closed'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
-                        <group string="Reference">
-                            <field name="date" readonly="state != 'draft'"
-                                   help="Date of the commission transaction. Used as the invoice date on the commission customer invoice."/>
-                            <field name="period"
-                                   help="Optional period/reference label (e.g. 'March 2026' or 'Week 12'). Appended to the invoice line description for easy reconciliation."/>
-                            <field name="analytic_account_id" readonly="state != 'draft'"
-                                   help="Analytic Account — a reporting label (not a GL account) applied to both the commission invoice line and the subcontractor vendor bill line. &#10;&#10;Use this to track commission income and subcontractor costs per client or per project in Accounting → Reporting → Analytic Report. For example, if you want to see total commission earned from HungerStation vs Keeta, create one analytic account per platform and select it here. &#10;&#10;Leave blank to use the company default set in Configuration → Payroll &amp; Accounting Setup → Analytics tab."/>
-                            <field name="journal_id" readonly="state not in ('draft', 'confirmed')"
-                                   help="Sales journal used for the commission customer invoice. If blank, uses the commission journal from Payroll Settings, then the Odoo default Sales journal. &#10;Configure the default in Configuration → Payroll &amp; Accounting Setup → Commission Receipts tab."/>
-                            <field name="invoice_id" readonly="1"
-                                   help="The commission customer invoice (out_invoice) created when you click 'Create Commission Invoice'. The subcontractor owes you this amount. Read-only."/>
-                            <field name="subcontractor_bill_id" readonly="1"
-                                   help="The vendor bill (in_invoice) created when you click 'Create Subcontractor Bill'. You owe the subcontractor this amount (receipt minus your commission + VAT). Read-only."/>
+                        <group string="Reference &amp; Basis">
+                            <field name="start_date" readonly="state == 'closed'"/>
+                            <field name="end_date" readonly="state == 'closed'"/>
+                            <field name="period"/>
+                            <label for="commission_percent" string="Commission Basis"/>
+                            <div class="o_row">
+                                <field name="commission_is_fix"/>
+                                <span invisible="commission_is_fix">%</span>
+                                <field name="commission_percent" invisible="commission_is_fix" nolabel="1"/>
+                                <field name="commission_fix" invisible="not commission_is_fix" nolabel="1"/>
+                            </div>
                         </group>
                     </group>
                     <group>
-                        <group string="Receipt &amp; Commission">
-                            <field name="receipt_amount" readonly="state != 'draft'"
-                                   help="The full gross amount collected from the client by the subcontractor. This is the VAT-inclusive total receipt. &#10;Your commission is calculated on the ex-VAT portion of this amount."/>
-                            <field name="vat_rate" readonly="state != 'draft'"
-                                   help="VAT percentage embedded in the receipt and also applied on top of your commission when invoicing. &#10;KSA standard is 15%. &#10;The receipt is divided by (1 + VAT%) to extract the ex-VAT base, then your commission % is applied on that base."/>
-                            <field name="receipt_excl_vat" readonly="1"
-                                   help="Receipt Amount ÷ (1 + VAT%) = ex-VAT portion of the receipt. Your commission is calculated on this figure. Read-only."/>
-                            <field name="commission_rate" readonly="state != 'draft'"
-                                   help="Your commission percentage charged to the subcontractor. Applied to the ex-VAT receipt amount. &#10;Example: receipt=11500, VAT=15%, ex-VAT=10000, commission=5% → commission=500 SAR."/>
+                        <group string="Dimensions">
+                            <field name="way4tech_project_id"/>
+                            <field name="way4tech_category_id"/>
+                            <field name="tag_ids" widget="many2many_tags"/>
                         </group>
-                        <group string="Computed Amounts">
-                            <field name="commission_amount" readonly="1"
-                                   help="Your commission = Receipt Ex-VAT × Commission Rate / 100. This is the price_unit on the commission invoice line (before VAT). Read-only."/>
-                            <field name="vat_amount" readonly="1"
-                                   help="VAT on your commission = Commission Amount × VAT Rate / 100. Added to the commission invoice automatically via the sales tax. Read-only."/>
-                            <field name="total_invoice_amount" readonly="1"
-                                   help="Total amount on the commission invoice = Commission Amount + VAT Amount. This is what the subcontractor owes you. Read-only."/>
-                            <field name="subcontractor_payable" readonly="1" class="o_field_highlight"
-                                   help="Amount you owe the subcontractor = Full Receipt − Total Invoice Amount. &#10;= receipt_amount − (commission + VAT on commission). &#10;This is the vendor bill amount created for the subcontractor. Read-only."/>
+                        <group string="Analytic">
+                            <field name="analytic_distribution" widget="analytic_distribution"/>
                         </group>
                     </group>
-                    <group string="Notes">
-                        <field name="notes" nolabel="1" colspan="2" readonly="state == 'settled'"/>
-                    </group>
-                    <group string="Subcontractor Settlement">
-                        <field name="is_paid_to_subcontractor"
-                               help="Check this when you have physically paid the subcontractor their share (Subcontractor Payable amount). Can also be set by clicking 'Mark Subcontractor Paid'."/>
-                        <field name="subcontractor_payment_date" invisible="not is_paid_to_subcontractor"
-                               help="Date the payment was made to the subcontractor. Set automatically by 'Mark Subcontractor Paid' or enter manually."/>
-                        <field name="subcontractor_payment_ref" invisible="not is_paid_to_subcontractor"
-                               help="Payment reference, bank transfer ID, or cheque number for the subcontractor payment. For reconciliation purposes."/>
-                        <button
-                            name="action_mark_subcontractor_paid"
-                            type="object"
-                            string="Mark Subcontractor Paid"
-                            class="btn-primary"
-                            invisible="is_paid_to_subcontractor or state != 'invoiced'"
-                        />
-                    </group>
+                    <notebook>
+                        <page string="Settlements" name="settlements">
+                            <field name="settlement_ids" context="{'default_receipt_id': id}">
+                                <list string="Settlements">
+                                    <field name="date"/>
+                                    <field name="full_receipt_amount" sum="Received"/>
+                                    <field name="receipt_excl_vat" optional="hide"/>
+                                    <field name="commission_amount" sum="Commission"/>
+                                    <field name="gross_payable" sum="Gross Payable"/>
+                                    <field name="advance_recovered" optional="show"/>
+                                    <field name="net_payable" sum="Net"/>
+                                    <field name="bill_id" optional="show"/>
+                                    <field name="voucher_number" optional="show"/>
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-warning="state == 'billed'"
+                                        decoration-success="state == 'paid'"/>
+                                </list>
+                            </field>
+                            <group class="oe_subtotal_footer">
+                                <field name="total_receipt"/>
+                                <field name="total_commission"/>
+                                <field name="total_gross_payable"/>
+                            </group>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
                 </sheet>
                 <chatter/>
             </form>
         </field>
     </record>
 
-    <!-- ===================================================
-         List View
-         =================================================== -->
     <record id="view_commission_receipt_list" model="ir.ui.view">
         <field name="name">way4tech.commission.receipt.list</field>
         <field name="model">way4tech.commission.receipt</field>
         <field name="arch" type="xml">
-            <list string="Commission Receipts" decoration-muted="state == 'settled'">
+            <list string="Commissioning Records" decoration-muted="state == 'closed'">
+                <field name="reference"/>
                 <field name="name"/>
-                <field name="date"/>
-                <field name="period"/>
-                <field name="partner_id"/>
                 <field name="subcontractor_id"/>
+                <field name="partner_id"/>
                 <field name="salesperson_id" optional="show"/>
-                <field name="receipt_amount" sum="Total Receipt"/>
-                <field name="commission_rate"/>
-                <field name="commission_amount" sum="Total Commission"/>
-                <field name="vat_amount" sum="Total VAT"/>
-                <field name="total_invoice_amount" sum="Total Invoice"/>
-                <field name="subcontractor_payable" sum="Total Payable"/>
-                <field name="invoice_id"/>
-                <field name="is_paid_to_subcontractor"/>
+                <field name="start_date"/>
+                <field name="settlement_count"/>
+                <field name="total_receipt" sum="Total Received"/>
+                <field name="total_commission" sum="Total Commission"/>
+                <field name="total_gross_payable" sum="Total Payable"/>
                 <field name="state" widget="badge"
                     decoration-info="state == 'draft'"
-                    decoration-warning="state == 'confirmed'"
-                    decoration-primary="state == 'invoiced'"
-                    decoration-success="state == 'settled'"
-                />
+                    decoration-success="state == 'open'"
+                    decoration-muted="state == 'closed'"/>
             </list>
         </field>
     </record>
 
-    <!-- ===================================================
-         Pivot View
-         =================================================== -->
-    <record id="view_commission_receipt_pivot" model="ir.ui.view">
-        <field name="name">way4tech.commission.receipt.pivot</field>
-        <field name="model">way4tech.commission.receipt</field>
-        <field name="arch" type="xml">
-            <pivot string="Commission Analysis">
-                <field name="partner_id" type="row"/>
-                <field name="subcontractor_id" type="row"/>
-                <field name="date" type="col" interval="month"/>
-                <field name="receipt_amount" type="measure"/>
-                <field name="commission_amount" type="measure"/>
-                <field name="vat_amount" type="measure"/>
-                <field name="total_invoice_amount" type="measure"/>
-                <field name="subcontractor_payable" type="measure"/>
-            </pivot>
-        </field>
-    </record>
-
-    <!-- ===================================================
-         Graph View
-         =================================================== -->
-    <record id="view_commission_receipt_graph" model="ir.ui.view">
-        <field name="name">way4tech.commission.receipt.graph</field>
-        <field name="model">way4tech.commission.receipt</field>
-        <field name="arch" type="xml">
-            <graph string="Commission by Customer" type="bar">
-                <field name="partner_id" type="row"/>
-                <field name="commission_amount" type="measure"/>
-                <field name="receipt_amount" type="measure"/>
-            </graph>
-        </field>
-    </record>
-
-    <!-- ===================================================
-         Search View
-         =================================================== -->
     <record id="view_commission_receipt_search" model="ir.ui.view">
         <field name="name">way4tech.commission.receipt.search</field>
         <field name="model">way4tech.commission.receipt</field>
         <field name="arch" type="xml">
-            <search string="Search Commission Receipts">
+            <search string="Search Commissioning">
+                <field name="reference"/>
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="subcontractor_id"/>
                 <field name="salesperson_id"/>
-                <field name="period"/>
                 <separator/>
                 <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
-                <filter string="Confirmed" name="confirmed" domain="[('state','=','confirmed')]"/>
-                <filter string="Invoiced" name="invoiced" domain="[('state','=','invoiced')]"/>
-                <filter string="Settled" name="settled" domain="[('state','=','settled')]"/>
+                <filter string="Open" name="open" domain="[('state','=','open')]"/>
+                <filter string="Closed" name="closed" domain="[('state','=','closed')]"/>
                 <separator/>
-                <filter string="This Month" name="this_month"
-                    domain="[('date','&gt;=', (context_today()).strftime('%Y-%m-01'))]"/>
-                <separator/>
-                <filter string="State" name="group_state" context="{'group_by': 'state'}"/>
-                <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
                 <filter string="Subcontractor" name="group_sub" context="{'group_by': 'subcontractor_id'}"/>
-                <filter string="Analytic Account" name="group_analytic" context="{'group_by': 'analytic_account_id'}"/>
-                <filter string="Salesperson" name="group_salesperson" context="{'group_by': 'salesperson_id'}"/>
-                <filter string="Date" name="group_date" context="{'group_by': 'date:month'}"/>
+                <filter string="Client" name="group_client" context="{'group_by': 'partner_id'}"/>
+                <filter string="Salesperson" name="group_sp" context="{'group_by': 'salesperson_id'}"/>
+                <filter string="Start Month" name="group_month" context="{'group_by': 'start_date:month'}"/>
             </search>
         </field>
     </record>
 
-    <!-- ===================================================
-         Action
-         =================================================== -->
     <record id="action_commission_receipt" model="ir.actions.act_window">
-        <field name="name">Commission Receipts</field>
+        <field name="name">Commissioning Business</field>
         <field name="res_model">way4tech.commission.receipt</field>
-        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_commission_receipt_search"/>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Record your first Commission Receipt
-            </p>
-            <p>
-                Record full receipts, calculate commission, apply VAT on commission only,
-                and generate commission invoices and subcontractor vendor bills.
-            </p>
+            <p class="o_view_nocontent_smiling_face">Create your first Commissioning record</p>
+            <p>One record per subcontractor and client. Add settlements over time;
+               each settlement selects the client invoices, splits the ex-VAT into
+               your commission and the subcontractor's 95%, bills it and pays it.</p>
         </field>
     </record>
 

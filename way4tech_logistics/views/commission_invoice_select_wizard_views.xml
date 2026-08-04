@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_commission_invoice_select_wizard_form" model="ir.ui.view">
+        <field name="name">way4tech.commission.invoice.select.wizard.form</field>
+        <field name="model">way4tech.commission.invoice.select.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Select Client Invoices">
+                <field name="settlement_id" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+                <group>
+                    <field name="partner_id" readonly="1"/>
+                </group>
+                <field name="line_ids">
+                    <list string="Invoices" create="false" delete="false" editable="bottom">
+                        <field name="selected" widget="boolean_toggle"/>
+                        <field name="invoice_id" readonly="1"/>
+                        <field name="invoice_date" readonly="1"/>
+                        <field name="invoice_total" readonly="1"/>
+                        <field name="received" readonly="1"/>
+                        <field name="pending" readonly="1"/>
+                        <field name="project" readonly="1"/>
+                        <field name="currency_id" column_invisible="1"/>
+                    </list>
+                </field>
+                <group class="oe_subtotal_footer">
+                    <field name="selected_count"/>
+                    <field name="selected_total"/>
+                    <field name="selected_pending"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm Selection" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>
