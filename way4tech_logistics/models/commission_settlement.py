@@ -215,13 +215,15 @@ class CommissionSettlement(models.Model):
             bal = 0.0
             if acc and rec.subcontractor_id:
                 # Advance is a receivable (Dr) balance on 142005 for this sub.
-                self.env.cr.execute("""
-                    SELECT COALESCE(SUM(balance), 0.0)
-                    FROM account_move_line
-                    WHERE account_id = %s AND partner_id = %s
-                      AND company_id = %s AND parent_state = 'posted'
-                """, (acc.id, rec.subcontractor_id.id, rec.company_id.id))
-                bal = self.env.cr.fetchone()[0] or 0.0
+                # ORM search (not raw SQL) so pending writes are flushed first
+                # and the balance reflects entries posted earlier in the request.
+                lines = self.env['account.move.line'].search([
+                    ('account_id', '=', acc.id),
+                    ('partner_id', '=', rec.subcontractor_id.id),
+                    ('company_id', '=', rec.company_id.id),
+                    ('parent_state', '=', 'posted'),
+                ])
+                bal = sum(lines.mapped('balance'))
             rec.advance_balance = bal
 
     @api.depends('subcontractor_id', 'company_id', 'date')
