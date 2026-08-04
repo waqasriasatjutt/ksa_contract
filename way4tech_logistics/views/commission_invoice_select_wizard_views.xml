@@ -14,7 +14,11 @@
                 <field name="line_ids">
                     <list string="Invoices" create="false" delete="false" editable="bottom">
                         <field name="selected" widget="boolean_toggle"/>
-                        <field name="invoice_id" readonly="1"/>
+                        <!-- invoice_id must NOT be readonly: the web client omits
+                             readonly x2many values on save, which dropped the
+                             required invoice link and raised "Missing required
+                             value". Writable = it round-trips reliably. -->
+                        <field name="invoice_id" readonly="0"/>
                         <field name="invoice_date" readonly="1"/>
                         <field name="invoice_total" readonly="1"/>
                         <field name="received" readonly="1"/>

@@ -73,17 +73,26 @@ class CommissionInvoiceSelectWizard(models.TransientModel):
     def action_confirm(self):
         self.ensure_one()
         settlement = self.settlement_id
-        selected = self.line_ids.filtered('selected')
+        # Guard on invoice_id too: a stripped/empty row must never be treated as
+        # a selection, and pending is recomputed server-side (never trusted from
+        # the possibly-stripped display field).
+        selected = self.line_ids.filtered(lambda l: l.selected and l.invoice_id)
         if not selected:
             raise UserError(_('Select at least one invoice.'))
+        Alloc = self.env['way4tech.commission.settlement.invoice']
         settlement.allocation_ids.unlink()
-        vals = [(0, 0, {'invoice_id': ln.invoice_id.id, 'allocated_amount': 0.0})
-                for ln in selected.sorted(
-                    lambda l: (l.invoice_id.invoice_date or fields.Date.today(),
-                               l.invoice_id.id))]
+        total_pending = 0.0
+        vals = []
+        for ln in selected.sorted(lambda l: (l.invoice_id.invoice_date or fields.Date.today(),
+                                             l.invoice_id.id)):
+            inv = ln.invoice_id
+            received = Alloc._received_for_invoice(inv, exclude_settlement=settlement)
+            pending = (inv.amount_total or 0.0) - received
+            total_pending += max(pending, 0.0)
+            vals.append((0, 0, {'invoice_id': inv.id, 'allocated_amount': 0.0}))
         settlement.write({
             'allocation_ids': vals,
-            'full_receipt_amount': sum(selected.mapped('pending')),
+            'full_receipt_amount': total_pending,
         })
         settlement._reallocate_fifo()
         return {'type': 'ir.actions.act_window_close'}
@@ -97,7 +106,11 @@ class CommissionInvoiceSelectLine(models.TransientModel):
     wizard_id = fields.Many2one(
         'way4tech.commission.invoice.select.wizard', required=True,
         ondelete='cascade')
-    invoice_id = fields.Many2one('account.move', string='Invoice', required=True)
+    # NOT required at the DB level: the OWL client strips readonly x2many values
+    # on save, so a required invoice_id would raise "Missing required value" the
+    # moment the wizard is confirmed. It is kept writable in the view (so it
+    # round-trips) and validated in action_confirm instead.
+    invoice_id = fields.Many2one('account.move', string='Invoice')
     invoice_date = fields.Date(related='invoice_id.invoice_date', string='Date')
     invoice_total = fields.Monetary(
         related='invoice_id.amount_total', string='Total (incl VAT)',
