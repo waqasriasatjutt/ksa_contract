@@ -15,22 +15,25 @@
                             string="Create Subcontractor Bill" class="btn-primary"
                             invisible="state != 'draft' or not id"
                             confirm="Create and post the subcontractor vendor bill for the gross payable?"/>
-                    <button name="action_pay" type="object"
-                            string="Pay Voucher" class="btn-primary"
+                    <button name="action_generate_voucher" type="object"
+                            string="Generate Payment Voucher" class="btn-primary"
                             invisible="state != 'billed'"
-                            confirm="Register the payment and apply any advance recovery?"/>
+                            confirm="Generate the voucher and apply any advance recovery now? The cash or bank payment is registered separately, before or after."/>
+                    <button name="action_register_payment" type="object"
+                            string="Register Payment" class="btn-primary"
+                            invisible="state != 'voucher' or payment_status in ('paid', 'in_payment')"/>
                     <button name="action_create_salesperson_commission" type="object"
                             string="Salesperson Commission"
                             invisible="not id or salesperson_bill_id"/>
                     <button name="action_print_voucher" type="object"
-                            string="Print Voucher" invisible="state != 'paid'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,billed,paid"/>
+                            string="Print Voucher" invisible="state != 'voucher'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,billed,voucher"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_print_voucher" type="object"
                                 class="oe_stat_button" icon="fa-print"
-                                invisible="state != 'paid'">
+                                invisible="state != 'voucher'">
                             <div class="o_stat_info"><span class="o_stat_text">Voucher</span></div>
                         </button>
                     </div>
@@ -42,7 +45,7 @@
                             <field name="date"/>
                             <field name="voucher_number" readonly="1" invisible="not voucher_number"/>
                             <field name="bill_id" readonly="1" invisible="not bill_id"/>
-                            <field name="payment_id" readonly="1" invisible="not payment_id"/>
+                            <field name="payment_status" invisible="not bill_id"/>
                         </group>
                         <group string="Salesperson">
                             <field name="salesperson_commission_amount" readonly="1"/>
@@ -75,9 +78,11 @@
                                         <field name="commission_fix" invisible="not commission_is_fix" nolabel="1" readonly="state != 'draft'"/>
                                     </div>
                                     <field name="advance_balance" readonly="1"/>
-                                    <field name="advance_recovered" readonly="state == 'paid'"/>
+                                    <field name="advance_recovered" readonly="state == 'voucher'"
+                                           help="Applied when the voucher is generated. Editable until then."/>
                                     <field name="previous_outstanding" readonly="1"/>
-                                    <field name="outstanding_paid" readonly="state == 'paid'"/>
+                                    <field name="outstanding_paid" readonly="state == 'voucher'"
+                                           help="Informational. Prior outstanding is paid through the standard Register Payment on those earlier bills."/>
                                 </group>
                                 <group string="Computed Amounts">
                                     <field name="commission_amount" readonly="1"/>

@@ -83,7 +83,8 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-warning="state == 'billed'"
-                                        decoration-success="state == 'paid'"/>
+                                        decoration-success="state == 'voucher'"/>
+                                    <field name="payment_status" optional="show"/>
                                 </list>
                             </field>
                             <group class="oe_subtotal_footer">

@@ -142,8 +142,16 @@ class CommissionSettlement(models.Model):
 
     state = fields.Selection(
         selection=[('draft', 'Draft'), ('billed', 'Bill Created'),
-                   ('paid', 'Paid')],
-        string='Status', default='draft', copy=False)
+                   ('voucher', 'Voucher Generated')],
+        string='Status', default='draft', copy=False,
+        help='Voucher Generated is the confirmation point: advances are applied '
+             'and the voucher is issued. The cash/bank payment is registered '
+             'separately (before or after), and its status shows in Payment.')
+    # Whether the cash/bank payment has been made shows here, read from the
+    # bill. Payment is registered through the standard Register Payment wizard
+    # (any bank or cash journal), so it stays independent of voucher issue.
+    payment_status = fields.Selection(
+        related='bill_id.payment_state', string='Payment', readonly=True)
 
     # ── Computed Data per client (CB1 §10) — read-only ────────────────────
     client_pending_count = fields.Integer(compute='_compute_client_pending')
@@ -315,6 +323,11 @@ class CommissionSettlement(models.Model):
             raise UserError(_('A subcontractor bill already exists.'))
         if self.gross_payable <= 0:
             raise UserError(_('Gross payable is zero — nothing to bill.'))
+        # Re-run the FIFO split from the current (possibly overridden) Full
+        # Receipt Amount so the per-invoice allocation is correct at billing,
+        # independent of any form onchange. gross_payable itself is computed
+        # from full_receipt_amount, so the bill always follows the override.
+        self._reallocate_fifo()
         settings = self.receipt_id._settings()
         expense = self._require(settings, 'subcontractor_expense_account_id',
                                 'Subcontractor Payable Account (Expense)')
@@ -359,52 +372,53 @@ class CommissionSettlement(models.Model):
         self.write({'bill_id': bill.id, 'state': 'billed'})
         return self._open_move(bill, _('Subcontractor Bill'))
 
-    # ── Payment voucher (CB1 §9) — posts + applies advance ────────────────
-    def action_pay(self):
+    # ── Generate Payment Voucher (CB1 R2 item 2) ──────────────────────────
+    # Voucher generation is the CONFIRMATION event, like issuing a cheque. It
+    # applies the advance recovery immediately and issues the voucher number.
+    # It does NOT move cash — the bank/cash payment is registered separately
+    # (before or after) through the standard wizard, so voucher issue never
+    # depends on the payment being completed.
+    def action_generate_voucher(self):
         self.ensure_one()
         if not self.bill_id or self.bill_id.state != 'posted':
             raise UserError(_('Create and post the subcontractor bill first.'))
-        if self.payment_id:
-            raise UserError(_('This settlement is already paid.'))
+        if self.voucher_number:
+            raise UserError(_('The voucher has already been generated for this settlement.'))
         settings = self.receipt_id._settings()
         adv_recovered = min(self.advance_recovered or 0.0,
                             self.gross_payable, max(self.advance_balance, 0.0))
-        cash = self.gross_payable - adv_recovered
-        bank = self.env['account.journal'].search([
-            ('type', 'in', ('bank', 'cash')),
-            ('company_id', '=', self.company_id.id)], limit=1)
-        if not bank:
-            raise UserError(_('No bank or cash journal on this company to pay the voucher.'))
-
-        # 1) Cash payment for the net, reconciled against the bill.
-        payment = False
-        if cash > 0:
-            reg = self.env['account.payment.register'].with_context(
-                active_model='account.move', active_ids=self.bill_id.ids,
-            ).create({
-                'amount': cash,
-                'journal_id': bank.id,
-                'payment_date': self.date,
-            })
-            payments = reg._create_payments()
-            payment = payments[:1]
-
-        # 2) Advance recovery: clear the remaining bill payable against 142005.
+        # Advance recovery: Dr 210002 / Cr 142005, reconciled against the bill,
+        # so the bill's remaining balance becomes the net cash still to pay.
         if adv_recovered > 0:
             self._apply_advance_recovery(settings, adv_recovered)
-
-        # 3) Prior outstanding paid FIFO against older open bills.
-        if (self.outstanding_paid or 0.0) > 0:
-            self._pay_outstanding_fifo(bank, self.outstanding_paid)
-
         self.write({
-            'payment_id': payment.id if payment else False,
             'voucher_number': self._next_voucher_number(),
-            'state': 'paid',
+            'state': 'voucher',
         })
-        if payment:
-            return self._open_payment(payment)
-        return True
+        return self.action_print_voucher()
+
+    # ── Register Payment (CB1 R2 item 3) ──────────────────────────────────
+    # Opens the STANDARD payment register wizard so the user chooses the
+    # payment source (SNB, any other bank, petty cash, any bank/cash journal)
+    # and the amount before confirming. Can be run before or after the voucher.
+    def action_register_payment(self):
+        self.ensure_one()
+        if not self.bill_id or self.bill_id.state != 'posted':
+            raise UserError(_('Create and post the subcontractor bill first.'))
+        if self.bill_id.payment_state in ('paid', 'in_payment'):
+            raise UserError(_('This bill is already paid.'))
+        return {
+            'name': _('Register Payment'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.payment.register',
+            'view_mode': 'form',
+            'view_id': self.env.ref('account.view_account_payment_register_form').id,
+            'target': 'new',
+            'context': {
+                'active_model': 'account.move',
+                'active_ids': self.bill_id.ids,
+            },
+        }
 
     def _apply_advance_recovery(self, settings, amount):
         """Dr 210002 / Cr 142005 for `amount`, then reconcile the Dr-210002
@@ -442,30 +456,6 @@ class CommissionSettlement(models.Model):
         if to_rec:
             to_rec.reconcile()
 
-    def _pay_outstanding_fifo(self, bank, amount):
-        """Register a cash payment allocated oldest-first across this
-        subcontractor's other open Commissioning bills."""
-        remaining = amount
-        prior = self.search([
-            ('subcontractor_id', '=', self.subcontractor_id.id),
-            ('company_id', '=', self.company_id.id),
-            ('id', '!=', self.id),
-            ('bill_id', '!=', False),
-        ], order='date asc')
-        for p in prior:
-            if remaining <= 0:
-                break
-            bill = p.bill_id
-            if bill.state != 'posted' or bill.payment_state in ('paid', 'reversed'):
-                continue
-            pay_now = min(remaining, bill.amount_residual)
-            if pay_now <= 0:
-                continue
-            reg = self.env['account.payment.register'].with_context(
-                active_model='account.move', active_ids=bill.ids,
-            ).create({'amount': pay_now, 'journal_id': bank.id,
-                      'payment_date': self.date})
-            reg._create_payments()
             remaining -= pay_now
 
     @api.model
