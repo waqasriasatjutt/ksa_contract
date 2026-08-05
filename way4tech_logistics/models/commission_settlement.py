@@ -456,8 +456,6 @@ class CommissionSettlement(models.Model):
         if to_rec:
             to_rec.reconcile()
 
-            remaining -= pay_now
-
     @api.model
     def _next_voucher_number(self):
         prefix = 'VOU/%s/' % fields.Date.context_today(self).strftime('%Y/%m')
