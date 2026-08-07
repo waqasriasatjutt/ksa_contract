@@ -293,6 +293,34 @@ class CommissionSettlement(models.Model):
         if self.allocation_ids:
             self._reallocate_fifo()
 
+    # ── CB1 R4: protect processed settlements from deletion ───────────────
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_processed(self):
+        """A settlement can be edited or removed only while it is still Draft
+        with no accounting documents generated. Once it has produced a
+        subcontractor bill, a payment voucher, or a salesperson commission
+        bill, deletion is blocked so the accounting trail and the links to
+        those documents are never lost. Fires on every delete path, including
+        removing the line from the record's Settlements list. Mirrors the
+        Manpower line-delete protection."""
+        for rec in self:
+            blockers = []
+            if rec.bill_id:
+                blockers.append(_('subcontractor bill %s') % (rec.bill_id.name or rec.bill_id.display_name or ''))
+            if rec.salesperson_bill_id:
+                blockers.append(_('salesperson commission bill %s') % (rec.salesperson_bill_id.name or rec.salesperson_bill_id.display_name or ''))
+            if rec.voucher_number:
+                blockers.append(_('payment voucher %s') % rec.voucher_number)
+            if not blockers and rec.state != 'draft':
+                blockers.append(_('status "%s"') % dict(rec._fields['state'].selection).get(rec.state, rec.state))
+            if blockers:
+                raise UserError(_(
+                    'This settlement has already generated accounting documents '
+                    '(%s) and cannot be deleted. Removing it would break the '
+                    'accounting trail. If you genuinely need to remove it, cancel '
+                    'or reverse those documents in Accounting first.'
+                ) % ', '.join(blockers))
+
     # ── Invoice-selection wizard opener (CB1 §5) ──────────────────────────
     def action_select_invoices(self):
         self.ensure_one()

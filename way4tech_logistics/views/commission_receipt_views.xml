@@ -71,6 +71,11 @@
                         <page string="Settlements" name="settlements">
                             <field name="settlement_ids" context="{'default_receipt_id': id}">
                                 <list string="Settlements">
+                                    <!-- currency_id must be loaded for the monetary sum
+                                         columns: OWL computeAggregates reads the currency
+                                         record, and without it a transient/new row throws
+                                         "Cannot read properties of undefined (reading 'id')". -->
+                                    <field name="currency_id" column_invisible="1"/>
                                     <field name="date"/>
                                     <field name="full_receipt_amount" sum="Received"/>
                                     <field name="receipt_excl_vat" optional="hide"/>
@@ -108,6 +113,7 @@
         <field name="model">way4tech.commission.receipt</field>
         <field name="arch" type="xml">
             <list string="Commissioning Records" decoration-muted="state == 'closed'">
+                <field name="currency_id" column_invisible="1"/>
                 <field name="reference"/>
                 <field name="name"/>
                 <field name="subcontractor_id"/>

@@ -103,6 +103,7 @@
         <field name="model">way4tech.commission.settlement</field>
         <field name="arch" type="xml">
             <list string="Settlements">
+                <field name="currency_id" column_invisible="1"/>
                 <field name="date"/>
                 <field name="subcontractor_id"/>
                 <field name="partner_id"/>
