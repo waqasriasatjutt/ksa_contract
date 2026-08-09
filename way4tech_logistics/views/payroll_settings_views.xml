@@ -94,8 +94,9 @@
                                     <field name="subcontractor_advance_account_id"
                                            domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'asset_receivable')]"
                                            help="Example: 142005 Advance To Subcontractor. Read for advance recovery."/>
-                                    <field name="commission_journal_id" string="Client Sales Journal (read only)" readonly="1"
-                                           help="The Commissioning sales journal (e.g. INV1). Its invoices feed the settlement's invoice picker."/>
+                                    <field name="commission_journal_id" string="Client Sales Journal"
+                                           domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
+                                           help="The Commissioning sales journal for THIS company (e.g. INV1). Its posted invoices feed the settlement's invoice picker. This is the same journal shown on the Commission Receipts tab — one per-company setting, editable here or there."/>
                                 </group>
                                 <group string="Salesperson Commission">
                                     <field name="commission_expense_account_id"

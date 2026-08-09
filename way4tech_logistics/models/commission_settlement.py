@@ -198,18 +198,29 @@ class CommissionSettlement(models.Model):
     # ── Amount computes (CB1 §6) ──────────────────────────────────────────
     @api.depends('full_receipt_amount', 'vat_rate', 'commission_is_fix',
                  'commission_percent', 'commission_fix', 'advance_recovered',
-                 'outstanding_paid')
+                 'outstanding_paid', 'allocation_ids')
     def _compute_amounts(self):
         for rec in self:
             divisor = 1.0 + (rec.vat_rate or 0.0) / 100.0
             excl = rec.full_receipt_amount / divisor if divisor else rec.full_receipt_amount
             if rec.commission_is_fix:
-                commission = rec.commission_fix or 0.0
+                # CB1 R(new) item 4: a fixed rate applies once PER selected
+                # invoice. max(..,1) keeps the single-invoice / not-yet-selected
+                # case at the plain fix amount (no regression). The Gross Profit
+                # % branch below is unchanged.
+                commission = (rec.commission_fix or 0.0) * max(len(rec.allocation_ids), 1)
             else:
                 commission = excl * (rec.commission_percent or 0.0) / 100.0
-            rec.receipt_excl_vat = excl
-            rec.commission_amount = commission
-            rec.gross_payable = excl - commission
+            # Once a subcontractor bill exists, its ex-VAT / commission / gross
+            # were posted as they stood — never let a later formula change or
+            # edit drift those three from the posted bill. Net and Consolidated
+            # STILL recompute, because advance_recovered / outstanding_paid are
+            # entered at the billed stage (editable until the voucher) and must
+            # flow through live to the voucher figures.
+            if not rec.bill_id:
+                rec.receipt_excl_vat = excl
+                rec.commission_amount = commission
+                rec.gross_payable = excl - commission
             rec.net_payable = rec.gross_payable - (rec.advance_recovered or 0.0)
             rec.consolidated_payable = rec.net_payable + (rec.outstanding_paid or 0.0)
 

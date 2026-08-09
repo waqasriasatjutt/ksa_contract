@@ -95,7 +95,20 @@ class CommissionInvoiceSelectWizard(models.TransientModel):
             'full_receipt_amount': total_pending,
         })
         settlement._reallocate_fifo()
-        return {'type': 'ir.actions.act_window_close'}
+        # Reopen the settlement fresh from the database so the newly linked
+        # invoices and the seeded Full Receipt Amount appear immediately. The
+        # wizard wrote via ORM, so the form underneath would otherwise show a
+        # stale datapoint until a manual page refresh. Display/navigation only —
+        # no change to the selection, linking or allocation logic above.
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Settlement'),
+            'res_model': 'way4tech.commission.settlement',
+            'res_id': settlement.id,
+            'view_mode': 'form',
+            'view_id': self.env.ref('way4tech_logistics.view_commission_settlement_form').id,
+            'target': 'current',
+        }
 
 
 class CommissionInvoiceSelectLine(models.TransientModel):

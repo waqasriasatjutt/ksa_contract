@@ -30,6 +30,9 @@
                         <button class="oe_stat_button" icon="fa-list" disabled="1">
                             <field name="settlement_count" widget="statinfo" string="Settlements"/>
                         </button>
+                        <button class="oe_stat_button" icon="fa-money" disabled="1">
+                            <field name="total_vat" widget="statinfo" string="Total VAT"/>
+                        </button>
                     </div>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="auto: Subcontractor - Client - Month"/></h1>
@@ -94,6 +97,7 @@
                             </field>
                             <group class="oe_subtotal_footer">
                                 <field name="total_receipt"/>
+                                <field name="total_vat"/>
                                 <field name="total_commission"/>
                                 <field name="total_gross_payable"/>
                             </group>

@@ -113,6 +113,12 @@ class CommissionReceipt(models.Model):
     total_gross_payable = fields.Monetary(
         compute='_compute_rollups', currency_field='currency_id',
         string='Total Subcontractor Payable')
+    total_vat = fields.Monetary(
+        compute='_compute_rollups', currency_field='currency_id',
+        string='Total VAT',
+        help='VAT across all settlements = Total Received (incl. VAT) minus the '
+             'ex-VAT total. Uses the VAT already implied on each settlement '
+             'line; no separate VAT calculation.')
     bill_count = fields.Integer(compute='_compute_rollups', string='Bills')
 
     state = fields.Selection(
@@ -131,6 +137,7 @@ class CommissionReceipt(models.Model):
     @api.depends('settlement_ids.full_receipt_amount',
                  'settlement_ids.commission_amount',
                  'settlement_ids.gross_payable',
+                 'settlement_ids.receipt_excl_vat',
                  'settlement_ids.bill_id')
     def _compute_rollups(self):
         for rec in self:
@@ -139,6 +146,8 @@ class CommissionReceipt(models.Model):
             rec.total_receipt = sum(s.mapped('full_receipt_amount'))
             rec.total_commission = sum(s.mapped('commission_amount'))
             rec.total_gross_payable = sum(s.mapped('gross_payable'))
+            # incl-VAT total minus ex-VAT total = the VAT already implied per line.
+            rec.total_vat = rec.total_receipt - sum(s.mapped('receipt_excl_vat'))
             rec.bill_count = len(s.mapped('bill_id'))
 
     # ── Auto-name + SUB reference ─────────────────────────────────────────
