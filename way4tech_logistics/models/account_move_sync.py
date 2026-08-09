@@ -54,6 +54,11 @@ _SOURCE_LINE_MAP = (
     ('way4tech.manpower.timesheet',            'invoice_id', 'draft', 'invoiced', ('out_invoice', 'out_refund')),
     ('way4tech.manpower.project.expense',      'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
     ('way4tech.manpower.commission.line',      'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
+    # CB1 item 7: a Commissioning subcontractor bill that is deleted or
+    # cancelled must revert its settlement to draft and clear the FK, exactly
+    # like the Manpower lines above. The settlement has no _sync_amount_from_move
+    # so only the STATE sync applies (it drives the bill amount, not vice versa).
+    ('way4tech.commission.settlement',         'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
 )
 
 

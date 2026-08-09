@@ -322,8 +322,10 @@ class CommissionSettlement(models.Model):
                 blockers.append(_('salesperson commission bill %s') % (rec.salesperson_bill_id.name or rec.salesperson_bill_id.display_name or ''))
             if rec.voucher_number:
                 blockers.append(_('payment voucher %s') % rec.voucher_number)
-            if not blockers and rec.state != 'draft':
-                blockers.append(_('status "%s"') % dict(rec._fields['state'].selection).get(rec.state, rec.state))
+            # CB1 item 8: block ONLY on actual document references. These clear
+            # correctly when a bill is deleted (item 7 reverts the settlement to
+            # draft and nulls bill_id), so the guard never reads a stale workflow
+            # status. A live bill / voucher / salesperson bill still blocks.
             if blockers:
                 raise UserError(_(
                     'This settlement has already generated accounting documents '

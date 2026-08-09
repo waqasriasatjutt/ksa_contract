@@ -57,6 +57,17 @@ class CommissionInvoiceSelectWizard(models.TransientModel):
         # Scope to the Commissioning sales journal only (never Direct Business).
         if settings.commission_journal_id:
             domain.append(('journal_id', '=', settings.commission_journal_id.id))
+        # CB1 item 5: if the record carries an End Date, only offer invoices whose
+        # date falls inside its Start..End window — this covers a single month,
+        # a quarter, or any custom window automatically. With NO End Date (an
+        # open-ended / yearly project) no date clause is added, so that flow is
+        # byte-for-byte unchanged. An invoice with no invoice_date naturally
+        # drops out of a windowed view (a NULL fails a >=/<= comparison).
+        receipt = settlement.receipt_id
+        if receipt.end_date:
+            if receipt.start_date:
+                domain.append(('invoice_date', '>=', receipt.start_date))
+            domain.append(('invoice_date', '<=', receipt.end_date))
         out = []
         for inv in self.env['account.move'].search(domain, order='invoice_date, id'):
             received = Alloc._received_for_invoice(inv, exclude_settlement=settlement)
