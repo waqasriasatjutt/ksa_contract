@@ -22,9 +22,11 @@ class Way4TechManpowerContract(models.Model):
     # can still override, and existing names are never touched.
     name = fields.Char(
         string='Contract Name', tracking=True,
-        help='Auto-generated as "Client — MM/YYYY" from the Client and the '
-             'Start Date month when left blank, and kept in step if the Start '
-             'Date later changes. Type your own name and it is left alone.',
+        help='Auto-generated as "Client — Project — MM/YYYY" when a Project is '
+             'set (otherwise "Client — MM/YYYY") from the Client, Project and '
+             'Start Date month when left blank, and kept in step if the '
+             'Client, Project or Start Date later changes. Type your own name '
+             'and it is left alone.',
     )
     # CR3-FINAL round 3, item 9: did WE generate this name, or did a human?
     # The "never rewrite existing names" rule was meant to protect names a user
@@ -1088,6 +1090,23 @@ class Way4TechManpowerContract(models.Model):
                     'Client, or Project.'
                 ) % {'dup': dup.display_name or dup.reference or dup.id})
 
+    # ── Auto-name builder — single source of truth ──────────────────────────
+    # Used by create() and both write() name paths so they can never drift.
+    # Format:
+    #   "Client — Project — MM/YYYY"  when a Project is set on the record
+    #   "Client — MM/YYYY"            when it is not (byte-identical to before)
+    # Returns None when Client or Start Date is missing (nothing to generate).
+    # `project` is a recordset (empty recordset = no project); the em-dash
+    # separator matches the existing convention exactly.
+    @staticmethod
+    def _way4tech_compose_auto_name(client, start_date, project):
+        if not (client and start_date):
+            return None
+        month = start_date.strftime('%m/%Y')
+        if project:
+            return '%s — %s — %s' % (client.name, project.name, month)
+        return '%s — %s' % (client.name, month)
+
     # ── Reference auto-generation (P3) ──────────────────────────────────────
 
     @api.model_create_multi
@@ -1113,8 +1132,14 @@ class Way4TechManpowerContract(models.Model):
             if not vals.get('name') and vals.get('client_id') and vals.get('start_date'):
                 client = self.env['res.partner'].browse(vals['client_id'])
                 sd = fields.Date.to_date(vals['start_date'])
-                if client and sd:
-                    vals['name'] = '%s — %s' % (client.name, sd.strftime('%m/%Y'))
+                # Include the Project in the name when one is set at create, so
+                # concurrent projects for the same client-month read apart.
+                project = (self.env['way4tech.project'].browse(vals['way4tech_project_id'])
+                           if vals.get('way4tech_project_id')
+                           else self.env['way4tech.project'])
+                auto = self._way4tech_compose_auto_name(client, sd, project)
+                if auto:
+                    vals['name'] = auto
                     # Item 9: remember that WE wrote it, so it can follow the
                     # period later. A name the user types stays theirs.
                     vals['name_is_auto'] = True
@@ -1269,9 +1294,8 @@ class Way4TechManpowerContract(models.Model):
         # ownership of it — we stop maintaining it from then on.
         if 'name' in vals and 'name_is_auto' not in vals:
             expected = {
-                rec.id: ('%s — %s' % (rec.client_id.name,
-                                      rec.start_date.strftime('%m/%Y')))
-                if rec.client_id and rec.start_date else None
+                rec.id: self._way4tech_compose_auto_name(
+                    rec.client_id, rec.start_date, rec.way4tech_project_id)
                 for rec in self
             }
             if any(vals['name'] != expected.get(rec.id) for rec in self):
@@ -1282,15 +1306,21 @@ class Way4TechManpowerContract(models.Model):
         # Keep the auto-name in step with the period. Only ever touches names
         # WE generated (name_is_auto), plus records still unnamed. A name the
         # user typed, and every legacy record, is left exactly as it is.
-        if {'client_id', 'start_date'} & set(vals) and 'name' not in vals:
+        if ({'client_id', 'start_date', 'way4tech_project_id'} & set(vals)
+                and 'name' not in vals):
             for rec in self:
                 if not (rec.client_id and rec.start_date):
                     continue
+                # A posted-invoice record keeps its name (CR4 item 6 lock).
+                # Project is NOT a locked field, so a project change reaching
+                # here must not rewrite the name of an already-invoiced record.
+                if rec.is_locked:
+                    continue
                 if rec.name and not rec.name_is_auto:
                     continue
-                wanted = '%s — %s' % (rec.client_id.name,
-                                      rec.start_date.strftime('%m/%Y'))
-                if rec.name != wanted:
+                wanted = self._way4tech_compose_auto_name(
+                    rec.client_id, rec.start_date, rec.way4tech_project_id)
+                if wanted and rec.name != wanted:
                     super(Way4TechManpowerContract, rec).write({
                         'name': wanted, 'name_is_auto': True,
                     })
