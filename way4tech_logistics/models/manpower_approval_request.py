@@ -70,6 +70,10 @@ def way4tech_first_real_change(record, vals, o2m_fields=None):
 # Every gated action: model → (label, the field holding the created document)
 GATED_MODELS = {
     'way4tech.manpower.invoice.block': 'Invoice Block',
+    # Item 4: the vendor-bill mirror of the invoice block — approved as one
+    # item, exactly like the invoice block; its expense lines are billed via
+    # the block, not individually.
+    'way4tech.manpower.bill.block': 'Bill Block',
     'way4tech.manpower.timesheet.block': 'Timesheet Invoice Block',
     'way4tech.manpower.contract.income.line': 'Project Income',
     'way4tech.manpower.timesheet': 'Timesheet',

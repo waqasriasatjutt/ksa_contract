@@ -1508,6 +1508,12 @@ class Way4TechManpowerContract(models.Model):
         for block in self.invoice_block_ids:
             if block.state == 'draft' and block.line_ids:
                 items.append(block)
+        # Item 4: bill blocks are approved as ONE item, exactly like invoice
+        # blocks; their expense lines are billed via the block and so are
+        # excluded from individual approval below.
+        for block in (self.direct_cost_block_ids | self.operating_exp_block_ids):
+            if block.state == 'draft' and block.line_ids:
+                items.append(block)
         for line in self.income_line_ids:
             if line.state == 'draft' and not line.invoice_block_id:
                 items.append(line)
@@ -1515,7 +1521,9 @@ class Way4TechManpowerContract(models.Model):
             if line.state == 'draft':
                 items.append(line)
         for line in self.project_expense_ids:
-            if line.state == 'draft':
+            # Item 4: a line inside a bill block is approved via the block
+            # above, never individually — mirrors income lines in a block.
+            if line.state == 'draft' and not line.bill_block_id:
                 items.append(line)
         for line in self.commission_line_ids:
             if line.state == 'draft':
