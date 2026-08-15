@@ -547,7 +547,8 @@
                                     <field name="category_id"
                                            domain="[('expense_type', '=', 'direct')]"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
-                                    <field name="vendor_id"/>
+                                    <field name="vendor_id"
+                                           context="{'res_partner_search_mode': 'supplier'}"/>
                                     <field name="account_id"
                                            help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>
                                     <!-- CR3 P9 (v13.0): Qty + Price. Amount auto = Qty × Price.
@@ -558,6 +559,7 @@
                                     <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
+                                        decoration-warning="state == 'invoice_draft'"
                                         decoration-success="state == 'billed'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
@@ -571,7 +573,7 @@
                                             help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_bill" type="object"
                                             string="Create Bill" icon="fa-file-text-o"
-                                            invisible="state == 'billed'"
+                                            invisible="state != 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <button name="action_view_bill" type="object"
                                             string="View Bill" icon="fa-eye"
@@ -609,7 +611,8 @@
                                            domain="[('expense_type', '=', 'operating')]"/>
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                     <field name="description"/>
-                                    <field name="vendor_id"/>
+                                    <field name="vendor_id"
+                                           context="{'res_partner_search_mode': 'supplier'}"/>
                                     <field name="account_id"
                                            help="GL expense account for this cost. Auto-filled from Payroll &amp; Accounting Setup based on expense category."/>
                                     <!-- CR3 P9 (v13.0): Qty + Price. Amount auto = Qty × Price.
@@ -620,6 +623,7 @@
                                     <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
+                                        decoration-warning="state == 'invoice_draft'"
                                         decoration-success="state == 'billed'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
@@ -633,7 +637,7 @@
                                             help="This item was rejected. Correct it above, then re-send just this row for approval."/>
                                     <button name="action_create_bill" type="object"
                                             string="Create Bill" icon="fa-file-text-o"
-                                            invisible="state == 'billed'"
+                                            invisible="state != 'draft'"
                                             class="btn-sm btn-secondary"/>
                                     <button name="action_view_bill" type="object"
                                             string="View Bill" icon="fa-eye"

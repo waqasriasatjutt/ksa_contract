@@ -63,7 +63,8 @@ class ManpowerProjectExpenseReport(models.Model):
     analytic_account_id = fields.Many2one(
         'account.analytic.account', string='Analytic Account', readonly=True)
     state = fields.Selection(
-        [('draft', 'Draft'), ('billed', 'Bill Created')],
+        [('draft', 'Draft'), ('invoice_draft', 'Bill Draft'),
+         ('billed', 'Bill Created')],
         string='Status', readonly=True)
     bill_id = fields.Many2one('account.move', string='Vendor Bill', readonly=True)
 

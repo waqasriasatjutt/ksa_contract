@@ -137,7 +137,11 @@ class ManpowerProjectExpense(models.Model):
         comodel_name='res.partner',
         string='Vendor',
         required=True,
-        domain=[('supplier_rank', '>', 0)],
+        # Item 1 (2026-08): no hard supplier_rank domain. A brand-new contact
+        # has supplier_rank=0, so the old domain filtered it out until it was
+        # billed once. The views set context res_partner_search_mode='supplier'
+        # so real vendors still rank first and an inline-created contact is
+        # auto-marked as a supplier — matching Odoo's own vendor picker.
         tracking=True,
         help='The supplier or payee for this expense. Required to create the vendor bill.\n'
              'For worker wages, this could be a representative worker, a payroll agent, '
@@ -261,6 +265,12 @@ class ManpowerProjectExpense(models.Model):
     state = fields.Selection(
         selection=[
             ('draft', 'Draft'),
+            # Item 3 (2026-08): middle state mirroring the invoice block's
+            # 'invoice_draft'. When the linked vendor bill is reset to draft in
+            # Accounting, the shared sync (_way4tech_sync_source_states) moves
+            # the row here instead of leaving it "Bill Created"; re-posting
+            # returns it to 'billed', delete/cancel releases it to 'draft'.
+            ('invoice_draft', 'Bill Draft'),
             ('billed', 'Bill Created'),
         ],
         string='Status',

@@ -15,7 +15,7 @@
                         type="object"
                         string="Create Vendor Bill"
                         class="btn-primary"
-                        invisible="state == 'billed'"
+                        invisible="state != 'draft'"
                         confirm="This will create a vendor bill for this expense and post it to Accounts Payable. Continue?"
                     />
                     <button
@@ -25,7 +25,7 @@
                         class="btn-secondary"
                         invisible="state == 'draft'"
                     />
-                    <field name="state" widget="statusbar" statusbar_visible="draft,billed"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,invoice_draft,billed"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -59,6 +59,7 @@
                         </group>
                         <group string="Accounting">
                             <field name="vendor_id"
+                                   context="{'res_partner_search_mode': 'supplier'}"
                                    help="The supplier or payee. Required to create the vendor bill. For worker wages, this can be a representative worker or a generic 'Project Workers' vendor."/>
                             <field name="account_id"
                                    help="GL expense account to debit on the vendor bill line. Auto-filled from Payroll &amp; Accounting Setup based on expense type. Override here if needed."/>
@@ -106,6 +107,7 @@
                 <field name="analytic_account_id" optional="show"/>
                 <field name="state" widget="badge"
                     decoration-info="state == 'draft'"
+                    decoration-warning="state == 'invoice_draft'"
                     decoration-success="state == 'billed'"
                 />
             </list>
@@ -187,6 +189,7 @@
                 <field name="currency_id" column_invisible="1"/>
                 <field name="state" widget="badge"
                     decoration-info="state == 'draft'"
+                    decoration-warning="state == 'invoice_draft'"
                     decoration-success="state == 'billed'"
                 />
             </list>
@@ -241,7 +244,7 @@
                     <button name="action_open_contract" type="object"
                             string="Open Contract" class="btn-primary"
                             invisible="not contract_id"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,billed"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,invoice_draft,billed"/>
                 </header>
                 <sheet>
                     <group>
