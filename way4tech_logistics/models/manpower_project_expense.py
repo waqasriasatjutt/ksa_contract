@@ -262,6 +262,19 @@ class ManpowerProjectExpense(models.Model):
         help='CR2 G4: the account.move.line minted by Create Bill on this '
              'expense row. Sync back-reads price_subtotal from this line.',
     )
+    # Item 4 (2026-08): when set, this expense is one line of a multi-line Bill
+    # Block (several lines for ONE vendor, billed together on ONE bill) instead
+    # of a standalone single-line bill. ondelete='set null' — deleting a draft
+    # block returns its lines to the unassigned pool, exactly like income lines
+    # and their invoice block. The flat Direct Cost / Operating Exp lists show
+    # only unassigned rows; the master direct_cost_line_ids / operating_exp_line
+    # _ids stay unfiltered so every existing flow keeps covering block lines.
+    bill_block_id = fields.Many2one(
+        'way4tech.manpower.bill.block', string='Bill Block',
+        ondelete='set null', index=True, copy=False,
+        help='The multi-line bill block this row belongs to. Rows sharing a '
+             'block are billed together on ONE vendor bill to one vendor.',
+    )
     state = fields.Selection(
         selection=[
             ('draft', 'Draft'),
@@ -338,6 +351,12 @@ class ManpowerProjectExpense(models.Model):
 
     def action_create_bill(self):
         self.ensure_one()
+        # Item 4: a line inside a Bill Block is billed with the block, never on
+        # its own (would double-bill / bypass the block's single-vendor bill).
+        if self.bill_block_id:
+            raise UserError(_(
+                'This line belongs to a Bill Block. Create the combined bill '
+                'from the block instead of billing this line on its own.'))
         if self.bill_id:
             raise UserError(_('A vendor bill already exists for this expense.'))
         # CR4 item 7: a zero-amount bill is unusual but allowed. Ask for

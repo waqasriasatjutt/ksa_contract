@@ -385,6 +385,43 @@ class Way4TechManpowerContract(models.Model):
              'category is bucketed as Operating Exp. Feeds the Project '
              'Operating Exp tab and Billing Summary bs_total_project_exp.',
     )
+    # ── Item 4 (2026-08): Bill Block support ──────────────────────────────
+    # The master direct_cost_line_ids / operating_exp_line_ids above are LEFT
+    # UNCHANGED — still every direct / operating expense whether or not it sits
+    # in a block — so the delete guard, Vendor Bills counter, signature PDF,
+    # contract statement PDF and completed-record lock all keep covering block
+    # lines with zero change. The flat editable tab lists instead bind to the
+    # *unassigned* collections below (block rows live inside their block),
+    # mirroring exactly how Project Income splits unassigned_income_line_ids
+    # from invoice_block_ids.
+    direct_cost_unassigned_line_ids = fields.One2many(
+        comodel_name='way4tech.manpower.project.expense',
+        inverse_name='contract_id',
+        domain=[('category_id.expense_type', '=', 'direct'),
+                ('bill_block_id', '=', False)],
+        string='Direct Cost Lines (not in a block)',
+    )
+    operating_exp_unassigned_line_ids = fields.One2many(
+        comodel_name='way4tech.manpower.project.expense',
+        inverse_name='contract_id',
+        domain=[('category_id.expense_type', '=', 'operating'),
+                ('bill_block_id', '=', False)],
+        string='Operating Exp Lines (not in a block)',
+    )
+    direct_cost_block_ids = fields.One2many(
+        'way4tech.manpower.bill.block', 'contract_id',
+        domain=[('bucket', '=', 'direct')],
+        string='Direct Cost Bill Blocks',
+        help='Item 4: each block is one future vendor bill carrying several '
+             'Direct Cost lines for a single vendor.',
+    )
+    operating_exp_block_ids = fields.One2many(
+        'way4tech.manpower.bill.block', 'contract_id',
+        domain=[('bucket', '=', 'operating')],
+        string='Operating Exp Bill Blocks',
+        help='Item 4: each block is one future vendor bill carrying several '
+             'Operating Exp lines for a single vendor.',
+    )
     # CR2 G3 (19.0.2.7.0): Sales Person Commission tab lines.
     commission_line_ids = fields.One2many(
         'way4tech.manpower.commission.line',

@@ -531,7 +531,119 @@
                                 posted after the contract has at least one customer invoice
                                 — the bill's Payment Reference is composed from the invoice number.
                             </div>
-                            <field name="direct_cost_line_ids"
+                            <!-- Item 4: Bill Blocks — one vendor bill carrying several
+                                 Direct Cost lines for ONE vendor. Pure addition; the
+                                 per-line Create Bill on the flat list below is untouched. -->
+                            <div class="alert alert-secondary" role="alert">
+                                <strong>Multi-line bills (optional):</strong> click
+                                <em>Create New Bill Block</em>, pick the vendor, add every
+                                Direct Cost line for that vendor, then the block's
+                                <em>Create Bill</em> produces ONE vendor bill with all of them.
+                                For a single-line bill, use the per-line <em>Create Bill</em> below
+                                exactly as before.
+                            </div>
+                            <field name="direct_cost_block_ids"
+                                   readonly="state in ('cancelled', 'completed')"
+                                   context="{'default_contract_id': id, 'default_bucket': 'direct'}">
+                                <list decoration-muted="state == 'billed'">
+                                    <control>
+                                        <create string="Create New Bill Block"/>
+                                    </control>
+                                    <field name="name" string="Bill"/>
+                                    <field name="vendor_id"/>
+                                    <field name="date" widget="date"/>
+                                    <field name="bill_date" widget="date"/>
+                                    <field name="line_count" string="Lines"/>
+                                    <field name="amount_untaxed" string="Amount" sum="Amount"/>
+                                    <field name="amount_tax" string="VAT" sum="VAT"/>
+                                    <field name="amount_total" string="Total" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                           decoration-info="state == 'draft'"
+                                           decoration-warning="state == 'invoice_draft'"
+                                           decoration-success="state == 'billed'"/>
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This block was rejected. Correct it, then re-send just this block for approval."/>
+                                    <button name="action_create_bill" type="object"
+                                            string="Create Bill" icon="fa-file-text-o"
+                                            invisible="state != 'draft'"
+                                            class="btn-sm btn-primary"/>
+                                    <button name="action_view_bill" type="object"
+                                            string="View Bill" icon="fa-eye"
+                                            invisible="state == 'draft'"
+                                            class="btn-sm btn-secondary"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the vendor bill created from this block as a PDF."/>
+                                </list>
+                                <form string="Bill Block">
+                                    <header>
+                                        <button name="action_create_bill" type="object"
+                                                string="Create Bill" class="btn-primary"
+                                                invisible="state != 'draft'"/>
+                                        <button name="action_view_bill" type="object"
+                                                string="View Bill" class="btn-secondary"
+                                                invisible="state == 'draft'"/>
+                                        <field name="state" widget="statusbar"
+                                               statusbar_visible="draft,invoice_draft,billed"/>
+                                    </header>
+                                    <div class="alert alert-warning" role="alert"
+                                         invisible="state != 'invoice_draft'">
+                                        The linked bill has been reset to draft. Open it with
+                                        <strong>View Bill</strong>, correct it and post it again;
+                                        this block will return to Bill Created. To bill something
+                                        else, cancel or delete that bill and the block is released.
+                                    </div>
+                                    <sheet>
+                                        <div class="oe_title">
+                                            <h2><field name="name" readonly="1" nolabel="1"/></h2>
+                                        </div>
+                                        <group>
+                                            <group>
+                                                <field name="bucket" invisible="1"/>
+                                                <field name="vendor_id"
+                                                       context="{'res_partner_search_mode': 'supplier'}"
+                                                       readonly="state != 'draft'"
+                                                       help="Pick the vendor first, then add the lines below. One bill is raised to this vendor."/>
+                                                <field name="date" readonly="state == 'billed'"/>
+                                                <field name="bill_date" readonly="state == 'billed'"/>
+                                            </group>
+                                            <group>
+                                                <field name="amount_untaxed" readonly="1"/>
+                                                <field name="amount_tax" readonly="1"/>
+                                                <field name="amount_total" readonly="1"
+                                                       class="oe_subtotal_footer_separator"/>
+                                                <field name="currency_id" invisible="1"/>
+                                            </group>
+                                        </group>
+                                        <field name="line_ids" readonly="state != 'draft'"
+                                               context="{'default_contract_id': parent.id, 'default_vendor_id': vendor_id, 'category_bucket_default': 'direct'}">
+                                            <list editable="bottom">
+                                                <field name="description"/>
+                                                <field name="product_id" options="{'no_create': True}" optional="hide"/>
+                                                <field name="category_id" domain="[('expense_type', '=', 'direct')]"/>
+                                                <field name="tag_ids" widget="many2many_tags" optional="show"/>
+                                                <field name="account_id"/>
+                                                <field name="quantity"/>
+                                                <field name="price"/>
+                                                <field name="amount" sum="Amount (excl. VAT)"/>
+                                                <field name="vendor_id" column_invisible="1"/>
+                                                <field name="contract_id" column_invisible="1"/>
+                                                <field name="currency_id" column_invisible="1"/>
+                                            </list>
+                                        </field>
+                                    </sheet>
+                                </form>
+                            </field>
+                            <separator string="Direct Cost Lines Not In A Block"/>
+                            <field name="direct_cost_unassigned_line_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
                                 <list editable="top" decoration-muted="state == 'billed'">
@@ -601,7 +713,119 @@
                                 and posts to <strong>OpEx</strong> on the Billing Summary.
                                 No customer-invoice prerequisite.
                             </div>
-                            <field name="operating_exp_line_ids"
+                            <!-- Item 4: Bill Blocks — one vendor bill carrying several
+                                 Operating Exp lines for ONE vendor. Pure addition; the
+                                 per-line Create Bill on the flat list below is untouched. -->
+                            <div class="alert alert-secondary" role="alert">
+                                <strong>Multi-line bills (optional):</strong> click
+                                <em>Create New Bill Block</em>, pick the vendor, add every
+                                Operating Exp line for that vendor, then the block's
+                                <em>Create Bill</em> produces ONE vendor bill with all of them.
+                                For a single-line bill, use the per-line <em>Create Bill</em> below
+                                exactly as before.
+                            </div>
+                            <field name="operating_exp_block_ids"
+                                   readonly="state in ('cancelled', 'completed')"
+                                   context="{'default_contract_id': id, 'default_bucket': 'operating'}">
+                                <list decoration-muted="state == 'billed'">
+                                    <control>
+                                        <create string="Create New Bill Block"/>
+                                    </control>
+                                    <field name="name" string="Bill"/>
+                                    <field name="vendor_id"/>
+                                    <field name="date" widget="date"/>
+                                    <field name="bill_date" widget="date"/>
+                                    <field name="line_count" string="Lines"/>
+                                    <field name="amount_untaxed" string="Amount" sum="Amount"/>
+                                    <field name="amount_tax" string="VAT" sum="VAT"/>
+                                    <field name="amount_total" string="Total" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                           decoration-info="state == 'draft'"
+                                           decoration-warning="state == 'invoice_draft'"
+                                           decoration-success="state == 'billed'"/>
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning"
+                                            invisible="approval_state != 'rejected'"
+                                            help="This block was rejected. Correct it, then re-send just this block for approval."/>
+                                    <button name="action_create_bill" type="object"
+                                            string="Create Bill" icon="fa-file-text-o"
+                                            invisible="state != 'draft'"
+                                            class="btn-sm btn-primary"/>
+                                    <button name="action_view_bill" type="object"
+                                            string="View Bill" icon="fa-eye"
+                                            invisible="state == 'draft'"
+                                            class="btn-sm btn-secondary"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the vendor bill created from this block as a PDF."/>
+                                </list>
+                                <form string="Bill Block">
+                                    <header>
+                                        <button name="action_create_bill" type="object"
+                                                string="Create Bill" class="btn-primary"
+                                                invisible="state != 'draft'"/>
+                                        <button name="action_view_bill" type="object"
+                                                string="View Bill" class="btn-secondary"
+                                                invisible="state == 'draft'"/>
+                                        <field name="state" widget="statusbar"
+                                               statusbar_visible="draft,invoice_draft,billed"/>
+                                    </header>
+                                    <div class="alert alert-warning" role="alert"
+                                         invisible="state != 'invoice_draft'">
+                                        The linked bill has been reset to draft. Open it with
+                                        <strong>View Bill</strong>, correct it and post it again;
+                                        this block will return to Bill Created. To bill something
+                                        else, cancel or delete that bill and the block is released.
+                                    </div>
+                                    <sheet>
+                                        <div class="oe_title">
+                                            <h2><field name="name" readonly="1" nolabel="1"/></h2>
+                                        </div>
+                                        <group>
+                                            <group>
+                                                <field name="bucket" invisible="1"/>
+                                                <field name="vendor_id"
+                                                       context="{'res_partner_search_mode': 'supplier'}"
+                                                       readonly="state != 'draft'"
+                                                       help="Pick the vendor first, then add the lines below. One bill is raised to this vendor."/>
+                                                <field name="date" readonly="state == 'billed'"/>
+                                                <field name="bill_date" readonly="state == 'billed'"/>
+                                            </group>
+                                            <group>
+                                                <field name="amount_untaxed" readonly="1"/>
+                                                <field name="amount_tax" readonly="1"/>
+                                                <field name="amount_total" readonly="1"
+                                                       class="oe_subtotal_footer_separator"/>
+                                                <field name="currency_id" invisible="1"/>
+                                            </group>
+                                        </group>
+                                        <field name="line_ids" readonly="state != 'draft'"
+                                               context="{'default_contract_id': parent.id, 'default_vendor_id': vendor_id, 'category_bucket_default': 'operating'}">
+                                            <list editable="bottom">
+                                                <field name="description"/>
+                                                <field name="product_id" options="{'no_create': True}" optional="hide"/>
+                                                <field name="category_id" domain="[('expense_type', '=', 'operating')]"/>
+                                                <field name="tag_ids" widget="many2many_tags" optional="show"/>
+                                                <field name="account_id"/>
+                                                <field name="quantity"/>
+                                                <field name="price"/>
+                                                <field name="amount" sum="Amount (excl. VAT)"/>
+                                                <field name="vendor_id" column_invisible="1"/>
+                                                <field name="contract_id" column_invisible="1"/>
+                                                <field name="currency_id" column_invisible="1"/>
+                                            </list>
+                                        </field>
+                                    </sheet>
+                                </form>
+                            </field>
+                            <separator string="Operating Exp Lines Not In A Block"/>
+                            <field name="operating_exp_unassigned_line_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'operating'}">
                                 <list editable="top" decoration-muted="state == 'billed'">

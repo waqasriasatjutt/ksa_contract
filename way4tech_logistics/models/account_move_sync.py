@@ -59,6 +59,12 @@ _SOURCE_LINE_MAP = (
     # like the Manpower lines above. The settlement has no _sync_amount_from_move
     # so only the STATE sync applies (it drives the bill amount, not vice versa).
     ('way4tech.commission.settlement',         'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
+    # Item 4: a Bill Block's combined vendor bill drives the block state exactly
+    # like the invoice block — posted → billed, reset-to-draft → 'Bill Draft'
+    # (the block carries that middle state), cancel/delete → released to draft.
+    # The block's own expense line_ids are the project.expense rows above, so
+    # they flip together with the block on the same move event.
+    ('way4tech.manpower.bill.block',           'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
 )
 
 
