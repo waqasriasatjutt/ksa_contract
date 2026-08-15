@@ -838,6 +838,13 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
             blocks = self.mapped('invoice_block_id')
             if blocks:
                 Request._invalidate_for(blocks)
+        # Item 4 (findings 3/6): mirror the invoice-block walk-up for bill
+        # blocks — editing a block's expense line (description / account /
+        # amount) must void the BLOCK's approval, exactly as on the income side.
+        if 'bill_block_id' in self._fields:
+            bill_blocks = self.mapped('bill_block_id')
+            if bill_blocks:
+                Request._invalidate_for(bill_blocks)
         return result
 
 

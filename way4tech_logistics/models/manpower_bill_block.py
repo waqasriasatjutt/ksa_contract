@@ -150,6 +150,20 @@ class Way4TechManpowerBillBlock(models.Model):
             block.amount_tax = tax_total
             block.amount_total = untaxed + tax_total
 
+    def write(self, vals):
+        res = super().write(vals)
+        # Findings 2/5: the vendor and the dates are signed off at approval but
+        # are NOT part of the amount fingerprint, so changing them AFTER approval
+        # must void it — otherwise a post-approval vendor swap would bill a payee
+        # (or an accounting period) the approver never signed off. Mirrors how
+        # editing an amount already invalidates via the approval mixin. The
+        # internal billing / state-sync writes only touch state/bill_id, so they
+        # never trip this; the skip context keeps ORM/idempotent writes quiet.
+        if ({'vendor_id', 'date', 'bill_date'} & set(vals)
+                and not self.env.context.get('way4tech_skip_approval_invalidation')):
+            self.env['way4tech.manpower.approval.request']._invalidate_for(self)
+        return res
+
     # ── Actions ─────────────────────────────────────────────────────────────
     def action_create_bill(self):
         """Create ONE vendor bill (draft) carrying every line in this block,
@@ -206,7 +220,10 @@ class Way4TechManpowerBillBlock(models.Model):
                     'Setup.'
                 ) % (line.description or ''))
             if line.price:
-                bl_qty, bl_price = (line.quantity or 1.0), line.price
+                # Use the line's real quantity (NOT `or 1.0`): the block preview
+                # totals from line.amount (= qty x price), so a qty=0 line must
+                # bill 0 too, not silently post 1 x price.
+                bl_qty, bl_price = line.quantity, line.price
             else:
                 bl_qty, bl_price = 1.0, line.amount
             _pname, _pdesc = (line.product_id.name or ''), (line.description or '')

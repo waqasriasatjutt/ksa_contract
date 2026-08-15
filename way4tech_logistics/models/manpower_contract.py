@@ -1275,6 +1275,13 @@ class Way4TechManpowerContract(models.Model):
     _WAY4TECH_COMPLETED_LOCK_O2M = (
         'line_ids', 'timesheet_ids', 'project_expense_ids',
         'direct_cost_line_ids', 'operating_exp_line_ids', 'commission_line_ids',
+        # Item 4: the Direct/Operating tab widgets now bind to the unassigned +
+        # block fields, so those names must be locked too — way4tech_first_real
+        # _change matches field NAMES, so a Completed contract's edits through
+        # the new fields would otherwise slip past the lock (mirrors how the
+        # income side added unassigned_income_line_ids + invoice_block_ids).
+        'direct_cost_unassigned_line_ids', 'operating_exp_unassigned_line_ids',
+        'direct_cost_block_ids', 'operating_exp_block_ids',
         'income_line_ids', 'invoice_block_ids', 'unassigned_income_line_ids',
         'budget_line_ids', 'timesheet_block_ids', 'unassigned_timesheet_ids',
     )
