@@ -1243,10 +1243,14 @@ class Way4TechManpowerContract(models.Model):
         # cascade and the _unlink_check_active_documents guard are unchanged; a
         # block whose invoice/bill is posted still refuses via its own guard, so
         # the whole delete rolls back atomically.
-        blocks = (self.invoice_block_ids | self.timesheet_block_ids
-                  | self.direct_cost_block_ids | self.operating_exp_block_ids)
-        if blocks:
-            blocks.unlink()
+        # Each collection is a DIFFERENT model (invoice / timesheet / bill
+        # block), so unlink them one at a time — a union across models raises
+        # "inconsistent models". mapped() gathers the field across all records.
+        for _coll in ('invoice_block_ids', 'timesheet_block_ids',
+                      'direct_cost_block_ids', 'operating_exp_block_ids'):
+            _recs = self.mapped(_coll)
+            if _recs:
+                _recs.unlink()
         return super().unlink()
 
     @api.ondelete(at_uninstall=False)
