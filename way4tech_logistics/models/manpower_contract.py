@@ -1228,6 +1228,27 @@ class Way4TechManpowerContract(models.Model):
                 highest = max(highest, int(tail))
         return '%s%04d' % (prefix, highest + 1)
 
+    def unlink(self):
+        # Item B (2026-08): deleting a contract cascade-deletes its income /
+        # timesheet / expense leaf lines, which triggers a recompute of the
+        # stored monetary totals on the *_block records that AGGREGATE those
+        # lines (their amount_untaxed depends on line_ids.amount, currency
+        # related to the contract). Those blocks are being deleted in the SAME
+        # cascade, so the flush reads a block that is already gone ->
+        # MissingError "Record does not exist". Remove the block records FIRST,
+        # while the contract still exists (so their contract-related currency_id
+        # resolves cleanly); the block's own delete only detaches its leaf lines
+        # (ondelete='set null'), and the normal contract cascade then takes the
+        # leaf lines exactly as before. Isolated to the delete path — the leaf
+        # cascade and the _unlink_check_active_documents guard are unchanged; a
+        # block whose invoice/bill is posted still refuses via its own guard, so
+        # the whole delete rolls back atomically.
+        blocks = (self.invoice_block_ids | self.timesheet_block_ids
+                  | self.direct_cost_block_ids | self.operating_exp_block_ids)
+        if blocks:
+            blocks.unlink()
+        return super().unlink()
+
     @api.ondelete(at_uninstall=False)
     def _unlink_check_active_documents(self):
         """CR3 P4 (v13.0): monthly-record delete protection.
