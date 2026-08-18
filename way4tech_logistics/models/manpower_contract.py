@@ -1468,8 +1468,62 @@ class Way4TechManpowerContract(models.Model):
             return {str(settings.default_analytic_account_id.id): 100}
         return {}
 
+    def _way4tech_ensure_active_payable(self, partner):
+        """Item 7 (2026-08): an archived/inactive default payable must never
+        block a vendor bill from posting. If the account this vendor would post
+        its payable to (its own property, or the company default it inherits)
+        is archived, point the vendor at the company's first ACTIVE payable so
+        the bill posts to a real account.
+
+        Durable + general: fires for ANY company whose default payable happens
+        to be archived (the client may archive their own defaults as normal
+        usage), not a one-off for a single code. Safe by construction — it only
+        ever REPLACES an inactive account with an active one of the SAME type,
+        touches no posting logic and no core Accounting, and leaves any already
+        active payable exactly as it is (returns immediately)."""
+        self.ensure_one()
+        company = self.company_id
+        if not partner or not company:
+            return
+        current = partner.with_company(company).property_account_payable_id
+        if current and current.active:
+            return  # already valid — never touch a working setup
+        active = self.env['account.account'].search([
+            ('account_type', '=', 'liability_payable'),
+            ('company_ids', 'in', company.id),
+            ('active', '=', True),
+        ], limit=1)
+        if active:
+            partner.with_company(company).property_account_payable_id = active
+
     def action_activate(self):
         self.ensure_one()
+        # Item 6 (2026-08): friendly pre-check BEFORE writing state, so the user
+        # gets a clear message naming the existing contract instead of the raw
+        # DB "duplicate key" error the unique index would otherwise throw. Same
+        # key as way4tech_manpower_contract_month_unique_idx (client + month +
+        # project over active/completed). Additive guard — the DB index and the
+        # _check_monthly_unique constraint still enforce underneath.
+        if self.contract_month and self.client_id:
+            dup = self.search([
+                ('id', '!=', self.id),
+                ('client_id', '=', self.client_id.id),
+                ('contract_month', '=', self.contract_month),
+                ('way4tech_project_id', '=', self.way4tech_project_id.id or False),
+                ('state', 'in', ('active', 'completed')),
+            ], limit=1)
+            if dup:
+                raise UserError(_(
+                    'An active contract already exists for this client and '
+                    'month%(proj)s: "%(dup)s" (%(ref)s). Open that one instead '
+                    'of creating a new record. If you genuinely need a second '
+                    'contract for the same client-month, set a different '
+                    'Project on it first.'
+                ) % {
+                    'proj': ' and project' if self.way4tech_project_id else '',
+                    'dup': dup.display_name,
+                    'ref': dup.reference or dup.id,
+                })
         self.state = 'active'
 
     def action_complete(self):

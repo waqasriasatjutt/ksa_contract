@@ -375,6 +375,10 @@ class ManpowerProjectExpense(models.Model):
             }
         if not self.vendor_id:
             raise UserError(_('Please set a vendor before creating the bill.'))
+        # Item 7: guarantee this vendor posts its payable to an ACTIVE account,
+        # even if the company's default payable happens to be archived, so the
+        # bill can be posted without hitting an "account is archived" error.
+        self.contract_id._way4tech_ensure_active_payable(self.vendor_id)
         # CR3-FINAL Part A: per-item approval, consumed on creation.
         self.contract_id._require_month_approval(record=self)
         if not self.account_id and self.category_id:

@@ -185,6 +185,10 @@ class Way4TechManpowerBillBlock(models.Model):
         if not self.vendor_id:
             raise UserError(_('Set a Vendor before creating the bill.'))
         contract = self.contract_id
+        # Item 7: ensure this block's vendor posts its payable to an ACTIVE
+        # account even if the company's default payable has been archived, so
+        # the combined bill can be posted without an "account is archived" error.
+        contract._way4tech_ensure_active_payable(self.vendor_id)
         # Same monthly signature-approval gate as every other document-creating
         # action on the contract; burned on success below.
         contract._require_month_approval(record=self)

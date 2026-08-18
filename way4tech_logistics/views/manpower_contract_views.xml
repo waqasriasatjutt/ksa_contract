@@ -349,6 +349,10 @@
                                            decoration-info="state == 'draft'"
                                            decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'invoiced'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                           decoration-danger="way4tech_payment_status == 'unpaid'"
+                                           decoration-warning="way4tech_payment_status == 'partial'"
+                                           decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -442,7 +446,7 @@
                                                      before, which persists a hidden state in the
                                                      browser and read as "missing". -->
                                                 <field name="tag_ids" widget="many2many_tags"/>
-                                                <field name="quantity"/>
+                                                <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="accounting_date" widget="date"
@@ -489,6 +493,10 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                        decoration-danger="way4tech_payment_status == 'unpaid'"
+                                        decoration-warning="way4tech_payment_status == 'partial'"
+                                        decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -561,6 +569,10 @@
                                            decoration-info="state == 'draft'"
                                            decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'billed'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                           decoration-danger="way4tech_payment_status == 'unpaid'"
+                                           decoration-warning="way4tech_payment_status == 'partial'"
+                                           decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -631,12 +643,16 @@
                                                 <field name="category_id" domain="[('expense_type', '=', 'direct')]"/>
                                                 <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                                 <field name="account_id"/>
-                                                <field name="quantity"/>
+                                                <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
                                                 <field name="currency_id" column_invisible="1"/>
+                                                <field name="attachment_count" string="Files" optional="show"/>
+                                                <field name="has_document" column_invisible="1"/>
+                                                <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                                <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the vendor bill created from this line as a PDF."/>
                                             </list>
                                         </field>
                                     </sheet>
@@ -673,6 +689,10 @@
                                         decoration-info="state == 'draft'"
                                         decoration-warning="state == 'invoice_draft'"
                                         decoration-success="state == 'billed'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                        decoration-danger="way4tech_payment_status == 'unpaid'"
+                                        decoration-warning="way4tech_payment_status == 'partial'"
+                                        decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -743,6 +763,10 @@
                                            decoration-info="state == 'draft'"
                                            decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'billed'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                           decoration-danger="way4tech_payment_status == 'unpaid'"
+                                           decoration-warning="way4tech_payment_status == 'partial'"
+                                           decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -813,12 +837,16 @@
                                                 <field name="category_id" domain="[('expense_type', '=', 'operating')]"/>
                                                 <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                                 <field name="account_id"/>
-                                                <field name="quantity"/>
+                                                <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
                                                 <field name="currency_id" column_invisible="1"/>
+                                                <field name="attachment_count" string="Files" optional="show"/>
+                                                <field name="has_document" column_invisible="1"/>
+                                                <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
+                                                <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the vendor bill created from this line as a PDF."/>
                                             </list>
                                         </field>
                                     </sheet>
@@ -849,6 +877,10 @@
                                         decoration-info="state == 'draft'"
                                         decoration-warning="state == 'invoice_draft'"
                                         decoration-success="state == 'billed'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                        decoration-danger="way4tech_payment_status == 'unpaid'"
+                                        decoration-warning="way4tech_payment_status == 'partial'"
+                                        decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -911,6 +943,10 @@
                                            decoration-info="state == 'draft'"
                                            decoration-warning="state == 'invoice_draft'"
                                            decoration-success="state == 'invoiced'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                           decoration-danger="way4tech_payment_status == 'unpaid'"
+                                           decoration-warning="way4tech_payment_status == 'partial'"
+                                           decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"
@@ -1041,6 +1077,10 @@
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-success="state == 'invoiced'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                        decoration-danger="way4tech_payment_status == 'unpaid'"
+                                        decoration-warning="way4tech_payment_status == 'partial'"
+                                        decoration-success="way4tech_payment_status == 'paid'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"

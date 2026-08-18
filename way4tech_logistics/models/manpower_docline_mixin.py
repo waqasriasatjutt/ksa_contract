@@ -68,6 +68,35 @@ class Way4TechManpowerDocLineMixin(models.AbstractModel):
         for rec in self:
             rec.has_document = bool(rec._way4tech_document())
 
+    # ── Item 4 (2026-08): live payment status of the generated document ───
+    # Read straight from Accounting's account.move.payment_state on every read
+    # (compute, NOT stored -> always current; @api.depends invalidates it the
+    # moment a payment is registered / reversed). Collapsed to the three states
+    # the contract tabs show. Read-only display — no payment logic here.
+    way4tech_payment_status = fields.Selection(
+        [('unpaid', 'Unpaid'),
+         ('partial', 'Partially Paid'),
+         ('paid', 'Fully Paid')],
+        string='Payment', compute='_compute_way4tech_payment_status',
+    )
+
+    @api.depends(lambda self: [
+        '%s.payment_state' % f for f in ('invoice_id', 'bill_id')
+        if f in self._fields
+    ])
+    def _compute_way4tech_payment_status(self):
+        for rec in self:
+            move = rec._way4tech_document()
+            ps = move.payment_state if move else False
+            if ps in ('paid', 'in_payment'):
+                rec.way4tech_payment_status = 'paid'
+            elif ps == 'partial':
+                rec.way4tech_payment_status = 'partial'
+            elif ps:
+                rec.way4tech_payment_status = 'unpaid'
+            else:
+                rec.way4tech_payment_status = False
+
     def action_download_document(self):
         """CR5 item 2b — download THIS line's document as a correct, complete
         PDF. Returns the proper report for that document type, for that single
