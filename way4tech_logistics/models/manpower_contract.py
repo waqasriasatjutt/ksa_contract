@@ -1127,6 +1127,58 @@ class Way4TechManpowerContract(models.Model):
                     'Client, or Project.'
                 ) % {'dup': dup.display_name or dup.reference or dup.id})
 
+    # ── Item 6 (2026-08): friendly monthly-unique message, matching the DB
+    # index EXACTLY (incl. its GLOBAL, company-agnostic scope) ───────────────
+    def _way4tech_monthly_blocker(self):
+        """The active/completed contract that already holds this record's
+        monthly-unique key (client + month + project), matching the partial
+        unique index way4tech_manpower_contract_month_unique_idx exactly.
+
+        Uses sudo() ON PURPOSE: that index has NO company_id, so it blocks
+        globally across companies, but the multi-company record rule hides a
+        blocker in another company from an ordinary search() — which is why the
+        user saw the raw DB error with the client group showing "(0)" and the
+        earlier friendly message never fired. sudo() makes this lookup see what
+        the index sees. Read-only; returns the blocker or an empty recordset."""
+        self.ensure_one()
+        if not (self.contract_month and self.client_id):
+            return self.browse()
+        return self.sudo().search([
+            ('id', '!=', self.id),
+            ('client_id', '=', self.client_id.id),
+            ('contract_month', '=', self.contract_month),
+            ('way4tech_project_id', '=', self.way4tech_project_id.id or False),
+            ('state', 'in', ('active', 'completed')),
+        ], limit=1)
+
+    def _way4tech_assert_monthly_free(self):
+        """Raise a clear, actionable message naming the blocking contract (and
+        its company, since it may be one the user cannot currently see) BEFORE
+        the raw DB unique-index error. The key includes Project, so the only
+        genuine way to keep a SEPARATE contract in the same client-month is a
+        distinct Project — the message says so; renaming alone will not work."""
+        self.ensure_one()
+        dup = self._way4tech_monthly_blocker()
+        if not dup:
+            return
+        same_company = dup.company_id and dup.company_id == self.company_id
+        where = '' if same_company else (_(' (in company "%s")') % (
+            dup.company_id.name or _('another company')))
+        raise UserError(_(
+            'A contract for this client and month already exists: '
+            '"%(dup)s" (%(ref)s)%(where)s.\n\n'
+            'Open that contract instead of creating a new one. If you '
+            'genuinely need a SEPARATE contract for the same client and the '
+            'same month, set a different Project on this one first — the '
+            'monthly uniqueness rule is per client + month + project, so a '
+            'distinct Project makes it a genuinely separate record. Renaming '
+            'alone is not enough.'
+        ) % {
+            'dup': dup.display_name,
+            'ref': dup.reference or dup.id,
+            'where': where,
+        })
+
     # ── Auto-name builder — single source of truth ──────────────────────────
     # Used by create() and both write() name paths so they can never drift.
     # Format:
@@ -1312,6 +1364,19 @@ class Way4TechManpowerContract(models.Model):
     )
 
     def write(self, vals):
+        # Item 6 (2026-08): friendly monthly-unique message for EVERY path that
+        # moves a contract INTO active/completed — the Activate button, a
+        # statusbar click, an import or RPC write — raised BEFORE super().write()
+        # flushes, so the user sees a clear message naming the existing contract
+        # instead of the raw DB unique-index error. Only fires on the actual
+        # transition (a record already active/completed is skipped). Deliberately
+        # NOT gated on any skip context: the DB index blocks regardless of
+        # context, so this can only ever REPLACE that raw error with a readable
+        # one — it never blocks a write the index would have allowed.
+        if vals.get('state') in ('active', 'completed'):
+            for rec in self:
+                if rec.state not in ('active', 'completed'):
+                    rec._way4tech_assert_monthly_free()
         # CR5 item 7: a Completed record is frozen whole — header fields AND
         # every editable line — on every write path (UI, import, RPC), until it
         # is reopened with Reset to Draft. The transition OUT of Completed is
@@ -1498,32 +1563,12 @@ class Way4TechManpowerContract(models.Model):
 
     def action_activate(self):
         self.ensure_one()
-        # Item 6 (2026-08): friendly pre-check BEFORE writing state, so the user
-        # gets a clear message naming the existing contract instead of the raw
-        # DB "duplicate key" error the unique index would otherwise throw. Same
-        # key as way4tech_manpower_contract_month_unique_idx (client + month +
-        # project over active/completed). Additive guard — the DB index and the
-        # _check_monthly_unique constraint still enforce underneath.
-        if self.contract_month and self.client_id:
-            dup = self.search([
-                ('id', '!=', self.id),
-                ('client_id', '=', self.client_id.id),
-                ('contract_month', '=', self.contract_month),
-                ('way4tech_project_id', '=', self.way4tech_project_id.id or False),
-                ('state', 'in', ('active', 'completed')),
-            ], limit=1)
-            if dup:
-                raise UserError(_(
-                    'An active contract already exists for this client and '
-                    'month%(proj)s: "%(dup)s" (%(ref)s). Open that one instead '
-                    'of creating a new record. If you genuinely need a second '
-                    'contract for the same client-month, set a different '
-                    'Project on it first.'
-                ) % {
-                    'proj': ' and project' if self.way4tech_project_id else '',
-                    'dup': dup.display_name,
-                    'ref': dup.reference or dup.id,
-                })
+        # The friendly monthly-unique message now lives in write() (single
+        # source of truth, cross-company via sudo), so it fires here too — and
+        # for the statusbar / import / RPC paths that never call this method.
+        # Assert explicitly first as well, so the Activate button surfaces the
+        # clean message immediately regardless of write ordering.
+        self._way4tech_assert_monthly_free()
         self.state = 'active'
 
     def action_complete(self):
