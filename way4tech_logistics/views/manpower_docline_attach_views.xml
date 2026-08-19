@@ -134,35 +134,5 @@
         </field>
     </record>
 
-    <!-- C1 (2026-08): Commissioning Settlement — attach files + view the bill.
-         Same paperclip-dialog pattern as the Manpower lines; opened by the
-         settlement row's action_open_attachments. -->
-    <record id="view_commission_settlement_attach_form" model="ir.ui.view">
-        <field name="name">way4tech.commission.settlement.attach.form</field>
-        <field name="model">way4tech.commission.settlement</field>
-        <field name="arch" type="xml">
-            <form string="Settlement Files &amp; Document">
-                <sheet>
-                    <group>
-                        <field name="display_name" readonly="1"/>
-                        <field name="full_receipt_amount" readonly="1"/>
-                        <field name="currency_id" invisible="1"/>
-                        <field name="has_document" invisible="1"/>
-                    </group>
-                    <separator string="Attachments"/>
-                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
-                    <separator string="Generated Document"/>
-                    <div>
-                        <button name="action_download_document" type="object"
-                                string="Download Bill (PDF)" icon="fa-download"
-                                class="btn-secondary" invisible="not has_document"/>
-                        <span class="text-muted" invisible="has_document">
-                            No subcontractor bill has been created from this settlement yet.
-                        </span>
-                    </div>
-                </sheet>
-            </form>
-        </field>
-    </record>
 
 </odoo>
