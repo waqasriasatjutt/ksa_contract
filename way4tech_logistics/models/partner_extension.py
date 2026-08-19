@@ -14,6 +14,36 @@ class ResPartner(models.Model):
         help='KSA residency permit number (individuals only).',
     )
 
+    def _way4tech_ensure_active_receivable(self, company):
+        """Receivable twin of the Item 7 payable fallback (manpower_contract.
+        _way4tech_ensure_active_payable): an archived/inactive default
+        receivable must never block a CUSTOMER invoice from posting. If the
+        account this customer would post its receivable to (its own property,
+        or the company default it inherits) is archived, point the customer at
+        the company's first ACTIVE receivable so the invoice posts to a real
+        account.
+
+        Durable + general: fires for ANY company/customer whose default
+        receivable happens to be archived (the client archives their own
+        defaults as normal usage), never a one-off for a single code. Safe by
+        construction — it only ever REPLACES an inactive account with an active
+        one of the SAME type (asset_receivable), touches no invoice posting
+        logic and no core Accounting, and leaves an already-active receivable
+        exactly as it is (returns immediately)."""
+        self.ensure_one()
+        if not company:
+            return
+        current = self.with_company(company).property_account_receivable_id
+        if current and current.active:
+            return  # already valid — never touch a working setup
+        active = self.env['account.account'].search([
+            ('account_type', '=', 'asset_receivable'),
+            ('company_ids', 'in', company.id),
+            ('active', '=', True),
+        ], limit=1)
+        if active:
+            self.with_company(company).property_account_receivable_id = active
+
 
 class HrEmployee(models.Model):
     _inherit = 'hr.employee'

@@ -187,7 +187,15 @@ class CommissionReceipt(models.Model):
                 cli = self.env['res.partner'].browse(vals['partner_id'])
                 vals['name'] = self._build_auto_name(sub, cli, sd)
                 vals['name_is_auto'] = True
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # AR archived-account fallback: as soon as a Commissioning record binds a
+        # client, make sure that client's receivable is active, so ANY customer
+        # invoice later raised for them (here or straight in Accounting) posts to
+        # a real account. No-op when the receivable is already active.
+        for rec in records:
+            if rec.partner_id:
+                rec.partner_id._way4tech_ensure_active_receivable(rec.company_id)
+        return records
 
     def write(self, vals):
         res = super().write(vals)
@@ -197,6 +205,11 @@ class CommissionReceipt(models.Model):
             for rec in self.filtered('name_is_auto'):
                 rec.with_context(_skip_name_auto=True).name = rec._build_auto_name(
                     rec.subcontractor_id, rec.partner_id, rec.start_date)
+        # AR archived-account fallback when the client is set / changed.
+        if 'partner_id' in vals:
+            for rec in self:
+                if rec.partner_id:
+                    rec.partner_id._way4tech_ensure_active_receivable(rec.company_id)
         return res
 
     # ── State + smart buttons ─────────────────────────────────────────────
@@ -234,6 +247,11 @@ class CommissionReceipt(models.Model):
         scopes to that same journal. Safe + additive: it never touches or
         parallels the wizard or core invoice creation."""
         self.ensure_one()
+        # AR archived-account fallback (mirror of the payable fix): make sure
+        # this client's receivable is active BEFORE the native invoice form is
+        # opened, so the invoice they create posts to a real account instead of
+        # failing on an archived default receivable.
+        self.partner_id._way4tech_ensure_active_receivable(self.company_id)
         settings = self._settings()
         journal = settings.commission_journal_id
         domain = [('partner_id', '=', self.partner_id.id),
