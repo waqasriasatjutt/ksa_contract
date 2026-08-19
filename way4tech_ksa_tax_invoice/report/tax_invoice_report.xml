@@ -231,7 +231,10 @@
                                 <td t-esc="bank.acc_number or ''"/>
                                 <td t-esc="bank.bank_id.name or ''"/>
                                 <td t-esc="bank.bank_id.city or ''"/>
-                                <td t-esc="bank.acc_number or ''"/>
+                                <!-- Item 2b (2026-08): IBAN is the ONE shared value across all
+                                     companies (was wrongly duplicating acc_number). Account
+                                     Number (left) stays the per-company bank account number. -->
+                                <td t-esc="company.x_shared_iban or ''"/>
                                 <td t-esc="bank.bank_id.bic or ''"/>
                             </tr>
                         </table>

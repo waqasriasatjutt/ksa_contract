@@ -33,18 +33,25 @@
                     padding: 8px 0 8px 0;
                 }
                 .atco-hdr .atco-col-left {
-                    width: 40%;
+                    width: 36%;
                     padding-left: 12px;
                     padding-right: 10px;
                     text-align: left;
                 }
                 .atco-hdr .atco-col-center {
-                    width: 20%;
+                    /* Item 2a (2026-08): widened from 20% -> 28% and given
+                       horizontal padding so the (enlarged) logo has real room
+                       and keeps a clear gap from the English/Arabic names on
+                       either side. table-layout:fixed keeps each column bounded,
+                       so a bigger logo can never bleed into the name cells. */
+                    width: 28%;
+                    padding-left: 16px;
+                    padding-right: 16px;
                     text-align: center;
                     vertical-align: middle;
                 }
                 .atco-hdr .atco-col-right {
-                    width: 40%;
+                    width: 36%;
                     padding-left: 10px;
                     padding-right: 12px;
                     text-align: right;
@@ -89,8 +96,13 @@
                 .atco-hdr .atco-meta div { margin: 0; padding: 0; }
                 .atco-hdr .atco-lbl { font-weight: bold; color: #1a1a1a; }
                 .atco-hdr .atco-logo {
-                    max-height: 110px;
-                    max-width: 140px;
+                    /* Item 2a (2026-08): enlarged (was 110x140) for real
+                       presence. Still capped by the center cell width
+                       (28% - padding) so it stays proportionate, centered and
+                       never overlaps the names; height cap keeps a tall/square
+                       logo from touching the header's top/bottom edges. */
+                    max-height: 125px;
+                    max-width: 170px;
                     height: auto;
                     width: auto;
                     display: inline-block;

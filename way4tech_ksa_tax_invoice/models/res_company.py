@@ -9,6 +9,29 @@ class ResCompany(models.Model):
     x_aramco_logo = fields.Binary(string='Saudi Aramco Vendor Logo')
     x_aramco_vendor_code = fields.Char(string='Saudi Aramco Vendor Code')
 
+    # Item 2b (2026-08): ONE IBAN shared by every company on the Tax Invoice.
+    # Backed by a single global ir.config_parameter (NOT a per-company column),
+    # so it is identical on every company and editable from any company's form —
+    # changing it anywhere updates it everywhere. Account Number, Bank, Branch
+    # and Swift stay per-company (read from the company's own bank record).
+    x_shared_iban = fields.Char(
+        string='Shared IBAN (all companies)',
+        compute='_compute_x_shared_iban', inverse='_inverse_x_shared_iban',
+        help='Single IBAN printed on every company\'s Tax Invoice. Stored once '
+             'globally, so it is the same on all companies; Account Number, '
+             'Bank, Branch and Swift remain per-company.')
+
+    def _compute_x_shared_iban(self):
+        val = self.env['ir.config_parameter'].sudo().get_param(
+            'way4tech_ksa_tax_invoice.shared_iban', '')
+        for c in self:
+            c.x_shared_iban = val
+
+    def _inverse_x_shared_iban(self):
+        for c in self:
+            self.env['ir.config_parameter'].sudo().set_param(
+                'way4tech_ksa_tax_invoice.shared_iban', c.x_shared_iban or '')
+
     def write(self, vals):
         """Mirror x_name_ar to the company's partner record so the tax invoice
         template (which reads bp.x_name_ar / cp.x_name_ar) stays in sync
