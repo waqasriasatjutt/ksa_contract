@@ -104,17 +104,20 @@ class CommissionReceipt(models.Model):
         'way4tech.commission.settlement', 'receipt_id', string='Settlements')
     settlement_count = fields.Integer(
         compute='_compute_rollups', string='Settlements')
+    # C5 (2026-08): these rollups are stored so they can serve as Pivot/Graph
+    # MEASURES (aggregation needs a real column). store=True only; the compute
+    # and its @api.depends are unchanged, so displayed values are identical.
     total_receipt = fields.Monetary(
-        compute='_compute_rollups', currency_field='currency_id',
+        compute='_compute_rollups', store=True, currency_field='currency_id',
         string='Total Received (incl. VAT)')
     total_commission = fields.Monetary(
-        compute='_compute_rollups', currency_field='currency_id',
+        compute='_compute_rollups', store=True, currency_field='currency_id',
         string='Total Commission (Gross Profit)')
     total_gross_payable = fields.Monetary(
-        compute='_compute_rollups', currency_field='currency_id',
+        compute='_compute_rollups', store=True, currency_field='currency_id',
         string='Total Subcontractor Payable')
     total_vat = fields.Monetary(
-        compute='_compute_rollups', currency_field='currency_id',
+        compute='_compute_rollups', store=True, currency_field='currency_id',
         string='Total VAT',
         help='VAT across all settlements = Total Received (incl. VAT) minus the '
              'ex-VAT total. Uses the VAT already implied on each settlement '
@@ -218,6 +221,38 @@ class CommissionReceipt(models.Model):
             'res_model': 'account.move',
             'domain': [('id', 'in', bills.ids)],
             'view_mode': 'list,form',
+        }
+
+    def action_view_client_invoices(self):
+        """C6 (2026-08): open THIS client's Commissioning invoices using the
+        NATIVE customer-invoice views. No invoicing logic is created or
+        duplicated here — it hands straight to core Accounting's out_invoice
+        form/list, pre-filtered to this client and pre-defaulted to the
+        Commissioning sales journal. An invoice created here is therefore a
+        completely standard account.move (identical accounting) and is
+        immediately selectable by the existing Select Invoices wizard, which
+        scopes to that same journal. Safe + additive: it never touches or
+        parallels the wizard or core invoice creation."""
+        self.ensure_one()
+        settings = self._settings()
+        journal = settings.commission_journal_id
+        domain = [('partner_id', '=', self.partner_id.id),
+                  ('move_type', '=', 'out_invoice')]
+        ctx = {
+            'default_move_type': 'out_invoice',
+            'default_partner_id': self.partner_id.id,
+            'default_company_id': self.company_id.id,
+        }
+        if journal:
+            domain.append(('journal_id', '=', journal.id))
+            ctx['default_journal_id'] = journal.id
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Client Invoices'),
+            'res_model': 'account.move',
+            'domain': domain,
+            'view_mode': 'list,form',
+            'context': ctx,
         }
 
     def _settings(self):

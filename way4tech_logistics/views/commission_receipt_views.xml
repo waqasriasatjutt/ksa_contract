@@ -44,7 +44,12 @@
                             <field name="subcontractor_id" readonly="state == 'closed'"/>
                             <field name="client_po_id" readonly="state == 'closed'"/>
                             <field name="salesperson_id" readonly="state == 'closed'"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
+                            <!-- C2 (2026-08): Company field removed from the form at the
+                                 client's request (it serves no purpose for them). The field
+                                 is KEPT on the model (required, defaults to the current
+                                 company) because currency, settings and every settlement's
+                                 company are sourced from it — only its display is dropped. -->
+                            <field name="company_id" invisible="1"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                         <group string="Reference &amp; Basis">
@@ -79,20 +84,35 @@
                                          record, and without it a transient/new row throws
                                          "Cannot read properties of undefined (reading 'id')". -->
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
                                     <field name="date"/>
+                                    <!-- C1: Accounting Date + Bill Month (toggle columns). -->
+                                    <field name="way4tech_accounting_date" optional="show"/>
+                                    <field name="way4tech_bill_month" optional="show"/>
                                     <field name="full_receipt_amount" sum="Received"/>
                                     <field name="receipt_excl_vat" optional="hide"/>
+                                    <!-- C1: per-row VAT amount (with column total). -->
+                                    <field name="way4tech_vat_amount" sum="VAT" optional="show"/>
                                     <field name="commission_amount" sum="Commission"/>
                                     <field name="gross_payable" sum="Gross Payable"/>
                                     <field name="advance_recovered" optional="show"/>
                                     <field name="net_payable" sum="Net"/>
                                     <field name="bill_id" optional="show"/>
                                     <field name="voucher_number" optional="show"/>
+                                    <!-- C1: "Paid By" — the payment(s) that settled the bill. -->
+                                    <field name="way4tech_paid_by" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-warning="state == 'billed'"
                                         decoration-success="state == 'voucher'"/>
                                     <field name="payment_status" optional="show"/>
+                                    <!-- C1: attachment count is ALWAYS-ON (same reliability
+                                         reasoning as M1 — an optional column a user once hid
+                                         persists hidden and reads as "missing"), plus the
+                                         attach/view dialog and a view of the generated bill. -->
+                                    <field name="attachment_count" string="Files"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this settlement."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the subcontractor bill created from this settlement as a PDF."/>
                                 </list>
                             </field>
                             <group class="oe_subtotal_footer">
@@ -101,6 +121,27 @@
                                 <field name="total_commission"/>
                                 <field name="total_gross_payable"/>
                             </group>
+                        </page>
+                        <page string="Invoices" name="invoices">
+                            <!-- C6 (2026-08): client invoices are created through
+                                 Accounting's OWN customer-invoice form (identical
+                                 accounting, zero duplicated logic), pre-filtered to
+                                 this client and pre-defaulted to the Commissioning
+                                 sales journal, so anything created here is a standard
+                                 account.move that a settlement's Select Invoices can
+                                 immediately pick up. A fully in-form invoice editor
+                                 was deliberately NOT embedded, as that would parallel
+                                 core invoice creation. -->
+                            <div class="alert alert-info" role="status">
+                                Create and view this client's Commissioning invoices in
+                                Accounting's standard invoice form (same accounting as any
+                                invoice), pre-filled with this client and the Commissioning
+                                sales journal. They then appear in a settlement's
+                                <b>Select Invoices</b> picker.
+                            </div>
+                            <button name="action_view_client_invoices" type="object"
+                                    string="View / Create Client Invoices"
+                                    class="btn-primary" icon="fa-file-text-o"/>
                         </page>
                         <page string="Notes" name="notes">
                             <field name="notes"/>
@@ -136,6 +177,36 @@
         </field>
     </record>
 
+    <!-- C5 (2026-08): Pivot + Graph analysis views, mirroring the Manpower
+         Contract ones. Combined with the existing List, Commissioning Business
+         now offers the same three data views (List, Pivot, Graph) as Manpower. -->
+    <record id="view_commission_receipt_pivot" model="ir.ui.view">
+        <field name="name">way4tech.commission.receipt.pivot</field>
+        <field name="model">way4tech.commission.receipt</field>
+        <field name="arch" type="xml">
+            <pivot string="Commissioning Analysis">
+                <field name="partner_id" type="row"/>
+                <field name="start_date" interval="month" type="col"/>
+                <field name="total_receipt" type="measure"/>
+                <field name="total_commission" type="measure"/>
+                <field name="total_vat" type="measure"/>
+                <field name="total_gross_payable" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_commission_receipt_graph" model="ir.ui.view">
+        <field name="name">way4tech.commission.receipt.graph</field>
+        <field name="model">way4tech.commission.receipt</field>
+        <field name="arch" type="xml">
+            <graph string="Commissioning Analysis" type="bar">
+                <field name="partner_id"/>
+                <field name="total_receipt" type="measure"/>
+                <field name="total_commission" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
     <record id="view_commission_receipt_search" model="ir.ui.view">
         <field name="name">way4tech.commission.receipt.search</field>
         <field name="model">way4tech.commission.receipt</field>
@@ -162,7 +233,7 @@
     <record id="action_commission_receipt" model="ir.actions.act_window">
         <field name="name">Commissioning Business</field>
         <field name="res_model">way4tech.commission.receipt</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,pivot,graph,form</field>
         <field name="search_view_id" ref="view_commission_receipt_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Create your first Commissioning record</p>

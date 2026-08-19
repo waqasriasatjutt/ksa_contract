@@ -54,8 +54,16 @@ class CommissionSettlementInvoice(models.Model):
 class CommissionSettlement(models.Model):
     _name = 'way4tech.commission.settlement'
     _description = 'Commissioning Settlement'
+    # C1 (2026-08): reuse the Manpower attachment/document mixin so a settlement
+    # row gets the SAME paperclip + count + view/download UX as the Manpower
+    # lines. It reads bill_id for the "document" (download the subcontractor
+    # bill); purely additive, no existing field is touched.
+    _inherit = ['way4tech.manpower.docline.mixin']
     _order = 'date desc, id desc'
     _rec_name = 'display_name'
+    # Small dialog the paperclip opens (many2many_binary uploader is form-only).
+    _way4tech_attach_view_xmlid = \
+        'way4tech_logistics.view_commission_settlement_attach_form'
 
     receipt_id = fields.Many2one(
         'way4tech.commission.receipt', string='Commissioning Record',
@@ -152,6 +160,49 @@ class CommissionSettlement(models.Model):
     # (any bank or cash journal), so it stays independent of voucher issue.
     payment_status = fields.Selection(
         related='bill_id.payment_state', string='Payment', readonly=True)
+
+    # ── C1 (2026-08): extra display columns for the Settlements toggle ─────
+    # All read-only, sourced from existing settlement/bill data — no new
+    # calculation, no core Accounting touched.
+    way4tech_accounting_date = fields.Date(
+        related='bill_id.date', string='Accounting Date', readonly=True,
+        help="The subcontractor bill's accounting (posting) date, once billed.")
+    way4tech_bill_month = fields.Char(
+        string='Bill Month', compute='_compute_way4tech_bill_month',
+        help='Month this settlement bills in (MM/YYYY) — the bill date once '
+             'billed, otherwise the settlement date.')
+    way4tech_vat_amount = fields.Monetary(
+        string='VAT Amount', compute='_compute_way4tech_vat_amount',
+        currency_field='currency_id',
+        help='VAT portion of the receipt = Full Receipt (incl. VAT) minus '
+             'Receipt Ex-VAT. Display only.')
+    way4tech_paid_by = fields.Char(
+        string='Paid By', compute='_compute_way4tech_paid_by',
+        help='Reference of the payment(s) that settled the subcontractor bill, '
+             'so it is clear how and from where it was paid. Read from the bill.')
+
+    @api.depends('date', 'bill_id.date')
+    def _compute_way4tech_bill_month(self):
+        for rec in self:
+            d = rec.bill_id.date or rec.date
+            rec.way4tech_bill_month = d.strftime('%m/%Y') if d else False
+
+    @api.depends('full_receipt_amount', 'receipt_excl_vat')
+    def _compute_way4tech_vat_amount(self):
+        for rec in self:
+            rec.way4tech_vat_amount = \
+                (rec.full_receipt_amount or 0.0) - (rec.receipt_excl_vat or 0.0)
+
+    @api.depends('bill_id', 'bill_id.payment_state')
+    def _compute_way4tech_paid_by(self):
+        for rec in self:
+            names = []
+            bill = rec.bill_id
+            # matched_payment_ids is the standard Accounting link from a bill to
+            # its reconciled payments (guarded in case a build lacks it).
+            if bill and 'matched_payment_ids' in bill._fields:
+                names = [n for n in bill.matched_payment_ids.mapped('name') if n]
+            rec.way4tech_paid_by = ', '.join(names) if names else False
 
     # ── Computed Data per client (CB1 §10) — read-only ────────────────────
     client_pending_count = fields.Integer(compute='_compute_client_pending')
@@ -320,12 +371,21 @@ class CommissionSettlement(models.Model):
                 blockers.append(_('subcontractor bill %s') % (rec.bill_id.name or rec.bill_id.display_name or ''))
             if rec.salesperson_bill_id:
                 blockers.append(_('salesperson commission bill %s') % (rec.salesperson_bill_id.name or rec.salesperson_bill_id.display_name or ''))
-            if rec.voucher_number:
-                blockers.append(_('payment voucher %s') % rec.voucher_number)
-            # CB1 item 8: block ONLY on actual document references. These clear
-            # correctly when a bill is deleted (item 7 reverts the settlement to
-            # draft and nulls bill_id), so the guard never reads a stale workflow
-            # status. A live bill / voucher / salesperson bill still blocks.
+            if rec.payment_id:
+                blockers.append(_('payment %s') % (rec.payment_id.name or rec.payment_id.display_name or ''))
+            # C4 (2026-08): block ONLY on LIVE document references — the
+            # subcontractor bill, the salesperson bill, or a real payment. The
+            # voucher_number is just a printed confirmation STAMP, not itself an
+            # accounting document, so it is NOT a blocker on its own. Previously
+            # it was: after a user reset+deleted the bill (state sync nulls
+            # bill_id and reverts to draft) the stray voucher_number lingered and
+            # kept blocking deletion even though nothing real remained, forcing
+            # them to scrap the whole project. Now, while a bill/payment exists
+            # its FK blocks (a genuine voucher stays fully protected); once they
+            # are gone the stamp alone no longer blocks. (Residual: an advance-
+            # recovery journal entry, if one was posted at voucher time, lives in
+            # Accounting on its own and is not linked here — review/reverse it in
+            # Accounting when scrapping a settlement that had recovered advances.)
             if blockers:
                 raise UserError(_(
                     'This settlement has already generated accounting documents '
@@ -384,6 +444,15 @@ class CommissionSettlement(models.Model):
         }
         if self.receipt_id.analytic_distribution:
             line_vals['analytic_distribution'] = self.receipt_id.analytic_distribution
+        # C3 (2026-08): trace the bill back to the client invoice(s) it was
+        # generated from — put their number(s) in Payment Reference. Uses the
+        # invoices this settlement actually allocated against; falls back to the
+        # SUB reference so the field is never blank. Only affects bills created
+        # through this Commissioning flow.
+        _sel_invoices = self.allocation_ids.filtered(
+            lambda a: (a.allocated_amount or 0.0) > 0
+        ).mapped('invoice_id')
+        _inv_numbers = ', '.join(i.name for i in _sel_invoices if i.name)
         bill_vals = {
             'move_type': 'in_invoice',
             'partner_id': self.subcontractor_id.id,
@@ -392,6 +461,7 @@ class CommissionSettlement(models.Model):
             'company_id': self.company_id.id,
             'journal_id': journal.id,
             'ref': self.receipt_id.reference or '',
+            'payment_reference': _inv_numbers or (self.receipt_id.reference or ''),
             'invoice_line_ids': [(0, 0, line_vals)],
         }
         if self.receipt_id.way4tech_project_id:

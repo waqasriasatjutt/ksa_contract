@@ -453,7 +453,15 @@
                                                        optional="hide"/>
                                                 <field name="contract_id" column_invisible="1"/>
                                                 <field name="currency_id" column_invisible="1"/>
-                                                <field name="attachment_count" string="Files" optional="show"/>
+                                                <!-- M1 (2026-08): count is ALWAYS-ON (no optional),
+                                                     same reasoning as the Contract Tags column above:
+                                                     an optional="show" column that a user once toggled
+                                                     off persists hidden in the browser and reads as
+                                                     "missing", so the Invoice Block showed only the
+                                                     paperclip with no count while the Direct Cost Bill
+                                                     Block still showed it. Always-on guarantees the
+                                                     count is visible on every Invoice Block line. -->
+                                                <field name="attachment_count" string="Files"/>
                                                 <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
                                             </list>
                                         </field>
