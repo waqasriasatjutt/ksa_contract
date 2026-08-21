@@ -1664,18 +1664,27 @@ class Way4TechManpowerContract(models.Model):
                 items.append(line)
         return items
 
+    def _collect_items_needing_approval(self):
+        """The subset of _collect_pending_items() that still NEEDS a fresh
+        approval — rows with no live (pending/partial/approved, unconsumed)
+        approval line. Rows already awaiting a decision or already approved are
+        excluded, so the wizard's Pending tab and 'Send All' never re-request
+        (and so never collide with) them. This is the contract-side half of the
+        'already on approval request' fix."""
+        self.ensure_one()
+        Request = self.env['way4tech.manpower.approval.request']
+        return [rec for rec in self._collect_pending_items()
+                if not Request._way4tech_live_approval_line(rec)]
+
     def action_send_all_for_approval(self):
-        """Send every current draft on this contract as ONE request."""
+        """Open the 5-tab approval wizard for this contract. The Pending tab
+        offers every draft still needing approval (checkbox multi-select); the
+        other tabs show this contract's requests by status. Always opens — even
+        with nothing new to send — so the full picture stays visible."""
         self.ensure_one()
         if self.state != 'active':
             raise UserError(_(
                 'Activate the contract before sending items for approval.'
-            ))
-        items = self._collect_pending_items()
-        if not items:
-            raise UserError(_(
-                'Nothing to send — every row on this contract is already '
-                'approved, created or awaiting a decision.'
             ))
         return {
             'type': 'ir.actions.act_window',

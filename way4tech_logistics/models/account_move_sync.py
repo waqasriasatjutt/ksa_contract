@@ -182,6 +182,23 @@ class AccountMoveWay4TechSync(models.Model):
                             fk_field: False,
                             'state': draft_state,
                         })
+                        # Part 2 Orphaned (2026-08): the document these rows were
+                        # approved for has just been deleted, so void their
+                        # approval FOR AUDIT — per line, so any sibling items on
+                        # the same request stay valid. The rows are back to draft
+                        # and can be freshly re-approved (an orphaned line is
+                        # ignored by the gate, so it never blocks a new request).
+                        appr = self.env['way4tech.manpower.approval.request.line'].sudo().search([
+                            ('res_model', '=', model_name),
+                            ('res_id', 'in', lines.ids),
+                            ('orphaned', '=', False),
+                        ])
+                        if appr:
+                            appr.write({'orphaned': True})
+                            for al in appr:
+                                al.request_id.message_post(
+                                    body='Item "%s" orphaned — its invoice/bill '
+                                         'was deleted.' % (al.description or al.res_id))
                 # Detach from contract.invoice_ids M2M so smart-button counts
                 # and Billing Summary recompute drop the deleted move.
                 if move.move_type in ('out_invoice', 'out_refund'):

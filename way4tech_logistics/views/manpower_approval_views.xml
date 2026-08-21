@@ -231,27 +231,102 @@
         <field name="model">way4tech.manpower.approval.wizard</field>
         <field name="arch" type="xml">
             <form string="Send for Approval">
+                <field name="contract_id" invisible="1"/>
+                <field name="res_model" invisible="1"/>
+                <field name="res_id" invisible="1"/>
+                <field name="mode" invisible="1"/>
                 <group>
-                    <field name="contract_id" invisible="1"/>
-                    <field name="res_model" invisible="1"/>
-                    <field name="res_id" invisible="1"/>
-                    <field name="mode" invisible="1"/>
                     <field name="approver_id" readonly="1"/>
                     <field name="urgent"/>
                     <field name="note" placeholder="Optional context for the approver…"/>
                 </group>
-                <group string="Items in this request">
-                    <field name="summary" nolabel="1" readonly="1"/>
-                </group>
-                <div class="alert alert-info" role="alert">
-                    The approver decides in <strong>Manpower → Approvals</strong>.
-                    Approval covers exactly these items, once each — it does not
-                    leave the contract or the month open for anything else.
-                </div>
+                <notebook>
+                    <page string="Pending" name="pending">
+                        <div class="alert alert-info" role="status">
+                            Tick the items to send, then <strong>Send Selected</strong>.
+                            Send all, one, or any subset — now or later, in any
+                            combination. The approver still decides in
+                            <strong>Manpower → Approvals</strong>; approval covers
+                            exactly the items sent, once each.
+                        </div>
+                        <separator string="Items needing approval"/>
+                        <field name="pending_line_ids" nolabel="1">
+                            <list editable="bottom" create="false" delete="false">
+                                <field name="selected" widget="boolean_toggle" string="Send"/>
+                                <field name="item_type" readonly="1"/>
+                                <field name="item_name" readonly="1"/>
+                                <field name="amount" sum="Total" readonly="1"/>
+                                <field name="res_model" column_invisible="1"/>
+                                <field name="res_id" column_invisible="1"/>
+                            </list>
+                        </field>
+                        <separator string="Already awaiting a decision"/>
+                        <field name="pending_request_ids" nolabel="1" readonly="1">
+                            <list decoration-warning="state == 'pending'"
+                                  decoration-info="state == 'partial'">
+                                <field name="name"/>
+                                <field name="line_count" string="Items"/>
+                                <field name="requested_by"/>
+                                <field name="create_date" string="Requested"/>
+                                <field name="state" widget="badge"/>
+                            </list>
+                        </field>
+                    </page>
+                    <page string="Approved" name="approved">
+                        <field name="approved_request_ids" nolabel="1" readonly="1">
+                            <list decoration-success="state == 'approved'">
+                                <field name="name"/>
+                                <field name="line_count" string="Items"/>
+                                <field name="approver_id" string="Decided By"/>
+                                <field name="decided_on"/>
+                                <field name="state" widget="badge"/>
+                            </list>
+                        </field>
+                    </page>
+                    <page string="Rejected" name="rejected">
+                        <field name="rejected_request_ids" nolabel="1" readonly="1">
+                            <list decoration-danger="state == 'rejected'">
+                                <field name="name"/>
+                                <field name="line_count" string="Items"/>
+                                <field name="approver_id" string="Decided By"/>
+                                <field name="decided_on"/>
+                                <field name="state" widget="badge"/>
+                            </list>
+                        </field>
+                    </page>
+                    <page string="Consumed" name="consumed">
+                        <field name="consumed_request_ids" nolabel="1" readonly="1">
+                            <list decoration-muted="state in ('consumed', 'cancelled')">
+                                <field name="name"/>
+                                <field name="line_count" string="Items"/>
+                                <field name="approver_id" string="Decided By"/>
+                                <field name="decided_on"/>
+                                <field name="state" widget="badge"/>
+                            </list>
+                        </field>
+                    </page>
+                    <page string="Orphaned" name="orphaned">
+                        <div class="alert alert-warning" role="status">
+                            Requests whose underlying item, invoice or bill was
+                            deleted after approval. Kept for audit only — they never
+                            sit in Pending and never block or unlock anything.
+                        </div>
+                        <field name="orphaned_request_ids" nolabel="1" readonly="1">
+                            <list decoration-muted="state in ('consumed', 'cancelled')">
+                                <field name="name"/>
+                                <field name="line_count" string="Items"/>
+                                <field name="requested_by"/>
+                                <field name="create_date" string="Requested"/>
+                                <field name="state" widget="badge"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
                 <footer>
-                    <button name="action_send" type="object" string="Send for Approval"
+                    <button name="action_send" type="object"
+                            string="Send Selected for Approval"
                             class="btn-primary" data-hotkey="q"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"
+                    <button string="Close" class="btn-secondary" special="cancel"
                             data-hotkey="x"/>
                 </footer>
             </form>

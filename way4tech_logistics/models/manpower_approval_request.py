@@ -254,6 +254,7 @@ class Way4TechManpowerApprovalRequest(models.Model):
             ('res_model', '=', record._name),
             ('res_id', '=', record.id),
             ('consumed', '=', False),
+            ('orphaned', '=', False),
             ('request_id.state', 'in', ('approved', 'partial')),
             '|', ('decision', '=', 'approved'),
             '&', ('decision', '=', False), ('request_id.state', '=', 'approved'),
@@ -293,6 +294,7 @@ class Way4TechManpowerApprovalRequest(models.Model):
             ('res_model', '=', record._name),
             ('res_id', '=', record.id),
             ('consumed', '=', False),
+            ('orphaned', '=', False),
             ('request_id.state', 'in', ('approved', 'partial')),
             '|', ('decision', '=', 'approved'),
             '&', ('decision', '=', False), ('request_id.state', '=', 'approved'),
@@ -320,6 +322,7 @@ class Way4TechManpowerApprovalRequest(models.Model):
             ('res_id', 'in', records.ids),
             ('request_id.state', '=', 'approved'),
             ('consumed', '=', False),
+            ('orphaned', '=', False),
         ])
         for line in lines:
             line.request_id.message_post(body=_(
@@ -388,10 +391,45 @@ class Way4TechManpowerApprovalRequest(models.Model):
         return 0.0
 
     @api.model
+    def _way4tech_live_approval_line(self, record):
+        """The current in-flight approval line covering `record`, or empty.
+
+        'In flight' = unconsumed, NOT orphaned, NOT individually rejected, on a
+        request still pending / partial / approved. This is the ONE definition
+        of "this row already has an approval in play". It deliberately treats an
+        approved-but-unconsumed row the same as a pending one — both are already
+        handled and must never be re-requested — while rejected, consumed,
+        cancelled and orphaned lines are ignored so the row can be re-sent.
+        """
+        Line = self.env['way4tech.manpower.approval.request.line']
+        return Line.search([
+            ('res_model', '=', record._name),
+            ('res_id', '=', record.id),
+            ('consumed', '=', False),
+            ('orphaned', '=', False),
+            ('decision', '!=', 'rejected'),
+            ('request_id.state', 'in', ('pending', 'partial', 'approved')),
+        ], limit=1)
+
+    @api.model
     def _create_request(self, contract, records, note=False, urgent=False):
         """Raise ONE request covering `records` (one row, or a month's worth)."""
         if not records:
             raise UserError(_('There is nothing waiting for approval.'))
+        # THE FIX for the recurring "already on approval request" error: silently
+        # DROP every row that already has a live approval line, instead of hard-
+        # raising. An approved-but-unconsumed row is already cleared; a pending
+        # row is already awaiting a decision — neither may be re-requested, and
+        # crucially neither may BLOCK the rest of the batch. Only genuinely-fresh
+        # rows go onto the new request, so any count/mix/timing is always valid.
+        fresh = [rec for rec in records
+                 if not self._way4tech_live_approval_line(rec)]
+        if not fresh:
+            raise UserError(_(
+                'Every selected item is already awaiting a decision or is '
+                'approved — there is nothing new to send. Open the Pending and '
+                'Approved tabs to see where they are.'
+            ))
         approvers = self._get_configured_approvers(contract.company_id)
         # Part A point 7 / item 7: the requester is removed from the pool, so
         # self-approval is impossible even when they are a configured approver.
@@ -410,17 +448,7 @@ class Way4TechManpowerApprovalRequest(models.Model):
             'note': note or False,
             'urgent': urgent,
         })
-        for rec in records:
-            existing = Line.search([
-                ('res_model', '=', rec._name), ('res_id', '=', rec.id),
-                ('consumed', '=', False),
-                ('request_id.state', 'in', ('pending', 'approved')),
-            ], limit=1)
-            if existing:
-                raise UserError(_(
-                    '"%(item)s" is already on approval request %(req)s.'
-                ) % {'item': rec.display_name,
-                     'req': existing.request_id.name or existing.request_id.id})
+        for rec in fresh:
             Line.create({
                 'request_id': request.id,
                 'res_model': rec._name,
@@ -732,9 +760,10 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
         requests = lines.mapped('request_id')
         lines.unlink()
         for request in requests:
-            if not request.line_ids and request.state in ('pending', 'approved'):
+            if (not request.line_ids
+                    and request.state in ('pending', 'partial', 'approved')):
                 request.message_post(body=_(
-                    'Voided — every item it covered has been deleted.'
+                    'Orphaned — every item it covered has been deleted.'
                 ))
                 request.state = 'cancelled'
 
@@ -868,6 +897,17 @@ class Way4TechManpowerApprovalRequestLine(models.Model):
         string='Consumed', default=False, copy=False,
         help='Set the moment the approved document is created. A consumed '
              'line can never unlock anything again.',
+    )
+    # Part 2 Orphaned (2026-08): set when this line's underlying document
+    # (its invoice/bill) is later deleted, so the approval is voided FOR AUDIT
+    # without disturbing sibling items on the same request. An orphaned line is
+    # ignored by the gate, by consumption, by invalidation and by the duplicate
+    # check — it can never block, match or be acted on again.
+    orphaned = fields.Boolean(
+        string='Orphaned', default=False, copy=False,
+        help='The invoice/bill created from this item was deleted after '
+             'approval — the approval is void, kept for audit only; it never '
+             'blocks or unlocks anything.',
     )
     # ── CR3-FINAL round 3, item 3: per-line decision ──────────────────────
     # One bad line used to force the whole request to be rejected and
