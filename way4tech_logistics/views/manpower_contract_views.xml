@@ -920,12 +920,14 @@
                              categories mapped to a Payable/Liability account. -->
                         <page string="Other Payable" name="other_payable">
                             <div class="alert alert-info" role="status">
-                                For expense categories mapped to a <strong>Payable/Liability</strong>
-                                account (e.g. Own Driver Salary → 260005), which a vendor bill cannot
-                                post to. Each posts a balanced <strong>Journal Entry</strong> (Dr the
-                                Other Payable Cost Account / Cr the mapped payable). Approval,
-                                attachments and payment status work like the bill tabs; the total is
-                                deducted as its own line on the Billing Summary.
+                                For costs that must be recorded as a payable (e.g. Own Driver
+                                Salary), which a vendor bill cannot post to. Each posts a balanced
+                                <strong>Journal Entry</strong>: <strong>Dr the category's expense
+                                account</strong> (from the Expense Category map) /
+                                <strong>Cr the Other Payable Cost Account</strong> (the shared
+                                payable, from settings). Both accounts auto-fill and stay editable.
+                                Approval, attachments and payment status work like the bill tabs;
+                                the total is deducted as its own line on the Billing Summary.
                             </div>
                             <field name="other_payable_block_ids"
                                    readonly="state in ('cancelled', 'completed')"
@@ -993,7 +995,7 @@
                                             <list editable="bottom">
                                                 <field name="description"/>
                                                 <field name="category_id"/>
-                                                <field name="account_id" readonly="1"/>
+                                                <field name="account_id"/>
                                                 <field name="amount" sum="Amount"/>
                                                 <field name="partner_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
@@ -1016,8 +1018,8 @@
                                     <field name="category_id"/>
                                     <field name="description"/>
                                     <field name="partner_id" string="Party"/>
-                                    <field name="account_id" readonly="1"
-                                           help="Payable account, auto-filled from the category map."/>
+                                    <field name="account_id"
+                                           help="Expense (debit) account, auto-filled from the category map. Editable."/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
                                     <field name="state" widget="badge"

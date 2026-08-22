@@ -14,6 +14,9 @@
                          When set, it replaces the dynamic header on the Tax Invoice. -->
                     <field name="x_invoice_header_image" widget="image"
                            options="{'size': [0, 120]}"/>
+                    <!-- Item 3: footer image, same pattern as the header image. -->
+                    <field name="x_invoice_footer_image" widget="image"
+                           options="{'size': [0, 120]}"/>
                     <!-- Part 2b: the shared-IBAN field is retired; IBAN is now per
                          bank account (see the Bank Account form). Field kept on the
                          model, hidden here, pending confirmation to delete fully. -->
@@ -28,6 +31,14 @@
         <field name="model">res.partner.bank</field>
         <field name="inherit_id" ref="base.view_partner_bank_form"/>
         <field name="arch" type="xml">
+            <!-- Item 2 (2026-08): explicitly force Account Number editable. No
+                 deliberate lock was found (field not readonly at model/view/ORM
+                 level, account not journal-linked), but this overrides any
+                 context-driven readonly the client may be hitting on their
+                 screen, so the field is guaranteed editable here. -->
+            <field name="acc_number" position="attributes">
+                <attribute name="readonly">0</attribute>
+            </field>
             <field name="acc_number" position="after">
                 <field name="x_iban" placeholder="SA00 0000 0000 0000 0000 0000"/>
             </field>

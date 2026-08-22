@@ -17,6 +17,12 @@ class ResCompany(models.Model):
     # ~1000×200 px landscape (~5:1), rendered at full page width.
     x_invoice_header_image = fields.Binary(string='Invoice Header Image')
 
+    # Item 3 (2026-08): footer counterpart of the header image. When set, it
+    # replaces the dynamic footer (P.O. Box / email / vendor logo) on the Tax
+    # Invoice with one pre-cropped image; empty = the dynamic footer unchanged.
+    # Recommended ~1000×130 px landscape (~7.5:1), full page width.
+    x_invoice_footer_image = fields.Binary(string='Invoice Footer Image')
+
     # Item 2b (2026-08): ONE IBAN shared by every company on the Tax Invoice.
     # Backed by a single global ir.config_parameter (NOT a per-company column),
     # so it is identical on every company and editable from any company's form —

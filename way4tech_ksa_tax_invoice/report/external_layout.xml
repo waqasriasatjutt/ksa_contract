@@ -244,8 +244,23 @@
                     padding-top: 3px;
                     font-family: 'Helvetica', 'Arial', sans-serif;
                 }
+                /* Item 3: single pre-cropped footer image, full page width. */
+                .atco-ftr-img {
+                    display: block;
+                    width: 100%;
+                    height: auto;
+                    margin: 4px 0 0 0;
+                }
             </style>
 
+            <!-- Item 3 (2026-08): a company that has uploaded a single footer image
+                 shows ONLY that image; otherwise the dynamic footer below renders
+                 exactly as before (no change for such companies). -->
+            <div t-if="company.x_invoice_footer_image">
+                <img t-att-src="image_data_uri(company.x_invoice_footer_image)"
+                     alt="footer" class="atco-ftr-img"/>
+            </div>
+            <div t-if="not company.x_invoice_footer_image">
             <div class="atco-ftr-sep"></div>
             <table class="atco-ftr" cellpadding="0" cellspacing="0" border="0">
                 <tr>
@@ -272,6 +287,7 @@
                     </td>
                 </tr>
             </table>
+            </div>
             <div class="atco-pgnum">
                 Page <span class="page"/> of <span class="topage"/>
             </div>

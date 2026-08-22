@@ -50,9 +50,10 @@ class Way4TechManpowerOtherPayable(models.Model):
         'res.partner', string='Employee / Party',
         help='Who or what this payable relates to (driver, employee, party).')
     account_id = fields.Many2one(
-        'account.account', string='Payable Account',
-        help='Auto-filled from the category map (Payable/Liability). Credited on '
-             'the journal entry.')
+        'account.account', string='Expense Account',
+        help='Auto-filled from the category map — the DEBIT (cost) side of the '
+             'journal entry. Editable: you may override it. The CREDIT side is '
+             'the Other Payable Cost Account configured in settings.')
     amount = fields.Monetary(string='Amount', currency_field='currency_id')
     other_payable_block_id = fields.Many2one(
         'way4tech.manpower.other.payable.block', ondelete='set null',
@@ -87,15 +88,20 @@ class Way4TechManpowerOtherPayable(models.Model):
         if not self.category_id:
             return
         company = self.company_id or self.env.company
-        acc = self.category_id.resolve_payable_account(company)
+        # Item 1 (2026-08): the DEBIT account auto-fills from the category's
+        # EXPENSE mapping (the same map Direct Cost / Operating Exp use). The
+        # CREDIT (payable) is the global Other Payable Cost Account, applied at
+        # posting. Field stays editable so the user can override.
+        acc = self.category_id.resolve_expense_account(company)
         self.account_id = acc or False
-        if not acc and not self.category_id.way4tech_is_payable_category(company):
+        if not acc:
             return {'warning': {
-                'title': _('Not an Other Payable category'),
+                'title': _('No account mapped'),
                 'message': _(
-                    'Category "%s" is not mapped to a Payable/Liability account, '
-                    'so it belongs on the Direct Cost or Operating Exp tab, not '
-                    'here.') % self.category_id.display_name}}
+                    'Category "%s" has no expense account mapped for this '
+                    'company. Map it in Configuration → Payroll & Accounting '
+                    'Setup → Manpower → Expense Category map.'
+                ) % self.category_id.display_name}}
 
     def action_create_journal_entry(self):
         self.ensure_one()
@@ -109,9 +115,11 @@ class Way4TechManpowerOtherPayable(models.Model):
             raise UserError(_('Set an amount before posting the journal entry.'))
         contract = self.contract_id
         contract._require_month_approval(record=self)
+        debit_acct = self.account_id or self.category_id.resolve_expense_account(
+            contract.company_id, raise_if_missing=True)
         move = self.env['way4tech.manpower.other.payable.block']._post_journal_entry(
             contract=contract, party=self.partner_id, date=self.date,
-            lines=[(self.category_id, self.description, self.amount)],
+            lines=[(debit_acct, self.description, self.amount)],
             ref=_('Other Payable — %s') % (contract.name or ''))
         self.write({'move_id': move.id, 'state': 'posted'})
         contract._consume_approval(self)
@@ -200,8 +208,9 @@ class Way4TechManpowerOtherPayableBlock(models.Model):
     @api.model
     def _post_journal_entry(self, contract, party, date, lines, ref):
         """Create + POST one balanced journal entry for `lines` (tuples of
-        (category, description, amount)): Dr the shared cost account / Cr each
-        line's mapped Payable account. Standard account.move only."""
+        (debit_account, description, amount)): Dr each line's EXPENSE account
+        (from the category map) / Cr the shared Other Payable Cost Account (the
+        payable). Standard account.move only."""
         company = contract.company_id
         settings = self.env['way4tech.payroll.settings'].get_for_company(company.id)
         journal = settings.manpower_other_payable_journal_id or \
@@ -211,27 +220,29 @@ class Way4TechManpowerOtherPayableBlock(models.Model):
             raise UserError(_(
                 'No General journal for company "%s". Set an Other Payable '
                 'Journal in Payroll & Accounting Setup.') % company.display_name)
-        cost = settings.manpower_other_payable_cost_account_id
-        if not cost:
+        credit_acct = settings.manpower_other_payable_cost_account_id
+        if not credit_acct:
             raise UserError(_(
                 'Set the "Other Payable Cost Account" in Configuration → Payroll '
-                '& Accounting Setup → Manpower Contracts. It is the P&L cost '
-                'account debited on Other Payable journal entries (the payable '
-                'account from the category map is credited).'))
+                '& Accounting Setup → Manpower Contracts. It is the account '
+                'CREDITED on every Other Payable journal entry (the debit is the '
+                'category\'s own expense account).'))
         move_lines = []
-        for category, desc, amount in lines:
-            if not category:
-                raise UserError(_('Every Other Payable line needs a category.'))
+        for debit_acct, desc, amount in lines:
+            if not debit_acct:
+                raise UserError(_(
+                    'An Other Payable line has no expense account. Map its '
+                    'category to an account in Payroll & Accounting Setup → '
+                    'Expense Category map, or set the account on the line.'))
             if not amount:
                 continue
-            payable = category.resolve_payable_account(company, raise_if_missing=True)
-            nm = desc or category.display_name
+            nm = desc or (debit_acct.name or '')
             pid = party.id if party else False
             move_lines.append((0, 0, {
-                'account_id': cost.id, 'partner_id': pid,
+                'account_id': debit_acct.id, 'partner_id': pid,
                 'debit': amount, 'credit': 0.0, 'name': nm}))
             move_lines.append((0, 0, {
-                'account_id': payable.id, 'partner_id': pid,
+                'account_id': credit_acct.id, 'partner_id': pid,
                 'debit': 0.0, 'credit': amount, 'name': nm}))
         if not move_lines:
             raise UserError(_('Nothing to post — every line has a zero amount.'))
@@ -260,7 +271,9 @@ class Way4TechManpowerOtherPayableBlock(models.Model):
         contract._require_month_approval(record=self)
         move = self._post_journal_entry(
             contract=contract, party=self.partner_id, date=self.date,
-            lines=[(l.category_id, l.description, l.amount) for l in self.line_ids],
+            lines=[(l.account_id or l.category_id.resolve_expense_account(
+                        contract.company_id, raise_if_missing=True),
+                    l.description, l.amount) for l in self.line_ids],
             ref=_('Other Payable — %s') % (contract.name or ''))
         self.line_ids.write({'move_id': move.id, 'state': 'posted'})
         self.write({'move_id': move.id, 'state': 'posted'})

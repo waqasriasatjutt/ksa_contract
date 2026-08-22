@@ -406,9 +406,10 @@ class PayrollSettings(models.Model):
     )
     manpower_other_payable_cost_account_id = fields.Many2one(
         'account.account', string='Other Payable Cost Account', check_company=True,
-        help='The P&L cost account DEBITED on an Other Payable journal entry '
-             '(the payable/liability account from the category map is credited). '
-             'One shared counterpart for all Other Payable entries.',
+        help='The account CREDITED on every Other Payable journal entry — the '
+             'shared payable/liability (e.g. Salary Payable). The DEBIT is the '
+             "category's own expense account from the Expense Category map. One "
+             'shared credit account for all Other Payable entries.',
     )
     project_expense_journal_id = fields.Many2one(
         'account.journal',
