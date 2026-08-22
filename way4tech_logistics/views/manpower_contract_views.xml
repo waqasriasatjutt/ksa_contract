@@ -1358,6 +1358,13 @@
                              signature.request), separate from the live per-item
                              approvals; its model and data are untouched, only the
                              page is dropped from this view. -->
+                        <!-- Part 2 (2026-08): Notes — general free-text remarks for
+                             this contract (uses the existing notes field; the chatter
+                             below already keeps dated/authored history). -->
+                        <page string="Notes" name="notes">
+                            <field name="notes" nolabel="1"
+                                   placeholder="General notes and context for this contract…"/>
+                        </page>
                     </notebook>
                     <div class="alert alert-info" role="alert">
                         <strong>Accounting:</strong> The income account and sales journal for invoices
