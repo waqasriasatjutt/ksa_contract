@@ -29,15 +29,23 @@
     <record id="view_partner_bank_form_ksa_iban" model="ir.ui.view">
         <field name="name">res.partner.bank.form.ksa.iban</field>
         <field name="model">res.partner.bank</field>
-        <field name="inherit_id" ref="base.view_partner_bank_form"/>
+        <!-- Regression fix (2026-08): the account module locks Account Number +
+             Account Holder with readonly="lock_trust_fields" (Odoo's anti-fraud
+             lock on TRUSTED accounts, engaged when "Send Money" is ON). Our
+             earlier readonly="0" on base.view_partner_bank_form lost that
+             attribute race. Inherit from the ACCOUNT view itself so our override
+             applies strictly AFTER it and wins. -->
+        <field name="inherit_id" ref="account.view_partner_bank_form_inherit_account"/>
+        <field name="priority">99</field>
         <field name="arch" type="xml">
-            <!-- Item 2 (2026-08): explicitly force Account Number editable. No
-                 deliberate lock was found (field not readonly at model/view/ORM
-                 level, account not journal-linked), but this overrides any
-                 context-driven readonly the client may be hitting on their
-                 screen, so the field is guaranteed editable here. -->
+            <!-- Per the client's explicit request to restore editability on these
+                 two fields, force Account Number editable + saveable, overriding
+                 the trust lock. FLAGGED to the client: this removes that fraud
+                 safeguard (a user editing must still have Contact-Creation write
+                 access, else the whole form stays read-only). -->
             <field name="acc_number" position="attributes">
                 <attribute name="readonly">0</attribute>
+                <attribute name="force_save">1</attribute>
             </field>
             <field name="acc_number" position="after">
                 <field name="x_iban" placeholder="SA00 0000 0000 0000 0000 0000"/>
