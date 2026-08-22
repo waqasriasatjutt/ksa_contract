@@ -4,12 +4,13 @@
         <field name="name">ATCO A4 (KSA Letterhead)</field>
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
-        <!-- Item 2 (2026-08): the letterhead moved from inline-in-body to the
-             repeating header slot, so margin_top now reserves a band tall enough
-             to hold it on every page (was 6, when the header lived in the body).
-             margin_bottom likewise widened to hold the footer image / dynamic
-             footer without clipping (was 20). -->
-        <field name="margin_top">46</field>
+        <!-- margin_top stays small: the letterhead now repeats via a table
+             thead at the top of the body flow (see external_layout.xml), NOT the
+             header slot, so it needs no reserved top band — this is just the
+             breathing space above it. Item 1 (2026-08): margin_bottom widened
+             from 20 to 30 so the footer image / dynamic footer has room without
+             clipping. -->
+        <field name="margin_top">6</field>
         <field name="margin_bottom">30</field>
         <field name="margin_left">7</field>
         <field name="margin_right">7</field>

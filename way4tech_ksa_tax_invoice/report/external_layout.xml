@@ -6,16 +6,33 @@
         <t t-set="name_ar" t-value="company.x_name_ar or company.name"/>
         <t t-set="ar_digits" t-value="lambda s: (s or '').replace('0','٠').replace('1','١').replace('2','٢').replace('3','٣').replace('4','٤').replace('5','٥').replace('6','٦').replace('7','٧').replace('8','٨').replace('9','٩')"/>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-             HEADER SLOT (Item 2, 2026-08): the letterhead now lives in the
-             wkhtmltopdf header-html slot (class="header") instead of inline in
-             the body, so it REPEATS on every page of a multi-page invoice like a
-             standard letterhead. paperformat margin_top reserves the band for it.
-             Applies to the header IMAGE and the dynamic 3-part header alike, so a
-             company with no image also gets its dynamic header on every page.
-             ══════════════════════════════════════════════════════════════════ -->
-        <div t-attf-class="header o_report_layout_atco o_company_#{company.id}_layout">
+        <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
             <style type="text/css">
+                /* ══════════════════════════════════════════════════════════════
+                   Item 2 (2026-08): the letterhead is wrapped in a table whose
+                   THEAD holds the header. wkhtmltopdf reprints a table's thead at
+                   the top of every page the table spans, so the letterhead now
+                   REPEATS on every page of a multi-page invoice, while the body
+                   flows in the tbody BELOW it (never overlapping — they share one
+                   table flow). This replaces the earlier attempt at the header
+                   slot, which draws a tall header on top of the body top. The
+                   footer keeps using the footer slot (which positions correctly).
+                   ══════════════════════════════════════════════════════════════ */
+                table.atco-rpt {
+                    width: 100%;
+                    border-collapse: collapse !important;
+                    border: 0 !important;
+                }
+                table.atco-rpt > thead { display: table-header-group; }
+                table.atco-rpt > thead > tr > td,
+                table.atco-rpt > tbody > tr > td {
+                    border: 0 !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                }
                 table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
@@ -136,50 +153,54 @@
                 }
             </style>
 
-            <!-- A company that has uploaded a single cropped header image shows
-                 ONLY that image; otherwise the dynamic 3-part layout renders
-                 exactly as before (no change for such companies). -->
-            <div t-if="company.x_invoice_header_image">
-                <img t-att-src="image_data_uri(company.x_invoice_header_image)"
-                     alt="header" class="atco-hdr-img"/>
-            </div>
-            <table t-if="not company.x_invoice_header_image"
-                   class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                    <td class="atco-col-left">
-                        <div class="atco-name"><span t-esc="company.name"/></div>
-                        <div class="atco-meta">
-                            <div><span class="atco-lbl">Vat No. :</span> <span t-esc="cp.vat or ''"/></div>
-                            <div><span class="atco-lbl">C.R.</span> <span t-esc="cp.company_registry or ''"/></div>
-                        </div>
-                    </td>
-                    <td class="atco-col-center">
-                        <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="logo" class="atco-logo"/>
-                    </td>
-                    <td class="atco-col-right">
-                        <div class="atco-name-ar"><span t-esc="name_ar"/></div>
-                        <div class="atco-meta atco-meta-ar">
-                            <div><span class="atco-lbl">الرقم الضريبي :</span> <span t-esc="ar_digits(cp.vat or '')"/></div>
-                            <div><span class="atco-lbl">س.ت :</span> <span t-esc="ar_digits(cp.company_registry or '')"/></div>
-                        </div>
-                    </td>
-                </tr>
+            <table class="atco-rpt" cellpadding="0" cellspacing="0" border="0">
+                <thead>
+                    <tr>
+                        <td>
+                            <!-- Letterhead — reprinted at the top of EVERY page.
+                                 A company with a header image shows ONLY that
+                                 image; otherwise the dynamic 3-part layout renders
+                                 exactly as before (no change for such companies). -->
+                            <div t-if="company.x_invoice_header_image">
+                                <img t-att-src="image_data_uri(company.x_invoice_header_image)"
+                                     alt="header" class="atco-hdr-img"/>
+                            </div>
+                            <table t-if="not company.x_invoice_header_image"
+                                   class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td class="atco-col-left">
+                                        <div class="atco-name"><span t-esc="company.name"/></div>
+                                        <div class="atco-meta">
+                                            <div><span class="atco-lbl">Vat No. :</span> <span t-esc="cp.vat or ''"/></div>
+                                            <div><span class="atco-lbl">C.R.</span> <span t-esc="cp.company_registry or ''"/></div>
+                                        </div>
+                                    </td>
+                                    <td class="atco-col-center">
+                                        <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="logo" class="atco-logo"/>
+                                    </td>
+                                    <td class="atco-col-right">
+                                        <div class="atco-name-ar"><span t-esc="name_ar"/></div>
+                                        <div class="atco-meta atco-meta-ar">
+                                            <div><span class="atco-lbl">الرقم الضريبي :</span> <span t-esc="ar_digits(cp.vat or '')"/></div>
+                                            <div><span class="atco-lbl">س.ت :</span> <span t-esc="ar_digits(cp.company_registry or '')"/></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div class="atco-sep"></div>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <t t-if="not disable_atco_address_layout" t-call="web.address_layout"/>
+                            <h2 t-if="layout_document_title" t-out="layout_document_title"/>
+                            <t t-out="0"/>
+                        </td>
+                    </tr>
+                </tbody>
             </table>
-            <div class="atco-sep"></div>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             BODY — the letterhead is no longer here (it moved to the header slot
-             above). Only the flowing document body remains, so it paginates
-             underneath the repeating header/footer.
-             ══════════════════════════════════════════════════════════════════ -->
-        <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
-             t-att-data-oe-model="o and o._name"
-             t-att-data-oe-id="o and o.id"
-             t-att-data-oe-lang="o and o.env.context.get('lang')">
-            <t t-if="not disable_atco_address_layout" t-call="web.address_layout"/>
-            <h2 t-if="layout_document_title" t-out="layout_document_title"/>
-            <t t-out="0"/>
         </div>
 
         <div t-attf-class="footer o_company_#{company.id}_layout">
