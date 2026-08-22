@@ -422,6 +422,20 @@ class Way4TechManpowerContract(models.Model):
         help='Item 4: each block is one future vendor bill carrying several '
              'Operating Exp lines for a single vendor.',
     )
+    # Part 1 (2026-08): Other Payable — payable-mapped categories posted as
+    # journal entries (bills cannot post to a payable account).
+    other_payable_line_ids = fields.One2many(
+        'way4tech.manpower.other.payable', 'contract_id',
+        string='Other Payable Lines')
+    other_payable_unassigned_line_ids = fields.One2many(
+        'way4tech.manpower.other.payable', 'contract_id',
+        domain=[('other_payable_block_id', '=', False)],
+        string='Other Payable Lines (not in a block)')
+    other_payable_block_ids = fields.One2many(
+        'way4tech.manpower.other.payable.block', 'contract_id',
+        string='Other Payable Blocks',
+        help='Each block combines several Other Payable lines into ONE journal '
+             'entry (one party per block).')
     # CR2 G3 (19.0.2.7.0): Sales Person Commission tab lines.
     commission_line_ids = fields.One2many(
         'way4tech.manpower.commission.line',
@@ -690,6 +704,14 @@ class Way4TechManpowerContract(models.Model):
         help='Total Project Exp = Total Direct Cost (COGS) + Total Operating '
              'Expenses. Example: 3,000 + 800 = 3,800.',
     )
+    # Part 1 (2026-08): Other Payable — its own deducted cost line on the
+    # Billing Summary (always counts as cost, no per-category flexibility).
+    bs_total_other_payable = fields.Monetary(
+        string='Total Other Payable', compute='_compute_kpi_summary',
+        store=True, currency_field='currency_id',
+        help='Total of posted Other Payable journal-entry costs — deducted '
+             'from Net Profit alongside Direct Cost and Operating Cost.',
+    )
     bs_total_budget_cost = fields.Monetary(
         string='Total Budget Cost', compute='_compute_kpi_summary',
         store=True, currency_field='currency_id',
@@ -817,6 +839,9 @@ class Way4TechManpowerContract(models.Model):
         'project_expense_ids.category_id.expense_type',
         'budget_line_ids', 'budget_line_ids.budget_amount',
         'budget_line_ids.actual_amount', 'budget_line_ids.state',
+        # Part 1: Other Payable posted journal-entry costs.
+        'other_payable_line_ids', 'other_payable_line_ids.amount',
+        'other_payable_line_ids.state',
     )
     def _compute_kpi_summary(self):
         """Group 1 — one pass per record over invoices / expenses / budget.
@@ -846,17 +871,25 @@ class Way4TechManpowerContract(models.Model):
                 l.actual_amount or 0.0 for l in rec.budget_line_ids
                 if l.state == 'confirmed'
             )
+            # Part 1: Other Payable posted journal-entry costs (always a cost),
+            # kept as its OWN line — bs_total_project_exp_all stays Direct+Op.
+            other_payable = sum(
+                l.amount or 0.0 for l in rec.other_payable_line_ids
+                if l.state == 'posted'
+            )
             total_cost = cgs + opex
 
             # ── CR3-FINAL P2: corrected profitability formulas ──
             gross_profit = total_invoiced - cgs            # Income − COGS
-            net_profit = gross_profit - opex               # GP − OpEx
+            # Net Profit = Income − Direct − Operating − Other Payable.
+            net_profit = gross_profit - opex - other_payable
             profit_after_budget = gross_profit - total_budget   # GP − Budget
             profit_after_actual = gross_profit - total_actual   # GP − Actual
 
             rec.bs_total_invoiced = total_invoiced
             rec.bs_total_project_cgs = cgs
             rec.bs_total_project_exp = opex
+            rec.bs_total_other_payable = other_payable
             rec.bs_total_project_exp_all = total_cost       # P3
             rec.bs_total_budget_cost = total_budget
             rec.bs_total_actual_cost = total_actual
@@ -1299,7 +1332,8 @@ class Way4TechManpowerContract(models.Model):
         # block), so unlink them one at a time — a union across models raises
         # "inconsistent models". mapped() gathers the field across all records.
         for _coll in ('invoice_block_ids', 'timesheet_block_ids',
-                      'direct_cost_block_ids', 'operating_exp_block_ids'):
+                      'direct_cost_block_ids', 'operating_exp_block_ids',
+                      'other_payable_block_ids'):
             _recs = self.mapped(_coll)
             if _recs:
                 _recs.unlink()
@@ -1359,6 +1393,9 @@ class Way4TechManpowerContract(models.Model):
         # income side added unassigned_income_line_ids + invoice_block_ids).
         'direct_cost_unassigned_line_ids', 'operating_exp_unassigned_line_ids',
         'direct_cost_block_ids', 'operating_exp_block_ids',
+        # Part 1: Other Payable collections.
+        'other_payable_line_ids', 'other_payable_unassigned_line_ids',
+        'other_payable_block_ids',
         'income_line_ids', 'invoice_block_ids', 'unassigned_income_line_ids',
         'budget_line_ids', 'timesheet_block_ids', 'unassigned_timesheet_ids',
     )
@@ -1661,6 +1698,14 @@ class Way4TechManpowerContract(models.Model):
                 items.append(line)
         for line in self.budget_line_ids:
             if line.state == 'draft':
+                items.append(line)
+        # Part 1: Other Payable — a block is approved as one item; standalone
+        # lines individually (skip lines that belong to a block).
+        for block in self.other_payable_block_ids:
+            if block.state == 'draft' and block.line_ids:
+                items.append(block)
+        for line in self.other_payable_line_ids:
+            if line.state == 'draft' and not line.other_payable_block_id:
                 items.append(line)
         return items
 

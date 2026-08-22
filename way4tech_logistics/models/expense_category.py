@@ -20,6 +20,13 @@ from odoo.exceptions import UserError
 VALID_EXPENSE_ACCOUNT_TYPES = ('expense', 'expense_direct_cost',
                                'expense_depreciation')
 
+# Part 1 (2026-08): Other Payable tab. A category whose mapped account is one of
+# these liability types CANNOT be billed (bills only post to expense accounts) —
+# it is automatically routed to the Other Payable (Journal Entry) tab instead.
+# Detection reuses the SAME Expense Category → Account map; no new config.
+VALID_PAYABLE_ACCOUNT_TYPES = ('liability_payable', 'liability_current',
+                               'liability_non_current')
+
 
 class Way4TechExpenseCategory(models.Model):
     _name = "way4tech.expense.category"
@@ -149,3 +156,46 @@ class Way4TechExpenseCategory(models.Model):
         return self.search([]).filtered(
             lambda c: not c.resolve_expense_account(company)
         )
+
+    # ── Part 1 (2026-08): Other Payable routing (reuses the existing map) ──
+    def _mapped_account_for_company(self, company):
+        """The RAW mapped GL account for this category + company (per-company
+        map first, then the category default) WITHOUT the P&L-cost-type filter.
+        Used only to detect the account's type for routing — never to post."""
+        self.ensure_one()
+        settings = self.env['way4tech.payroll.settings'].get_for_company(company.id)
+        acc = settings.manpower_expense_category_account_ids.filtered(
+            lambda m: m.category_id == self
+        )[:1].mapped('account_id')
+        if not acc and self.default_expense_account_id and \
+                self._acct_ok_for_company(self.default_expense_account_id, company):
+            acc = self.default_expense_account_id
+        return acc[:1]
+
+    def way4tech_is_payable_category(self, company=None):
+        """True when this category's mapped account is a Payable/Liability type
+        — the confirmed marker that its entries must be routed to the Other
+        Payable (Journal Entry) tab instead of Direct Cost / Operating Exp.
+        Automatic + config-free: it reads the SAME Expense Category → Account
+        map the client already maintains."""
+        self.ensure_one()
+        company = company or self.env.company
+        acc = self._mapped_account_for_company(company)
+        return bool(acc) and acc.account_type in VALID_PAYABLE_ACCOUNT_TYPES
+
+    def resolve_payable_account(self, company=None, raise_if_missing=False):
+        """The mapped Payable/Liability GL account for the Other Payable Journal
+        Entry, or empty. Mirror of resolve_expense_account for liability types."""
+        self.ensure_one()
+        company = company or self.env.company
+        acc = self._mapped_account_for_company(company)
+        if acc and acc.account_type in VALID_PAYABLE_ACCOUNT_TYPES and \
+                self._acct_ok_for_company(acc, company):
+            return acc
+        if raise_if_missing:
+            raise UserError(_(
+                'Category "%(cat)s" has no Payable/Liability account mapped for '
+                'company "%(company)s".\n\nMap it in Configuration → Payroll & '
+                'Accounting Setup → Manpower Contracts → Expense Category map.'
+            ) % {'cat': self.display_name, 'company': company.display_name})
+        return self.env['account.account'].browse()

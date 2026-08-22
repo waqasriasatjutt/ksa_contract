@@ -10,9 +10,27 @@
                     <field name="x_name_ar" placeholder="مؤسسة أبراج الزين للمقاولات"/>
                     <field name="x_aramco_vendor_code" placeholder="10110430"/>
                     <field name="x_aramco_logo" widget="image" options="{'size': [0, 60]}"/>
-                    <field name="x_shared_iban" placeholder="SA00 0000 0000 0000 0000 0000"/>
+                    <!-- Part 2a: single pre-cropped header image (logo + both names).
+                         When set, it replaces the dynamic header on the Tax Invoice. -->
+                    <field name="x_invoice_header_image" widget="image"
+                           options="{'size': [0, 120]}"/>
+                    <!-- Part 2b: the shared-IBAN field is retired; IBAN is now per
+                         bank account (see the Bank Account form). Field kept on the
+                         model, hidden here, pending confirmation to delete fully. -->
                 </group>
             </xpath>
+        </field>
+    </record>
+
+    <!-- Part 2b (2026-08): IBAN entered per bank account, next to Account Number. -->
+    <record id="view_partner_bank_form_ksa_iban" model="ir.ui.view">
+        <field name="name">res.partner.bank.form.ksa.iban</field>
+        <field name="model">res.partner.bank</field>
+        <field name="inherit_id" ref="base.view_partner_bank_form"/>
+        <field name="arch" type="xml">
+            <field name="acc_number" position="after">
+                <field name="x_iban" placeholder="SA00 0000 0000 0000 0000 0000"/>
+            </field>
         </field>
     </record>
 </odoo>

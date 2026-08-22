@@ -397,6 +397,19 @@ class PayrollSettings(models.Model):
         help='Per-category GL expense account. Selecting a category on a '
              'Project Expense line auto-fills the account from this map.',
     )
+    # ── Part 1 (2026-08): Other Payable (Journal Entry) tab ───────────────
+    manpower_other_payable_journal_id = fields.Many2one(
+        'account.journal', string='Other Payable Journal',
+        check_company=True, domain="[('type', '=', 'general')]",
+        help='General journal used to post Other Payable journal entries. If '
+             'left empty, the first General journal of the company is used.',
+    )
+    manpower_other_payable_cost_account_id = fields.Many2one(
+        'account.account', string='Other Payable Cost Account', check_company=True,
+        help='The P&L cost account DEBITED on an Other Payable journal entry '
+             '(the payable/liability account from the category map is credited). '
+             'One shared counterpart for all Other Payable entries.',
+    )
     project_expense_journal_id = fields.Many2one(
         'account.journal',
         string='Project Expense Journal',

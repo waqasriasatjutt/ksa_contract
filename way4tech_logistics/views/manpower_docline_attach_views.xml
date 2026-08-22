@@ -134,5 +134,62 @@
         </field>
     </record>
 
+    <!-- Part 1 (2026-08): Other Payable line — attach files + view the JE. -->
+    <record id="view_other_payable_line_attach_form" model="ir.ui.view">
+        <field name="name">way4tech.other.payable.line.attach.form</field>
+        <field name="model">way4tech.manpower.other.payable</field>
+        <field name="arch" type="xml">
+            <form string="Files &amp; Journal Entry">
+                <sheet>
+                    <group>
+                        <field name="description" readonly="1"/>
+                        <field name="amount" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="has_document" invisible="1"/>
+                    </group>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    <separator string="Journal Entry"/>
+                    <div>
+                        <button name="action_download_document" type="object"
+                                string="Download Entry (PDF)" icon="fa-download"
+                                class="btn-secondary" invisible="not has_document"/>
+                        <span class="text-muted" invisible="has_document">
+                            No journal entry has been created from this line yet.
+                        </span>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Part 1 (2026-08): Other Payable block — attach files + view the JE. -->
+    <record id="view_other_payable_block_attach_form" model="ir.ui.view">
+        <field name="name">way4tech.other.payable.block.attach.form</field>
+        <field name="model">way4tech.manpower.other.payable.block</field>
+        <field name="arch" type="xml">
+            <form string="Files &amp; Journal Entry">
+                <sheet>
+                    <group>
+                        <field name="name" readonly="1"/>
+                        <field name="amount_total" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="has_document" invisible="1"/>
+                    </group>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    <separator string="Journal Entry"/>
+                    <div>
+                        <button name="action_download_document" type="object"
+                                string="Download Entry (PDF)" icon="fa-download"
+                                class="btn-secondary" invisible="not has_document"/>
+                        <span class="text-muted" invisible="has_document">
+                            No journal entry has been created from this block yet.
+                        </span>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
 
 </odoo>

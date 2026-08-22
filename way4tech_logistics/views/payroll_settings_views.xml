@@ -219,6 +219,12 @@
                                 <field name="manpower_payable_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Accounts-payable account credited on Project Expenses vendor bills. &#10;Example: '210001 - Manpower Payable'. Kept separate per business division."/>
+                                <field name="manpower_other_payable_cost_account_id"
+                                       domain="[('company_ids', 'in', [company_id])]"
+                                       help="Part 1: P&amp;L cost account DEBITED on Other Payable journal entries (the payable account from the category map is credited). One shared counterpart for all Other Payable entries."/>
+                                <field name="manpower_other_payable_journal_id"
+                                       domain="[('type', '=', 'general'), ('company_id', '=', company_id)]"
+                                       help="General journal used to post Other Payable journal entries. &#10;Leave blank to use the company's first General journal."/>
                             </group>
                             <group string="Project Expenses — Vendor Bills Journal">
                                 <field name="project_expense_journal_id"

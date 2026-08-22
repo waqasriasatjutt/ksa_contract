@@ -53,6 +53,8 @@ from . import manpower_contract_signature_request
 from . import manpower_invoice_block
 # 2026-08 — Item 4: multi-line vendor bill blocks (mirror of invoice blocks)
 from . import manpower_bill_block
+# 2026-08 — Part 1: Other Payable tab (journal entries for payable-mapped categories)
+from . import manpower_other_payable
 # 2026-07-29 — CR6 item 1: multi-line timesheet invoice blocks (19.0.3.11.0)
 from . import manpower_timesheet_block
 # 2026-07-22 — CR3-FINAL round 2: date format + decimal precision (19.0.3.3.0)

@@ -118,10 +118,25 @@
                     font-size: 0;
                     line-height: 0;
                 }
+                /* Part 2a: single pre-cropped header image, full page width. */
+                .atco-hdr-img {
+                    display: block;
+                    width: 100%;
+                    height: auto;
+                    margin: 0 0 4px 0;
+                }
             </style>
 
             <!-- Letterhead top block (inline in body — appears at very top of page 1) -->
-            <table class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
+            <!-- Part 2a: a company that has uploaded a single cropped header image
+                 shows ONLY that image; otherwise the dynamic 3-part layout below
+                 renders exactly as before (no change for such companies). -->
+            <div t-if="company.x_invoice_header_image">
+                <img t-att-src="image_data_uri(company.x_invoice_header_image)"
+                     alt="header" class="atco-hdr-img"/>
+            </div>
+            <table t-if="not company.x_invoice_header_image"
+                   class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                     <td class="atco-col-left">
                         <div class="atco-name"><span t-esc="company.name"/></div>

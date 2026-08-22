@@ -9,6 +9,14 @@ class ResCompany(models.Model):
     x_aramco_logo = fields.Binary(string='Saudi Aramco Vendor Logo')
     x_aramco_vendor_code = fields.Char(string='Saudi Aramco Vendor Code')
 
+    # Part 2a (2026-08): a single pre-cropped header image (logo + English +
+    # Arabic names combined into one image, matching the company's official
+    # letterhead). When set, the Tax Invoice uses ONLY this image as the header,
+    # replacing the dynamic three-part layout. Optional + additive — a company
+    # without it keeps the current dynamic header unchanged. Recommended size
+    # ~1000×200 px landscape (~5:1), rendered at full page width.
+    x_invoice_header_image = fields.Binary(string='Invoice Header Image')
+
     # Item 2b (2026-08): ONE IBAN shared by every company on the Tax Invoice.
     # Backed by a single global ir.config_parameter (NOT a per-company column),
     # so it is identical on every company and editable from any company's form —

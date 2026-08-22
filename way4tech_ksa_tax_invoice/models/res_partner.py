@@ -154,3 +154,12 @@ class ResPartner(models.Model):
                       or (p.vat and p.vat.startswith('3'))
         )
         partners.action_force_arabic_translate()
+
+
+class ResPartnerBank(models.Model):
+    _inherit = 'res.partner.bank'
+
+    # Part 2b (2026-08): IBAN is now per bank account, entered alongside the
+    # Account Number, exactly like Bank/Branch/Swift already are. Replaces the
+    # earlier single shared-IBAN value. Blank shows blank on the invoice.
+    x_iban = fields.Char(string='IBAN')

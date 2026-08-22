@@ -258,6 +258,8 @@
                             <field name="bs_total_invoiced" readonly="1"/>
                             <field name="bs_total_project_cgs" readonly="1"/>
                             <field name="bs_total_project_exp" readonly="1"/>
+                            <!-- Part 1: Other Payable as its own deducted cost line. -->
+                            <field name="bs_total_other_payable" readonly="1"/>
                             <!-- CR3-FINAL P3: Direct Cost + Operating Exp -->
                             <field name="bs_total_project_exp_all" readonly="1"
                                    class="o_field_highlight"
@@ -911,6 +913,138 @@
                                     <field name="has_document" column_invisible="1"/>
                                     <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line (receipts, supplier invoices, approvals)."/>
                                     <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the invoice or bill created from this line as a PDF (that one document only)."/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- Part 1 (2026-08): Other Payable — journal-entry costs for
+                             categories mapped to a Payable/Liability account. -->
+                        <page string="Other Payable" name="other_payable">
+                            <div class="alert alert-info" role="status">
+                                For expense categories mapped to a <strong>Payable/Liability</strong>
+                                account (e.g. Own Driver Salary → 260005), which a vendor bill cannot
+                                post to. Each posts a balanced <strong>Journal Entry</strong> (Dr the
+                                Other Payable Cost Account / Cr the mapped payable). Approval,
+                                attachments and payment status work like the bill tabs; the total is
+                                deducted as its own line on the Billing Summary.
+                            </div>
+                            <field name="other_payable_block_ids"
+                                   readonly="state in ('cancelled', 'completed')"
+                                   context="{'default_contract_id': id}">
+                                <list decoration-muted="state == 'posted'">
+                                    <control>
+                                        <create string="Create New Other Payable Block"/>
+                                    </control>
+                                    <field name="name" string="Entry"/>
+                                    <field name="partner_id" string="Party"/>
+                                    <field name="date" widget="date"/>
+                                    <field name="line_count" string="Lines"/>
+                                    <field name="amount_total" string="Total" sum="Total"/>
+                                    <field name="state" widget="badge"
+                                           decoration-info="state == 'draft'"
+                                           decoration-success="state == 'posted'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                           decoration-danger="way4tech_payment_status == 'unpaid'"
+                                           decoration-warning="way4tech_payment_status == 'partial'"
+                                           decoration-success="way4tech_payment_status == 'paid'"/>
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning" invisible="approval_state != 'rejected'"/>
+                                    <button name="action_create_journal_entry" type="object"
+                                            string="Create Journal Entry" icon="fa-book"
+                                            invisible="state != 'draft'" class="btn-sm btn-primary"/>
+                                    <button name="action_view_move" type="object"
+                                            string="View Entry" icon="fa-eye"
+                                            invisible="state == 'draft'" class="btn-sm btn-secondary"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the journal entry as a PDF."/>
+                                </list>
+                                <form string="Other Payable Block">
+                                    <header>
+                                        <button name="action_create_journal_entry" type="object"
+                                                string="Create Journal Entry" class="btn-primary"
+                                                invisible="state != 'draft'"/>
+                                        <button name="action_view_move" type="object"
+                                                string="View Entry" class="btn-secondary"
+                                                invisible="state == 'draft'"/>
+                                        <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                                    </header>
+                                    <sheet>
+                                        <div class="oe_title"><h2><field name="name" readonly="1" nolabel="1"/></h2></div>
+                                        <group>
+                                            <group>
+                                                <field name="partner_id" string="Party" readonly="state != 'draft'"
+                                                       help="One party per block. Every line's payable is booked against it."/>
+                                                <field name="date" readonly="state != 'draft'"/>
+                                            </group>
+                                            <group>
+                                                <field name="amount_total" readonly="1"
+                                                       class="oe_subtotal_footer_separator"/>
+                                                <field name="currency_id" invisible="1"/>
+                                            </group>
+                                        </group>
+                                        <field name="line_ids" readonly="state != 'draft'"
+                                               context="{'default_contract_id': parent.id, 'default_partner_id': partner_id}">
+                                            <list editable="bottom">
+                                                <field name="description"/>
+                                                <field name="category_id"/>
+                                                <field name="account_id" readonly="1"/>
+                                                <field name="amount" sum="Amount"/>
+                                                <field name="partner_id" column_invisible="1"/>
+                                                <field name="contract_id" column_invisible="1"/>
+                                                <field name="currency_id" column_invisible="1"/>
+                                                <field name="attachment_count" string="Files" optional="show"/>
+                                                <field name="has_document" column_invisible="1"/>
+                                                <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line."/>
+                                                <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document"/>
+                                            </list>
+                                        </field>
+                                    </sheet>
+                                </form>
+                            </field>
+                            <separator string="Other Payable Lines Not In A Block"/>
+                            <field name="other_payable_unassigned_line_ids"
+                                   readonly="state in ('cancelled', 'completed')"
+                                   context="{'default_contract_id': id}">
+                                <list editable="top" decoration-muted="state == 'posted'">
+                                    <field name="date" widget="date"/>
+                                    <field name="category_id"/>
+                                    <field name="description"/>
+                                    <field name="partner_id" string="Party"/>
+                                    <field name="account_id" readonly="1"
+                                           help="Payable account, auto-filled from the category map."/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="attachment_count" string="Files" optional="show"/>
+                                    <field name="state" widget="badge"
+                                        decoration-info="state == 'draft'"
+                                        decoration-success="state == 'posted'"/>
+                                    <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
+                                        decoration-danger="way4tech_payment_status == 'unpaid'"
+                                        decoration-warning="way4tech_payment_status == 'partial'"
+                                        decoration-success="way4tech_payment_status == 'paid'"/>
+                                    <field name="approval_label" string="Approval" optional="show"
+                                           decoration-warning="approval_state == 'pending'"
+                                           decoration-success="approval_state == 'approved'"
+                                           decoration-danger="approval_state == 'rejected'"
+                                           decoration-muted="approval_state == 'consumed'"/>
+                                    <field name="approval_state" column_invisible="1"/>
+                                    <button name="action_send_for_approval" type="object" string="Re-send" icon="fa-paper-plane"
+                                            class="btn-sm btn-warning" invisible="approval_state != 'rejected'"/>
+                                    <button name="action_create_journal_entry" type="object"
+                                            string="Create Journal Entry" icon="fa-book"
+                                            invisible="state != 'draft'" class="btn-sm btn-secondary"/>
+                                    <button name="action_view_move" type="object"
+                                            string="View Entry" icon="fa-eye"
+                                            invisible="state == 'draft'" class="btn-sm btn-secondary"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this line."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document"/>
                                 </list>
                             </field>
                         </page>

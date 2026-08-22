@@ -65,6 +65,11 @@ _SOURCE_LINE_MAP = (
     # The block's own expense line_ids are the project.expense rows above, so
     # they flip together with the block on the same move event.
     ('way4tech.manpower.bill.block',           'bill_id',    'draft', 'billed',   ('in_invoice', 'in_refund')),
+    # Part 1 (2026-08): Other Payable line/block link to a JOURNAL ENTRY (an
+    # 'entry' move). Deleting that entry resets the row to draft + clears the FK
+    # (and, via the unlink override, orphans its approval) exactly like a bill.
+    ('way4tech.manpower.other.payable',        'move_id',    'draft', 'posted',   ('entry',)),
+    ('way4tech.manpower.other.payable.block',  'move_id',    'draft', 'posted',   ('entry',)),
 )
 
 

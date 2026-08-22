@@ -80,6 +80,10 @@ GATED_MODELS = {
     'way4tech.manpower.project.expense': 'Project Expense',
     'way4tech.manpower.commission.line': 'Sales Person Commission',
     'way4tech.manpower.contract.budget.line': 'Project Budget',
+    # Part 1 (2026-08): Other Payable — journal-entry costs on a payable-mapped
+    # category; a line, or a block combining several into one entry.
+    'way4tech.manpower.other.payable': 'Other Payable',
+    'way4tech.manpower.other.payable.block': 'Other Payable Block',
 }
 
 
@@ -874,6 +878,11 @@ class Way4TechManpowerApprovalMixin(models.AbstractModel):
             bill_blocks = self.mapped('bill_block_id')
             if bill_blocks:
                 Request._invalidate_for(bill_blocks)
+        # Part 1 (2026-08): same walk-up for Other Payable blocks.
+        if 'other_payable_block_id' in self._fields:
+            op_blocks = self.mapped('other_payable_block_id')
+            if op_blocks:
+                Request._invalidate_for(op_blocks)
         return result
 
 
