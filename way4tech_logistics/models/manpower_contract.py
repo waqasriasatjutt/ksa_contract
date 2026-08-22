@@ -702,7 +702,7 @@ class Way4TechManpowerContract(models.Model):
         string='Total Project Exp', compute='_compute_kpi_summary',
         store=True, currency_field='currency_id',
         help='Total Project Exp = Total Direct Cost (COGS) + Total Operating '
-             'Expenses. Example: 3,000 + 800 = 3,800.',
+             'Expenses + Total Other Payable.',
     )
     # Part 1 (2026-08): Other Payable — its own deducted cost line on the
     # Billing Summary (always counts as cost, no per-category flexibility).
@@ -731,7 +731,8 @@ class Way4TechManpowerContract(models.Model):
     pp_gross_profit = fields.Monetary(
         string='Gross Profit', compute='_compute_kpi_summary',
         store=True, currency_field='currency_id',
-        help='Gross Profit = Income − COGS.',
+        help='Gross Profit = Total Invoiced − Total Project CGS − Total Other '
+             'Payable.',
     )
     pp_net_profit = fields.Monetary(
         string='Net Profit', compute='_compute_kpi_summary',
@@ -871,18 +872,21 @@ class Way4TechManpowerContract(models.Model):
                 l.actual_amount or 0.0 for l in rec.budget_line_ids
                 if l.state == 'confirmed'
             )
-            # Part 1: Other Payable posted journal-entry costs (always a cost),
-            # kept as its OWN line — bs_total_project_exp_all stays Direct+Op.
+            # Part 1: Other Payable posted journal-entry costs (always a cost).
             other_payable = sum(
                 l.amount or 0.0 for l in rec.other_payable_line_ids
                 if l.state == 'posted'
             )
-            total_cost = cgs + opex
+            # Item 3 (2026-08): Other Payable is a real cost — fold it into BOTH
+            # Total Project Expense and Gross Profit (previously it was only
+            # deducted at Net Profit, so it had no effect on Gross Profit or on
+            # Total Project Exp). Net Profit's VALUE is unchanged: Gross Profit
+            # now carries the Other-Payable deduction, so Net = Gross − OpEx.
+            total_cost = cgs + opex + other_payable   # Direct + Operating + Other Payable
 
-            # ── CR3-FINAL P2: corrected profitability formulas ──
-            gross_profit = total_invoiced - cgs            # Income − COGS
-            # Net Profit = Income − Direct − Operating − Other Payable.
-            net_profit = gross_profit - opex - other_payable
+            # ── CR3-FINAL P2 + Item 3: profitability formulas ──
+            gross_profit = total_invoiced - cgs - other_payable  # Income − COGS − Other Payable
+            net_profit = gross_profit - opex                     # GP − OpEx
             profit_after_budget = gross_profit - total_budget   # GP − Budget
             profit_after_actual = gross_profit - total_actual   # GP − Actual
 

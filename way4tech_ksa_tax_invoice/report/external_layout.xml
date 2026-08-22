@@ -6,14 +6,16 @@
         <t t-set="name_ar" t-value="company.x_name_ar or company.name"/>
         <t t-set="ar_digits" t-value="lambda s: (s or '').replace('0','٠').replace('1','١').replace('2','٢').replace('3','٣').replace('4','٤').replace('5','٥').replace('6','٦').replace('7','٧').replace('8','٨').replace('9','٩')"/>
 
-        <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
-             t-att-data-oe-model="o and o._name"
-             t-att-data-oe-id="o and o.id"
-             t-att-data-oe-lang="o and o.env.context.get('lang')">
+        <!-- ══════════════════════════════════════════════════════════════════
+             HEADER SLOT (Item 2, 2026-08): the letterhead now lives in the
+             wkhtmltopdf --header-html slot (class="header") instead of inline in
+             the body, so it REPEATS on every page of a multi-page invoice like a
+             standard letterhead. paperformat margin_top reserves the band for it.
+             Applies to the header IMAGE and the dynamic 3-part header alike, so a
+             company with no image also gets its dynamic header on every page.
+             ══════════════════════════════════════════════════════════════════ -->
+        <div t-attf-class="header o_report_layout_atco o_company_#{company.id}_layout">
             <style type="text/css">
-                /* ATCO letterhead rendered INLINE at the top of the body
-                   (page 1 only) — bypasses wkhtmltopdf's --header-html slot
-                   entirely so paperformat margin_top can be near-zero. */
                 table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
@@ -118,19 +120,25 @@
                     font-size: 0;
                     line-height: 0;
                 }
-                /* Part 2a: single pre-cropped header image, full page width. */
+                /* Part 2a / Item 1 (2026-08): single pre-cropped header image.
+                   Constrained to fit WITHIN the header band on BOTH axes
+                   (max-width AND max-height), preserving aspect ratio and
+                   centered, so it can never be clipped on the right or the
+                   bottom regardless of the uploaded image's own dimensions.
+                   For a perfectly full-width strip use ~1000x205 px (≈4.8:1). */
                 .atco-hdr-img {
                     display: block;
-                    width: 100%;
+                    max-width: 100%;
+                    max-height: 40mm;
+                    width: auto;
                     height: auto;
-                    margin: 0 0 4px 0;
+                    margin: 0 auto 4px auto;
                 }
             </style>
 
-            <!-- Letterhead top block (inline in body — appears at very top of page 1) -->
-            <!-- Part 2a: a company that has uploaded a single cropped header image
-                 shows ONLY that image; otherwise the dynamic 3-part layout below
-                 renders exactly as before (no change for such companies). -->
+            <!-- A company that has uploaded a single cropped header image shows
+                 ONLY that image; otherwise the dynamic 3-part layout renders
+                 exactly as before (no change for such companies). -->
             <div t-if="company.x_invoice_header_image">
                 <img t-att-src="image_data_uri(company.x_invoice_header_image)"
                      alt="header" class="atco-hdr-img"/>
@@ -158,7 +166,17 @@
                 </tr>
             </table>
             <div class="atco-sep"></div>
+        </div>
 
+        <!-- ══════════════════════════════════════════════════════════════════
+             BODY — the letterhead is no longer here (it moved to the header slot
+             above). Only the flowing document body remains, so it paginates
+             underneath the repeating header/footer.
+             ══════════════════════════════════════════════════════════════════ -->
+        <div t-attf-class="article o_report_layout_atco o_company_#{company.id}_layout"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
             <t t-if="not disable_atco_address_layout" t-call="web.address_layout"/>
             <h2 t-if="layout_document_title" t-out="layout_document_title"/>
             <t t-out="0"/>
@@ -244,12 +262,20 @@
                     padding-top: 3px;
                     font-family: 'Helvetica', 'Arial', sans-serif;
                 }
-                /* Item 3: single pre-cropped footer image, full page width. */
+                /* Item 1 (2026-08): single pre-cropped footer image. Same
+                   defensive fit as the header image — constrained on BOTH axes
+                   (max-width AND max-height) so it is never cut off on the right
+                   or the bottom, whatever the uploaded image's dimensions. It
+                   already repeats on every page (it is in the footer slot); this
+                   only stops it overflowing the footer band. For a perfectly
+                   full-width strip use ~1000x150 px (≈6.5:1). -->
                 .atco-ftr-img {
                     display: block;
-                    width: 100%;
+                    max-width: 100%;
+                    max-height: 24mm;
+                    width: auto;
                     height: auto;
-                    margin: 4px 0 0 0;
+                    margin: 0 auto;
                 }
             </style>
 
