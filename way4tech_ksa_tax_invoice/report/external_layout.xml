@@ -8,7 +8,7 @@
 
         <!-- ══════════════════════════════════════════════════════════════════
              HEADER SLOT (Item 2, 2026-08): the letterhead now lives in the
-             wkhtmltopdf --header-html slot (class="header") instead of inline in
+             wkhtmltopdf header-html slot (class="header") instead of inline in
              the body, so it REPEATS on every page of a multi-page invoice like a
              standard letterhead. paperformat margin_top reserves the band for it.
              Applies to the header IMAGE and the dynamic 3-part header alike, so a
