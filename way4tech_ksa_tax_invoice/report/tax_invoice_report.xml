@@ -5,28 +5,26 @@
             <t t-foreach="docs" t-as="o">
                 <t t-set="doc" t-value="o"/>
                 <t t-set="company" t-value="o.company_id"/>
-                <!-- CR7 item 2 (2026-07-30): the letterhead theme colour now follows the
-                     invoice's OWN company colour instead of the hardcoded red. `brand` is the
-                     company tag colour (res.company.color palette index 0-11) mapped to a
-                     print-legible hex; any company with no colour set falls back to the
-                     original red (#8a1c1c) so its invoices render exactly as before. Reads the
-                     colour defensively (company, else its partner) so it never errors if the
-                     field lives on partner. Index 1 (red) is deliberately kept at the current
-                     #8a1c1c so Al Zain Towers is unchanged. Nothing else (numbering, VAT, QR,
-                     posting) is touched — see the override <style> after the base block. -->
+                <!-- CR7 item 2 (2026-07-30): letterhead theme colour follows the invoice's OWN
+                     company colour; any company with no colour set falls back to red (#8a1c1c). -->
                 <t t-set="brand_palette" t-value="{1: '#8a1c1c', 2: '#b45309', 3: '#9a7d0a', 4: '#2980b9', 5: '#6c3483', 6: '#a93226', 7: '#148f77', 8: '#2471a3', 9: '#a93265', 10: '#1e8449', 11: '#7d3c98'}"/>
                 <t t-set="brand_color_idx" t-value="company.color if 'color' in company._fields else (company.partner_id.color if company.partner_id else 0)"/>
                 <t t-set="brand" t-value="brand_palette.get(brand_color_idx, '#8a1c1c') if brand_color_idx else '#8a1c1c'"/>
                 <t t-set="disable_atco_address_layout" t-value="True"/>
                 <t t-set="layout_document_title" t-value="''"/>
+                <!-- Item 2 (2026-08): the Tax Invoice draws its OWN letterhead inside the
+                     master table thead (below) so it repeats on every page. Tell the shared
+                     ATCO layout to skip its inline header so it is not duplicated; the layout
+                     still supplies the repeating footer. -->
+                <t t-set="atco_header_in_body" t-value="True"/>
                 <t t-call="web.external_layout">
                     <t t-set="cp" t-value="company.partner_id"/>
                     <t t-set="bp" t-value="o.partner_id"/>
                     <t t-set="bank" t-value="cp.bank_ids[:1]"/>
+                    <t t-set="name_ar" t-value="company.x_name_ar or company.name"/>
                     <t t-set="m" t-value="lambda v: '{:,.2f}'.format(v or 0.0)"/>
                     <!-- Convert Western digits 0-9 to Eastern-Arabic ٠-٩ for values
-                         rendered in the Arabic data columns (VAT, CRN, Postal Code,
-                         Building No, Additional No). English column stays 0-9. -->
+                         rendered in the Arabic data columns. English column stays 0-9. -->
                     <t t-set="ar_digits" t-value="lambda s: (s or '').replace('0','٠').replace('1','١').replace('2','٢').replace('3','٣').replace('4','٤').replace('5','٥').replace('6','٦').replace('7','٧').replace('8','٨').replace('9','٩') if s else ''"/>
                     <div class="page ksa-inv">
                         <style>
@@ -41,10 +39,7 @@
                             .ksa-title .en { letter-spacing:2px; }
                             .ksa-title .ar { margin-left:22px; }
                             .ksa-sec { background:#f4e9e9; color:#8a1c1c; font-weight:bold; border:1px solid #8a1c1c; padding:8px 10px; font-size:10px; line-height:1.4; overflow:hidden; }
-                            /* Slate-blue section header for Vendor / Customer blocks. */
                             .ksa-sec-slate { background:#475569; color:#ffffff; font-weight:bold; border:1px solid #334155; padding:7px 10px; font-size:10px; line-height:1.4; overflow:hidden; letter-spacing:0.3px; }
-                            /* Side-by-side wrapper for Vendor + Customer blocks. Uses a table
-                               (not flex) — wkhtmltopdf 0.12 does not support flex layout. */
                             .ksa-vc-wrap { width:100%; border-collapse:separate; border-spacing:6px 0; margin-top:3px; }
                             .ksa-vc-wrap > tbody > tr > td { width:50%; vertical-align:top; padding:0; border:0; }
                             .ksa-vc-wrap .vc-block table { border-collapse:collapse; width:100%; }
@@ -55,28 +50,46 @@
                             .ksa-lines td { padding:9px 8px; vertical-align:middle; }
                             .ksa-lines th { padding:8px 7px; }
                             .ksa-lines tr.zebra td { background:#faf6f6; }
-                            /* Full-width note row rendered when a line has display_type='line_note'.
-                               Sits directly beneath the item line it was added to, spanning all 10 columns. */
                             .ksa-lines tr.ksa-note-row td.ksa-note {
-                                background:#fff8f8;
-                                color:#333;
-                                font-style:italic;
-                                text-align:left;
-                                padding:8px 12px;
-                                border-top:1px dashed #d0cdcd;
-                                white-space:pre-wrap;
+                                background:#fff8f8; color:#333; font-style:italic; text-align:left;
+                                padding:8px 12px; border-top:1px dashed #d0cdcd; white-space:pre-wrap;
                             }
                             .ksa-right { text-align:right; }
                             .ksa-center { text-align:center; }
+                            /* Item 2 (2026-08): master document table. Its thead holds the
+                               letterhead, which wkhtmltopdf reprints at the top of EVERY page.
+                               The line items are DIRECT rows of this table, so continuation
+                               pages leave room for the reprinted thead (no overlap). Wrapper
+                               cells (letterhead + the page-1/last-page content blocks) carry no
+                               border/padding of their own so the blocks inside keep their own
+                               look untouched. */
+                            .ksa-inv .ksa-main { border-collapse:collapse; width:100%; }
+                            .ksa-inv .ksa-main > thead { display:table-header-group; }
+                            .ksa-inv .ksa-wrap { border:0 !important; padding:0 !important; background:transparent !important; height:auto; }
+                            .ksa-inv td.ksa-lh { border:0 !important; padding:0 0 4px 0 !important; }
+                            .ksa-inv td.ksa-block-top { border:0 !important; padding:6px 0 0 0 !important; }
+                            /* Letterhead (dynamic 3-part) — same look as before, now in the thead. */
+                            table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td { border:0 !important; box-shadow:none !important; background:#ffffff !important; }
+                            .ksa-inv .atco-hdr { width:100%; border-collapse:collapse !important; table-layout:fixed; font-family:'Helvetica','Arial',sans-serif; color:#1a1a1a; margin:0; padding:0; }
+                            .ksa-inv .atco-hdr td { vertical-align:top; padding:8px 0 8px 0; border:0 !important; }
+                            .atco-hdr .atco-col-left { width:36%; padding-left:12px !important; padding-right:10px !important; text-align:left; }
+                            .atco-hdr .atco-col-center { width:28%; padding-left:16px !important; padding-right:16px !important; text-align:center; vertical-align:middle; }
+                            .atco-hdr .atco-col-right { width:36%; padding-left:10px !important; padding-right:12px !important; text-align:right; direction:rtl; unicode-bidi:embed; }
+                            .atco-hdr .atco-name { display:inline-block; font-size:20px; font-weight:bold; color:#111111; line-height:1.2; padding:0 0 6px 0; margin:0; border-bottom:5px solid #8a1c1c !important; }
+                            .atco-hdr .atco-name-ar { display:inline-block; font-size:20px; font-weight:bold; color:#111111; line-height:1.25; padding:0 0 6px 0; margin:0; border-bottom:5px solid #8a1c1c !important; direction:rtl; unicode-bidi:embed; font-family:'Amiri','Tahoma','Arial',sans-serif; }
+                            .atco-hdr .atco-meta { margin-top:6px; font-size:12px; line-height:1.5; color:#333333; }
+                            .atco-hdr .atco-meta-ar { direction:rtl; unicode-bidi:embed; text-align:right; font-family:'Amiri','Tahoma','Arial',sans-serif; }
+                            .atco-hdr .atco-meta div { margin:0; padding:0; }
+                            .atco-hdr .atco-lbl { font-weight:bold; color:#1a1a1a; }
+                            .atco-hdr .atco-logo { max-height:125px; max-width:170px; height:auto; width:auto; display:inline-block; vertical-align:middle; }
+                            .ksa-inv .atco-sep { display:block; border-top:1.2px solid #111111 !important; height:0; margin:3px 0 0 0; padding:0; width:100%; font-size:0; line-height:0; }
+                            /* Letterhead image — fit within the band on BOTH axes so it is never
+                               clipped on the right/bottom whatever its dimensions. Full-width
+                               strip: ~1000x265 px (≈3.8:1). */
+                            .ksa-inv .atco-hdr-img { display:block; max-width:100%; max-height:42mm; width:auto; height:auto; margin:0 auto; border:0 !important; }
                         </style>
 
-                        <!-- CR7 item 2: brand-colour override. Additive only — the base rules
-                             above keep their literal #8a1c1c; these later rules carry a higher/
-                             equal specificity and win by source order, recolouring only the red
-                             theme elements to `brand`. The section-header pink background is
-                             neutralised to a light grey so it reads cleanly under any brand
-                             colour. Slate Vendor/Customer headers, borders and body text are
-                             intentionally left as-is. -->
+                        <!-- CR7 item 2: brand-colour override (additive; recolours red theme). -->
                         <style>
                             .ksa-inv .ksa-red { color: <t t-out="brand"/>; }
                             .ksa-inv .ksa-title { background: <t t-out="brand"/>; }
@@ -85,159 +98,189 @@
                             .ksa-inv .ksa-th { background: <t t-out="brand"/>; }
                         </style>
 
-                        <!-- ══ TITLE ══ (kept here because ATCO letterhead does not include "TAX INVOICE" wording) -->
-                        <div class="ksa-title"><span class="en">TAX&#160;&#160;INVOICE</span><span class="ar">فاتورة ضريبية</span></div>
-
-                        <!-- ══ INVOICE NO ══ -->
-                        <table style="margin-top:3px;"><tr>
-                            <td class="ksa-red ksa-b" style="border:0;">Invoice No: <span t-esc="o.name"/></td>
-                            <td class="ksa-red ksa-b ksa-ar" style="border:0;">رقم الفاتورة</td>
-                        </tr></table>
-
-                        <!-- ══ VENDOR + CUSTOMER SIDE-BY-SIDE GRID ══
-                             Two blocks placed as a 2-column outer table. Each block has a
-                             slate-blue section header and a 4-column bilingual grid:
-                               EN label | EN value | AR value | AR label. -->
-                        <table class="ksa-vc-wrap">
-                            <tr>
-                                <td>
-                                    <div class="vc-block">
-                                        <div class="ksa-sec-slate"><span>Vendor Details</span><span style="float:right;">المورد</span></div>
-                                        <table>
-                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="company.name"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(company.x_name_ar or cp.x_name_ar or company.name)"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
-                                            <tr><td class="lbl">Street:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_street_ar or cp.street or '')"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
-                                            <tr><td class="lbl">Building No:</td><td t-esc="cp.x_building_no or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_building_no or '')"/><td class="lbl ksa-ar">رقم المبنى</td></tr>
-                                            <tr><td class="lbl">City:</td><td t-esc="cp.city or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_city_ar or cp.city or '')"/><td class="lbl ksa-ar">المدينة</td></tr>
-                                            <tr><td class="lbl">District:</td><td t-esc="cp.x_district or cp.state_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_district_ar or cp.state_id.name or '')"/><td class="lbl ksa-ar">الحي</td></tr>
-                                            <tr><td class="lbl">Addl. No:</td><td t-esc="cp.x_additional_no or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_additional_no or '')"/><td class="lbl ksa-ar">الرقم الإضافي</td></tr>
-                                            <tr><td class="lbl">Postal Code:</td><td t-esc="cp.zip or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.zip or '')"/><td class="lbl ksa-ar">الرمز البريدي</td></tr>
-                                            <tr><td class="lbl">Country:</td><td t-esc="cp.country_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_country_ar or cp.country_id.name or '')"/><td class="lbl ksa-ar">البلد</td></tr>
-                                            <tr><td class="lbl">VAT:</td><td class="ksa-b" t-esc="cp.vat or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(cp.vat or '')"/><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
-                                            <tr><td class="lbl">CRN:</td><td class="ksa-b" t-esc="cp.company_registry or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(cp.company_registry or '')"/><td class="lbl ksa-ar">السجل التجاري</td></tr>
+                        <table class="ksa-main">
+                            <thead>
+                                <!-- ══ REPEATING LETTERHEAD ══ (reprinted at the top of every page) -->
+                                <tr>
+                                    <td colspan="10" class="ksa-lh">
+                                        <div t-if="company.x_invoice_header_image">
+                                            <img t-att-src="image_data_uri(company.x_invoice_header_image)" alt="header" class="atco-hdr-img"/>
+                                        </div>
+                                        <table t-if="not company.x_invoice_header_image" class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td class="atco-col-left">
+                                                    <div class="atco-name"><span t-esc="company.name"/></div>
+                                                    <div class="atco-meta">
+                                                        <div><span class="atco-lbl">Vat No. :</span> <span t-esc="cp.vat or ''"/></div>
+                                                        <div><span class="atco-lbl">C.R.</span> <span t-esc="cp.company_registry or ''"/></div>
+                                                    </div>
+                                                </td>
+                                                <td class="atco-col-center">
+                                                    <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="logo" class="atco-logo"/>
+                                                </td>
+                                                <td class="atco-col-right">
+                                                    <div class="atco-name-ar"><span t-esc="name_ar"/></div>
+                                                    <div class="atco-meta atco-meta-ar">
+                                                        <div><span class="atco-lbl">الرقم الضريبي :</span> <span t-esc="ar_digits(cp.vat or '')"/></div>
+                                                        <div><span class="atco-lbl">س.ت :</span> <span t-esc="ar_digits(cp.company_registry or '')"/></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         </table>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="vc-block">
-                                        <div class="ksa-sec-slate"><span>Customer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
-                                        <table>
-                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="bp.name or ''"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(bp.x_name_ar or bp.name or '')"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
-                                            <tr><td class="lbl">Street:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_street_ar or bp.street or '')"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
-                                            <tr><td class="lbl">Building No:</td><td t-esc="bp.x_building_no or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_building_no or '')"/><td class="lbl ksa-ar">رقم المبنى</td></tr>
-                                            <tr><td class="lbl">City:</td><td t-esc="bp.city or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_city_ar or bp.city or '')"/><td class="lbl ksa-ar">المدينة</td></tr>
-                                            <tr><td class="lbl">District:</td><td t-esc="bp.x_district or bp.state_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_district_ar or bp.state_id.name or '')"/><td class="lbl ksa-ar">الحي</td></tr>
-                                            <tr><td class="lbl">Addl. No:</td><td t-esc="bp.x_additional_no or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_additional_no or '')"/><td class="lbl ksa-ar">الرقم الإضافي</td></tr>
-                                            <tr><td class="lbl">Postal Code:</td><td t-esc="bp.zip or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.zip or '')"/><td class="lbl ksa-ar">الرمز البريدي</td></tr>
-                                            <tr><td class="lbl">Country:</td><td t-esc="bp.country_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_country_ar or bp.country_id.name or '')"/><td class="lbl ksa-ar">البلد</td></tr>
-                                            <tr><td class="lbl">VAT:</td><td class="ksa-b" t-esc="bp.vat or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(bp.vat or '')"/><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
-                                            <tr><td class="lbl">CRN:</td><td class="ksa-b" t-esc="bp.company_registry or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(bp.company_registry or '')"/><td class="lbl ksa-ar">السجل التجاري</td></tr>
-                                        </table>
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <!-- ══ META ══ -->
-                        <table style="margin-top:3px; text-align:center;">
-                            <tr>
-                                <td class="lbl">Invoice Date<div class="ksa-ar">تاريخ الفاتورة</div></td>
-                                <td class="lbl">Supply Date<div class="ksa-ar">تاريخ التسليم</div></td>
-                                <td class="lbl">Contract / PO No<div class="ksa-ar">رقم أمر الشراء</div></td>
-                                <td class="lbl">Due Date<div class="ksa-ar">تاريخ الاستحقاق</div></td>
-                                <td class="lbl">Invoice Period<div class="ksa-ar">فترة الفاتورة</div></td>
-                                <td class="lbl">Project / Reference No<div class="ksa-ar">رقم المرجع</div></td>
-                            </tr>
-                            <tr>
-                                <td t-esc="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/>
-                                <td t-esc="o.delivery_date.strftime('%d/%m/%Y') if o.delivery_date else ''"/>
-                                <td t-esc="o.way4tech_po_id.name or ''"/>
-                                <td t-esc="o.invoice_date_due.strftime('%d/%m/%Y') if o.invoice_date_due else ''"/>
-                                <td t-esc="o.ksa_invoice_period or ''"/>
-                                <td t-esc="o.way4tech_project_id.name or ''"/>
-                            </tr>
-                        </table>
-
-                        <!-- ══ LINES ══ -->
-                        <table class="ksa-lines" style="margin-top:5px;">
-                            <tr>
-                                <th class="ksa-th">#</th>
-                                <th class="ksa-th">NATURE OF GOODS OR SERVICE<div class="ksa-ar">تفاصيل السلع أو الخدمات</div></th>
-                                <th class="ksa-th">QTY<div class="ksa-ar">الكمية</div></th>
-                                <th class="ksa-th">UNIT<div class="ksa-ar">وحدة</div></th>
-                                <th class="ksa-th">UNIT PRICE<div class="ksa-ar">سعر الوحدة</div></th>
-                                <th class="ksa-th">DISCOUNT<div class="ksa-ar">الخصومات</div></th>
-                                <th class="ksa-th">SUBTOTAL EXCL. VAT<div class="ksa-ar">غير شامل الضريبة</div></th>
-                                <th class="ksa-th">TAX %<div class="ksa-ar">نسبة الضريبة</div></th>
-                                <th class="ksa-th">TAX AMOUNT<div class="ksa-ar">مبلغ الضريبة</div></th>
-                                <th class="ksa-th">SUBTOTAL INCL. VAT<div class="ksa-ar">شامل الضريبة</div></th>
-                            </tr>
-                            <!-- Product lines first — sequence order preserved. -->
-                            <t t-set="idx" t-value="0"/>
-                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type not in ('line_section', 'line_note'))" t-as="l">
-                                <t t-set="idx" t-value="idx + 1"/>
-                                <t t-set="rate" t-value="(l.tax_ids and l.tax_ids[0].amount) or 0.0"/>
-                                <tr t-att-class="'zebra' if idx % 2 == 0 else ''">
-                                    <td class="ksa-center" t-esc="idx"/>
-                                    <td><span class="ksa-b" t-esc="l.product_id.name or ''"/><div t-esc="l.name or ''"/></td>
-                                    <td class="ksa-center" t-esc="'{:g}'.format(l.quantity)"/>
-                                    <td class="ksa-center" t-esc="l.product_uom_id.name or ''"/>
-                                    <td class="ksa-right" t-esc="m(l.price_unit)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_subtotal)"/>
-                                    <td class="ksa-center" t-esc="'{:g}%'.format(rate)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_total - l.price_subtotal)"/>
-                                    <td class="ksa-right" t-esc="m(l.price_total)"/>
+                                        <div t-if="not company.x_invoice_header_image" class="atco-sep"></div>
+                                    </td>
                                 </tr>
-                            </t>
-                            <!-- All notes at the bottom, grouped, in their original (sequence) order. -->
-                            <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type == 'line_note')" t-as="l">
-                                <tr class="ksa-note-row"><td colspan="10" class="ksa-note"><t t-out="l.name or ''"/></td></tr>
-                            </t>
-                        </table>
+                            </thead>
+                            <tbody>
+                                <!-- ══ PAGE-1 HEAD BLOCKS ══ (title, invoice no, vendor/customer, meta) -->
+                                <tr>
+                                    <td colspan="10" class="ksa-block-top">
+                                        <div class="ksa-title"><span class="en">TAX&#160;&#160;INVOICE</span><span class="ar">فاتورة ضريبية</span></div>
 
-                        <!-- ══ QR + TOTALS ══ -->
-                        <table class="noborder" style="margin-top:4px;"><tr>
-                            <td style="width:22%; border:0; text-align:center; vertical-align:middle;">
-                                <img t-if="o.ksa_qr_image" t-att-src="'data:image/png;base64,%s' % o.ksa_qr_image" style="width:120px; height:120px;"/>
-                            </td>
-                            <td style="width:78%; border:0;">
-                                <table>
-                                    <tr><td class="lbl" style="width:40%;">Total Amount (SAR):</td><td class="ksa-right ksa-b" style="width:20%;" t-esc="m(o.amount_untaxed)"/><td class="lbl ksa-ar">المبلغ الإجمالي (ريال سعودي)</td></tr>
-                                    <tr><td class="lbl">Total Discount (SAR):</td><td class="ksa-right" t-esc="m(sum(o.invoice_line_ids.mapped(lambda l: l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)))"/><td class="lbl ksa-ar">إجمالي الخصم (ريال سعودي)</td></tr>
-                                    <tr><td class="lbl">Invoice Taxable Amount (SAR):</td><td class="ksa-right" t-esc="m(o.amount_untaxed)"/><td class="lbl ksa-ar">المبلغ الخاضع للضريبة</td></tr>
-                                    <tr><td class="lbl">VAT Total Amount (SAR):</td><td class="ksa-right" t-esc="m(o.amount_tax)"/><td class="lbl ksa-ar">إجمالي ضريبة القيمة المضافة</td></tr>
-                                    <tr><td class="lbl ksa-b">Gross Total (Incl. of VAT) (SAR):</td><td class="ksa-right ksa-b" t-esc="m(o.amount_total)"/><td class="lbl ksa-ar">إجمالي قيمة الفاتورة</td></tr>
-                                    <tr><td class="lbl ksa-b">Balance Due (SAR):</td><td class="ksa-right ksa-b" t-esc="m(o.amount_residual)"/><td class="lbl ksa-ar">إجمالي المبلغ المستحق</td></tr>
-                                </table>
-                            </td>
-                        </tr></table>
+                                        <table style="margin-top:3px;"><tr>
+                                            <td class="ksa-red ksa-b" style="border:0;">Invoice No: <span t-esc="o.name"/></td>
+                                            <td class="ksa-red ksa-b ksa-ar" style="border:0;">رقم الفاتورة</td>
+                                        </tr></table>
 
-                        <!-- ══ AMOUNT IN WORDS ══ -->
-                        <table style="margin-top:2px;"><tr><td style="border:0;"><span class="ksa-b">Amount in words : </span><span t-esc="o.ksa_amount_words"/> only.</td></tr></table>
+                                        <table class="ksa-vc-wrap">
+                                            <tr>
+                                                <td>
+                                                    <div class="vc-block">
+                                                        <div class="ksa-sec-slate"><span>Vendor Details</span><span style="float:right;">المورد</span></div>
+                                                        <table>
+                                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="company.name"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(company.x_name_ar or cp.x_name_ar or company.name)"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
+                                                            <tr><td class="lbl">Street:</td><td t-esc="cp.street or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_street_ar or cp.street or '')"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
+                                                            <tr><td class="lbl">Building No:</td><td t-esc="cp.x_building_no or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_building_no or '')"/><td class="lbl ksa-ar">رقم المبنى</td></tr>
+                                                            <tr><td class="lbl">City:</td><td t-esc="cp.city or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_city_ar or cp.city or '')"/><td class="lbl ksa-ar">المدينة</td></tr>
+                                                            <tr><td class="lbl">District:</td><td t-esc="cp.x_district or cp.state_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_district_ar or cp.state_id.name or '')"/><td class="lbl ksa-ar">الحي</td></tr>
+                                                            <tr><td class="lbl">Addl. No:</td><td t-esc="cp.x_additional_no or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_additional_no or '')"/><td class="lbl ksa-ar">الرقم الإضافي</td></tr>
+                                                            <tr><td class="lbl">Postal Code:</td><td t-esc="cp.zip or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.zip or '')"/><td class="lbl ksa-ar">الرمز البريدي</td></tr>
+                                                            <tr><td class="lbl">Country:</td><td t-esc="cp.country_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(cp.x_country_ar or cp.country_id.name or '')"/><td class="lbl ksa-ar">البلد</td></tr>
+                                                            <tr><td class="lbl">VAT:</td><td class="ksa-b" t-esc="cp.vat or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(cp.vat or '')"/><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
+                                                            <tr><td class="lbl">CRN:</td><td class="ksa-b" t-esc="cp.company_registry or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(cp.company_registry or '')"/><td class="lbl ksa-ar">السجل التجاري</td></tr>
+                                                        </table>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="vc-block">
+                                                        <div class="ksa-sec-slate"><span>Customer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
+                                                        <table>
+                                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="bp.name or ''"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(bp.x_name_ar or bp.name or '')"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
+                                                            <tr><td class="lbl">Street:</td><td t-esc="bp.street or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_street_ar or bp.street or '')"/><td class="lbl ksa-ar">اسم الشارع</td></tr>
+                                                            <tr><td class="lbl">Building No:</td><td t-esc="bp.x_building_no or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_building_no or '')"/><td class="lbl ksa-ar">رقم المبنى</td></tr>
+                                                            <tr><td class="lbl">City:</td><td t-esc="bp.city or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_city_ar or bp.city or '')"/><td class="lbl ksa-ar">المدينة</td></tr>
+                                                            <tr><td class="lbl">District:</td><td t-esc="bp.x_district or bp.state_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_district_ar or bp.state_id.name or '')"/><td class="lbl ksa-ar">الحي</td></tr>
+                                                            <tr><td class="lbl">Addl. No:</td><td t-esc="bp.x_additional_no or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_additional_no or '')"/><td class="lbl ksa-ar">الرقم الإضافي</td></tr>
+                                                            <tr><td class="lbl">Postal Code:</td><td t-esc="bp.zip or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.zip or '')"/><td class="lbl ksa-ar">الرمز البريدي</td></tr>
+                                                            <tr><td class="lbl">Country:</td><td t-esc="bp.country_id.name or ''"/><td class="ksa-ar" t-esc="ar_digits(bp.x_country_ar or bp.country_id.name or '')"/><td class="lbl ksa-ar">البلد</td></tr>
+                                                            <tr><td class="lbl">VAT:</td><td class="ksa-b" t-esc="bp.vat or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(bp.vat or '')"/><td class="lbl ksa-ar">الرقم الضريبي</td></tr>
+                                                            <tr><td class="lbl">CRN:</td><td class="ksa-b" t-esc="bp.company_registry or ''"/><td class="ksa-ar ksa-b" t-esc="ar_digits(bp.company_registry or '')"/><td class="lbl ksa-ar">السجل التجاري</td></tr>
+                                                        </table>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
 
-                        <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
+                                        <table style="margin-top:3px; text-align:center;">
+                                            <tr>
+                                                <td class="lbl">Invoice Date<div class="ksa-ar">تاريخ الفاتورة</div></td>
+                                                <td class="lbl">Supply Date<div class="ksa-ar">تاريخ التسليم</div></td>
+                                                <td class="lbl">Contract / PO No<div class="ksa-ar">رقم أمر الشراء</div></td>
+                                                <td class="lbl">Due Date<div class="ksa-ar">تاريخ الاستحقاق</div></td>
+                                                <td class="lbl">Invoice Period<div class="ksa-ar">فترة الفاتورة</div></td>
+                                                <td class="lbl">Project / Reference No<div class="ksa-ar">رقم المرجع</div></td>
+                                            </tr>
+                                            <tr>
+                                                <td t-esc="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/>
+                                                <td t-esc="o.delivery_date.strftime('%d/%m/%Y') if o.delivery_date else ''"/>
+                                                <td t-esc="o.way4tech_po_id.name or ''"/>
+                                                <td t-esc="o.invoice_date_due.strftime('%d/%m/%Y') if o.invoice_date_due else ''"/>
+                                                <td t-esc="o.ksa_invoice_period or ''"/>
+                                                <td t-esc="o.way4tech_project_id.name or ''"/>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
 
-                        <!-- ══ PAYEE / BANK ══ (kept in body: bank details are payment info, not letterhead) -->
-                        <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
-                        <table style="text-align:center;">
-                            <tr>
-                                <th class="ksa-th">Account Number<div class="ksa-ar">رقم الحساب</div></th>
-                                <th class="ksa-th">Bank<div class="ksa-ar">المصرف</div></th>
-                                <th class="ksa-th">Branch<div class="ksa-ar">فرع</div></th>
-                                <th class="ksa-th">IBAN<div class="ksa-ar">رقم الآيبان</div></th>
-                                <th class="ksa-th">Swift<div class="ksa-ar">رقم السويفت</div></th>
-                            </tr>
-                            <tr>
-                                <td t-esc="bank.acc_number or ''"/>
-                                <td t-esc="bank.bank_id.name or ''"/>
-                                <td t-esc="bank.bank_id.city or ''"/>
-                                <!-- Part 2b (2026-08): IBAN is now per bank account —
-                                     from that account's own x_iban field, same per-account
-                                     logic as Account Number / Bank / Branch / Swift. Blank
-                                     when unset. (Replaces the earlier shared-IBAN value.) -->
-                                <td t-esc="bank.x_iban or ''"/>
-                                <td t-esc="bank.bank_id.bic or ''"/>
-                            </tr>
+                                <!-- ══ LINES ══ column header row (direct row of the master table) -->
+                                <tr class="ksa-lines">
+                                    <th class="ksa-th">#</th>
+                                    <th class="ksa-th">NATURE OF GOODS OR SERVICE<div class="ksa-ar">تفاصيل السلع أو الخدمات</div></th>
+                                    <th class="ksa-th">QTY<div class="ksa-ar">الكمية</div></th>
+                                    <th class="ksa-th">UNIT<div class="ksa-ar">وحدة</div></th>
+                                    <th class="ksa-th">UNIT PRICE<div class="ksa-ar">سعر الوحدة</div></th>
+                                    <th class="ksa-th">DISCOUNT<div class="ksa-ar">الخصومات</div></th>
+                                    <th class="ksa-th">SUBTOTAL EXCL. VAT<div class="ksa-ar">غير شامل الضريبة</div></th>
+                                    <th class="ksa-th">TAX %<div class="ksa-ar">نسبة الضريبة</div></th>
+                                    <th class="ksa-th">TAX AMOUNT<div class="ksa-ar">مبلغ الضريبة</div></th>
+                                    <th class="ksa-th">SUBTOTAL INCL. VAT<div class="ksa-ar">شامل الضريبة</div></th>
+                                </tr>
+                                <!-- Product lines — sequence order preserved. Each is a direct master row. -->
+                                <t t-set="idx" t-value="0"/>
+                                <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type not in ('line_section', 'line_note'))" t-as="l">
+                                    <t t-set="idx" t-value="idx + 1"/>
+                                    <t t-set="rate" t-value="(l.tax_ids and l.tax_ids[0].amount) or 0.0"/>
+                                    <tr t-att-class="'ksa-lines zebra' if idx % 2 == 0 else 'ksa-lines'">
+                                        <td class="ksa-center" t-esc="idx"/>
+                                        <td><span class="ksa-b" t-esc="l.product_id.name or ''"/><div t-esc="l.name or ''"/></td>
+                                        <td class="ksa-center" t-esc="'{:g}'.format(l.quantity)"/>
+                                        <td class="ksa-center" t-esc="l.product_uom_id.name or ''"/>
+                                        <td class="ksa-right" t-esc="m(l.price_unit)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_subtotal)"/>
+                                        <td class="ksa-center" t-esc="'{:g}%'.format(rate)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_total - l.price_subtotal)"/>
+                                        <td class="ksa-right" t-esc="m(l.price_total)"/>
+                                    </tr>
+                                </t>
+                                <!-- Notes grouped at the bottom, in original (sequence) order. -->
+                                <t t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type == 'line_note')" t-as="l">
+                                    <tr class="ksa-lines ksa-note-row"><td colspan="10" class="ksa-note"><t t-out="l.name or ''"/></td></tr>
+                                </t>
+
+                                <!-- ══ LAST-PAGE BLOCKS ══ (QR + totals, amount in words, bank) -->
+                                <tr>
+                                    <td colspan="10" class="ksa-block-top">
+                                        <table class="noborder" style="margin-top:4px;"><tr>
+                                            <td style="width:22%; border:0; text-align:center; vertical-align:middle;">
+                                                <img t-if="o.ksa_qr_image" t-att-src="'data:image/png;base64,%s' % o.ksa_qr_image" style="width:120px; height:120px;"/>
+                                            </td>
+                                            <td style="width:78%; border:0;">
+                                                <table>
+                                                    <tr><td class="lbl" style="width:40%;">Total Amount (SAR):</td><td class="ksa-right ksa-b" style="width:20%;" t-esc="m(o.amount_untaxed)"/><td class="lbl ksa-ar">المبلغ الإجمالي (ريال سعودي)</td></tr>
+                                                    <tr><td class="lbl">Total Discount (SAR):</td><td class="ksa-right" t-esc="m(sum(o.invoice_line_ids.mapped(lambda l: l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)))"/><td class="lbl ksa-ar">إجمالي الخصم (ريال سعودي)</td></tr>
+                                                    <tr><td class="lbl">Invoice Taxable Amount (SAR):</td><td class="ksa-right" t-esc="m(o.amount_untaxed)"/><td class="lbl ksa-ar">المبلغ الخاضع للضريبة</td></tr>
+                                                    <tr><td class="lbl">VAT Total Amount (SAR):</td><td class="ksa-right" t-esc="m(o.amount_tax)"/><td class="lbl ksa-ar">إجمالي ضريبة القيمة المضافة</td></tr>
+                                                    <tr><td class="lbl ksa-b">Gross Total (Incl. of VAT) (SAR):</td><td class="ksa-right ksa-b" t-esc="m(o.amount_total)"/><td class="lbl ksa-ar">إجمالي قيمة الفاتورة</td></tr>
+                                                    <tr><td class="lbl ksa-b">Balance Due (SAR):</td><td class="ksa-right ksa-b" t-esc="m(o.amount_residual)"/><td class="lbl ksa-ar">إجمالي المبلغ المستحق</td></tr>
+                                                </table>
+                                            </td>
+                                        </tr></table>
+
+                                        <table style="margin-top:2px;"><tr><td style="border:0;"><span class="ksa-b">Amount in words : </span><span t-esc="o.ksa_amount_words"/> only.</td></tr></table>
+
+                                        <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
+
+                                        <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
+                                        <table style="text-align:center;">
+                                            <tr>
+                                                <th class="ksa-th">Account Number<div class="ksa-ar">رقم الحساب</div></th>
+                                                <th class="ksa-th">Bank<div class="ksa-ar">المصرف</div></th>
+                                                <th class="ksa-th">Branch<div class="ksa-ar">فرع</div></th>
+                                                <th class="ksa-th">IBAN<div class="ksa-ar">رقم الآيبان</div></th>
+                                                <th class="ksa-th">Swift<div class="ksa-ar">رقم السويفت</div></th>
+                                            </tr>
+                                            <tr>
+                                                <td t-esc="bank.acc_number or ''"/>
+                                                <td t-esc="bank.bank_id.name or ''"/>
+                                                <td t-esc="bank.bank_id.city or ''"/>
+                                                <td t-esc="bank.x_iban or ''"/>
+                                                <td t-esc="bank.bank_id.bic or ''"/>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </t>

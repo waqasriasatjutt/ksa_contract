@@ -11,25 +11,12 @@
              t-att-data-oe-id="o and o.id"
              t-att-data-oe-lang="o and o.env.context.get('lang')">
             <style type="text/css">
-                /* ══════════════════════════════════════════════════════════════
-                   Item 2 (2026-08): repeat the letterhead on EVERY page.
-                   This environment's wkhtmltopdf draws the --header-html slot at
-                   y = margin_top (overlapping the body, which also starts at
-                   margin_top) instead of at the page top, so the header slot is
-                   unusable for a tall letterhead here (Odoo's own standard layout
-                   overlaps the same way). Instead the letterhead is a
-                   position:fixed block pinned to the page top: wkhtmltopdf repeats
-                   fixed elements on every page, and paperformat margin_top reserves
-                   a band so the flowing body always starts below it (no overlap).
-                   The footer keeps using the footer slot, which positions right.
-                   ══════════════════════════════════════════════════════════════ */
-                .atco-hdr-fixed {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    width: 100%;
-                }
+                /* ATCO letterhead. For the Tax Invoice the letterhead is supplied
+                   BY THE REPORT BODY inside a table thead so it repeats on every
+                   page (see tax_invoice_report.xml — the report sets
+                   atco_header_in_body=True and this inline header is skipped). For
+                   every OTHER report using this shared layout the header renders
+                   inline at the top of page 1 exactly as before. */
                 table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
                     border: 0 !important;
                     box-shadow: none !important;
@@ -44,122 +31,28 @@
                     margin: 0 0 4px 0;
                     padding: 0;
                 }
-                .atco-hdr td {
-                    vertical-align: top;
-                    padding: 8px 0 8px 0;
-                }
-                .atco-hdr .atco-col-left {
-                    width: 36%;
-                    padding-left: 12px;
-                    padding-right: 10px;
-                    text-align: left;
-                }
-                .atco-hdr .atco-col-center {
-                    /* Item 2a (2026-08): widened from 20% -> 28% and given
-                       horizontal padding so the (enlarged) logo has real room
-                       and keeps a clear gap from the English/Arabic names on
-                       either side. table-layout:fixed keeps each column bounded,
-                       so a bigger logo can never bleed into the name cells. */
-                    width: 28%;
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    text-align: center;
-                    vertical-align: middle;
-                }
-                .atco-hdr .atco-col-right {
-                    width: 36%;
-                    padding-left: 10px;
-                    padding-right: 12px;
-                    text-align: right;
-                    direction: rtl;
-                    unicode-bidi: embed;
-                }
-                .atco-hdr .atco-name {
-                    display: inline-block;
-                    font-size: 20px;
-                    font-weight: bold;
-                    color: #111111;
-                    line-height: 1.2;
-                    padding: 0 0 6px 0;
-                    margin: 0;
-                    border-bottom: 5px solid #8a1c1c !important;
-                }
-                .atco-hdr .atco-name-ar {
-                    display: inline-block;
-                    font-size: 20px;
-                    font-weight: bold;
-                    color: #111111;
-                    line-height: 1.25;
-                    padding: 0 0 6px 0;
-                    margin: 0;
-                    border-bottom: 5px solid #8a1c1c !important;
-                    direction: rtl;
-                    unicode-bidi: embed;
-                    font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
-                }
-                .atco-hdr .atco-meta {
-                    margin-top: 6px;
-                    font-size: 12px;
-                    line-height: 1.5;
-                    color: #333333;
-                }
-                .atco-hdr .atco-meta-ar {
-                    direction: rtl;
-                    unicode-bidi: embed;
-                    text-align: right;
-                    font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif;
-                }
+                .atco-hdr td { vertical-align: top; padding: 8px 0 8px 0; }
+                .atco-hdr .atco-col-left { width: 36%; padding-left: 12px; padding-right: 10px; text-align: left; }
+                .atco-hdr .atco-col-center { width: 28%; padding-left: 16px; padding-right: 16px; text-align: center; vertical-align: middle; }
+                .atco-hdr .atco-col-right { width: 36%; padding-left: 10px; padding-right: 12px; text-align: right; direction: rtl; unicode-bidi: embed; }
+                .atco-hdr .atco-name { display: inline-block; font-size: 20px; font-weight: bold; color: #111111; line-height: 1.2; padding: 0 0 6px 0; margin: 0; border-bottom: 5px solid #8a1c1c !important; }
+                .atco-hdr .atco-name-ar { display: inline-block; font-size: 20px; font-weight: bold; color: #111111; line-height: 1.25; padding: 0 0 6px 0; margin: 0; border-bottom: 5px solid #8a1c1c !important; direction: rtl; unicode-bidi: embed; font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif; }
+                .atco-hdr .atco-meta { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #333333; }
+                .atco-hdr .atco-meta-ar { direction: rtl; unicode-bidi: embed; text-align: right; font-family: 'Amiri', 'Tahoma', 'Arial', sans-serif; }
                 .atco-hdr .atco-meta div { margin: 0; padding: 0; }
                 .atco-hdr .atco-lbl { font-weight: bold; color: #1a1a1a; }
-                .atco-hdr .atco-logo {
-                    /* Item 2a (2026-08): enlarged (was 110x140) for real
-                       presence. Still capped by the center cell width
-                       (28% - padding) so it stays proportionate, centered and
-                       never overlaps the names; height cap keeps a tall/square
-                       logo from touching the header's top/bottom edges. */
-                    max-height: 125px;
-                    max-width: 170px;
-                    height: auto;
-                    width: auto;
-                    display: inline-block;
-                    vertical-align: middle;
-                }
-                .atco-sep {
-                    display: block;
-                    border-top: 1.2px solid #111111 !important;
-                    height: 0;
-                    margin: 3px 0 6px 0;
-                    padding: 0;
-                    width: 100%;
-                    font-size: 0;
-                    line-height: 0;
-                }
-                /* Part 2a / Item 1 (2026-08): single pre-cropped header image.
-                   Constrained to fit WITHIN the header band on BOTH axes
-                   (max-width AND max-height), preserving aspect ratio and
-                   centered, so it can never be clipped on the right or the
-                   bottom regardless of the uploaded image's own dimensions.
-                   For a perfectly full-width strip use ~1000x265 px (≈3.8:1). -->
-                .atco-hdr-img {
-                    display: block;
-                    max-width: 100%;
-                    max-height: 50mm;
-                    width: auto;
-                    height: auto;
-                    margin: 0 auto 4px auto;
-                }
+                .atco-hdr .atco-logo { max-height: 125px; max-width: 170px; height: auto; width: auto; display: inline-block; vertical-align: middle; }
+                .atco-sep { display: block; border-top: 1.2px solid #111111 !important; height: 0; margin: 3px 0 8px 0; padding: 0; width: 100%; font-size: 0; line-height: 0; }
+                .atco-hdr-img { display: block; max-width: 100%; height: auto; margin: 0 0 4px 0; }
             </style>
 
-            <!-- Repeating letterhead — pinned to the top of every page. A company
-                 with a header image shows ONLY that image; otherwise the dynamic
-                 3-part layout renders (no change for such companies). -->
-            <div class="atco-hdr-fixed">
+            <!-- Inline header — rendered for every report EXCEPT the Tax Invoice
+                 (which draws its own repeating letterhead in the report body). -->
+            <t t-if="not atco_header_in_body">
                 <div t-if="company.x_invoice_header_image">
-                    <img t-att-src="image_data_uri(company.x_invoice_header_image)"
-                         alt="header" class="atco-hdr-img"/>
+                    <img t-att-src="image_data_uri(company.x_invoice_header_image)" alt="header" class="atco-hdr-img"/>
                 </div>
-                <table t-if="not company.x_invoice_header_image"
-                       class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
+                <table t-if="not company.x_invoice_header_image" class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
                     <tr>
                         <td class="atco-col-left">
                             <div class="atco-name"><span t-esc="company.name"/></div>
@@ -180,8 +73,8 @@
                         </td>
                     </tr>
                 </table>
-                <div class="atco-sep"></div>
-            </div>
+                <div t-if="not company.x_invoice_header_image" class="atco-sep"></div>
+            </t>
 
             <t t-if="not disable_atco_address_layout" t-call="web.address_layout"/>
             <h2 t-if="layout_document_title" t-out="layout_document_title"/>
@@ -195,102 +88,30 @@
                     box-shadow: none !important;
                     background: #ffffff !important;
                 }
-                .atco-ftr-sep {
-                    display: block;
-                    border-top: 1.2px solid #111111 !important;
-                    height: 0;
-                    margin: 0 0 8px 0;
-                    padding: 0;
-                    width: 100%;
-                    font-size: 0;
-                    line-height: 0;
-                }
-                .atco-ftr {
-                    width: 100%;
-                    border-collapse: collapse !important;
-                    table-layout: fixed;
-                    font-family: 'Helvetica', 'Arial', sans-serif;
-                    color: #1a1a1a;
-                    margin: 0;
-                    padding: 0;
-                }
+                .atco-ftr-sep { display: block; border-top: 1.2px solid #111111 !important; height: 0; margin: 0 0 8px 0; padding: 0; width: 100%; font-size: 0; line-height: 0; }
+                .atco-ftr { width: 100%; border-collapse: collapse !important; table-layout: fixed; font-family: 'Helvetica', 'Arial', sans-serif; color: #1a1a1a; margin: 0; padding: 0; }
                 .atco-ftr td { vertical-align: top; padding: 0; }
-                .atco-ftr .atco-ftr-left {
-                    width: 40%;
-                    padding-left: 20px;
-                    padding-right: 12px;
-                    text-align: left;
-                    font-size: 12px;
-                    line-height: 1.5;
-                }
-                .atco-ftr .atco-ftr-center {
-                    width: 30%;
-                    text-align: center;
-                    font-size: 12px;
-                    line-height: 1.5;
-                    vertical-align: middle;
-                }
-                .atco-ftr .atco-ftr-right {
-                    width: 30%;
-                    padding-left: 12px;
-                    padding-right: 20px;
-                    text-align: right;
-                    font-size: 11.5px;
-                    line-height: 1.35;
-                }
-                .atco-ftr .atco-ico {
-                    color: #8a1c1c;
-                    font-size: 12px;
-                    font-weight: bold;
-                    margin-right: 4px;
-                }
+                .atco-ftr .atco-ftr-left { width: 40%; padding-left: 20px; padding-right: 12px; text-align: left; font-size: 12px; line-height: 1.5; }
+                .atco-ftr .atco-ftr-center { width: 30%; text-align: center; font-size: 12px; line-height: 1.5; vertical-align: middle; }
+                .atco-ftr .atco-ftr-right { width: 30%; padding-left: 12px; padding-right: 20px; text-align: right; font-size: 11.5px; line-height: 1.35; }
+                .atco-ftr .atco-ico { color: #8a1c1c; font-size: 12px; font-weight: bold; margin-right: 4px; }
                 .atco-ftr .atco-ftr-l1 { font-weight: bold; color: #111111; }
                 .atco-ftr .atco-ftr-l2 { color: #333333; font-size: 11.5px; padding-left: 14px; }
                 .atco-ftr .atco-mail { font-weight: bold; color: #111111; }
-                .atco-aramco-logo {
-                    max-height: 30px;
-                    height: auto;
-                    width: auto;
-                    max-width: 100px;
-                    display: block;
-                    margin: 0 0 0 auto;
-                }
-                .atco-vendor {
-                    font-weight: bold;
-                    color: #111111;
-                    font-size: 11.5px;
-                    margin-top: 2px;
-                }
-                .atco-pgnum {
-                    text-align: center;
-                    font-size: 9.5px;
-                    color: #777777;
-                    padding-top: 3px;
-                    font-family: 'Helvetica', 'Arial', sans-serif;
-                }
-                /* Item 1 (2026-08): single pre-cropped footer image. Same
-                   defensive fit as the header image — constrained on BOTH axes
-                   (max-width AND max-height) so it is never cut off on the right
-                   or the bottom, whatever the uploaded image's dimensions. It
-                   already repeats on every page (it is in the footer slot); this
-                   only stops it overflowing the footer band. For a perfectly
-                   full-width strip use ~1000x150 px (≈6.5:1). -->
-                .atco-ftr-img {
-                    display: block;
-                    max-width: 100%;
-                    max-height: 24mm;
-                    width: auto;
-                    height: auto;
-                    margin: 0 auto;
-                }
+                .atco-aramco-logo { max-height: 30px; height: auto; width: auto; max-width: 100px; display: block; margin: 0 0 0 auto; }
+                .atco-vendor { font-weight: bold; color: #111111; font-size: 11.5px; margin-top: 2px; }
+                .atco-pgnum { text-align: center; font-size: 9.5px; color: #777777; padding-top: 3px; font-family: 'Helvetica', 'Arial', sans-serif; }
+                /* Item 1 (2026-08): single pre-cropped footer image, constrained on
+                   BOTH axes so it is never cut off on the right or bottom whatever
+                   the uploaded dimensions. It already repeats via the footer slot;
+                   this only stops it overflowing the band. Full-width strip:
+                   ~1000x150 px (≈6.5:1). -->
+                .atco-ftr-img { display: block; max-width: 100%; max-height: 24mm; width: auto; height: auto; margin: 0 auto; }
             </style>
 
-            <!-- Item 3 (2026-08): a company that has uploaded a single footer image
-                 shows ONLY that image; otherwise the dynamic footer below renders
-                 exactly as before (no change for such companies). -->
+            <!-- Item 3 (2026-08): footer image replaces the dynamic footer when set. -->
             <div t-if="company.x_invoice_footer_image">
-                <img t-att-src="image_data_uri(company.x_invoice_footer_image)"
-                     alt="footer" class="atco-ftr-img"/>
+                <img t-att-src="image_data_uri(company.x_invoice_footer_image)" alt="footer" class="atco-ftr-img"/>
             </div>
             <div t-if="not company.x_invoice_footer_image">
             <div class="atco-ftr-sep"></div>
