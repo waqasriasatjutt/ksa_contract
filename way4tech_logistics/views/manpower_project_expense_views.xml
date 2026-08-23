@@ -189,11 +189,10 @@
                 <field name="amount" sum="Total"/>
                 <field name="analytic_account_id" optional="hide"/>
                 <field name="currency_id" column_invisible="1"/>
-                <field name="state" column_invisible="1"/>
-                <field name="way4tech_doc_status" widget="badge"
-                    decoration-info="way4tech_doc_status == 'draft'"
-                    decoration-warning="way4tech_doc_status == 'created_draft'"
-                    decoration-success="way4tech_doc_status == 'posted'"
+                <field name="state" widget="badge"
+                    decoration-info="state == 'draft'"
+                    decoration-warning="state == 'invoice_draft'"
+                    decoration-success="state == 'billed'"
                 />
             </list>
         </field>
@@ -247,8 +246,7 @@
                     <button name="action_open_contract" type="object"
                             string="Open Contract" class="btn-primary"
                             invisible="not contract_id"/>
-                    <field name="state" invisible="1"/>
-                    <field name="way4tech_doc_status" widget="statusbar" statusbar_visible="draft,created_draft,posted"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,invoice_draft,billed"/>
                 </header>
                 <sheet>
                     <group>
