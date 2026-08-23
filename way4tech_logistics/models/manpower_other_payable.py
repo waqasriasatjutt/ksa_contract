@@ -61,7 +61,14 @@ class Way4TechManpowerOtherPayable(models.Model):
     move_id = fields.Many2one(
         'account.move', string='Journal Entry', readonly=True, copy=False)
     state = fields.Selection(
-        [('draft', 'Draft'), ('posted', 'Posted')],
+        # ITEM 2 (2026-08): 'created_draft' is the middle state, mirroring the
+        # bill tabs' 'invoice_draft'. The shared move-sync moves the row here
+        # when its journal entry is RESET to draft in Accounting (was left stuck
+        # at 'posted' before), so it drops out of the Billing Summary and its
+        # status reverts — re-posting returns it to 'posted', delete/cancel
+        # releases it to 'draft'.
+        [('draft', 'Draft'), ('created_draft', 'Created Draft'),
+         ('posted', 'Posted')],
         default='draft', copy=False, index=True)
 
     # ── docline mixin binds to move_id (not invoice_id/bill_id) ───────────
@@ -168,7 +175,14 @@ class Way4TechManpowerOtherPayableBlock(models.Model):
     move_id = fields.Many2one(
         'account.move', string='Journal Entry', readonly=True, copy=False)
     state = fields.Selection(
-        [('draft', 'Draft'), ('posted', 'Posted')],
+        # ITEM 2 (2026-08): 'created_draft' is the middle state, mirroring the
+        # bill tabs' 'invoice_draft'. The shared move-sync moves the row here
+        # when its journal entry is RESET to draft in Accounting (was left stuck
+        # at 'posted' before), so it drops out of the Billing Summary and its
+        # status reverts — re-posting returns it to 'posted', delete/cancel
+        # releases it to 'draft'.
+        [('draft', 'Draft'), ('created_draft', 'Created Draft'),
+         ('posted', 'Posted')],
         default='draft', copy=False, index=True)
 
     def _compute_name(self):

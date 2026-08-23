@@ -328,7 +328,7 @@
                             <field name="invoice_block_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
-                                <list decoration-muted="state == 'invoiced'">
+                                <list decoration-muted="way4tech_doc_status == 'posted'">
                                     <control>
                                         <create string="Create New Invoice"/>
                                     </control>
@@ -347,10 +347,11 @@
                                     <field name="amount_untaxed" string="Amount" sum="Amount"/>
                                     <field name="amount_tax" string="VAT" sum="VAT"/>
                                     <field name="amount_total" string="Total" sum="Total"/>
-                                    <field name="state" widget="badge"
-                                           decoration-info="state == 'draft'"
-                                           decoration-warning="state == 'invoice_draft'"
-                                           decoration-success="state == 'invoiced'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                           decoration-info="way4tech_doc_status == 'draft'"
+                                           decoration-warning="way4tech_doc_status == 'created_draft'"
+                                           decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                            decoration-danger="way4tech_payment_status == 'unpaid'"
                                            decoration-warning="way4tech_payment_status == 'partial'"
@@ -391,8 +392,9 @@
                                         <button name="action_view_invoice" type="object"
                                                 string="View Invoice" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
-                                        <field name="state" widget="statusbar"
-                                               statusbar_visible="draft,invoice_draft,invoiced"/>
+                                        <field name="state" invisible="1"/>
+                                        <field name="way4tech_doc_status" widget="statusbar"
+                                               statusbar_visible="draft,created_draft,posted"/>
                                     </header>
                                     <div class="alert alert-warning" role="alert"
                                          invisible="state != 'invoice_draft'">
@@ -487,7 +489,7 @@
                                    invisible="unassigned_income_count == 0"
                                    context="{'default_contract_id': id}">
                                 <list editable="top" create="0"
-                                      decoration-muted="state == 'invoiced'">
+                                      decoration-muted="way4tech_doc_status == 'posted'">
                                     <!-- Bug 7 mitigation: a text column leads, so creating a
                                          row does not auto-focus a date cell and pop the
                                          picker before the user has asked for it. -->
@@ -500,9 +502,10 @@
                                     <field name="price"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
-                                    <field name="state" widget="badge"
-                                        decoration-info="state == 'draft'"
-                                        decoration-success="state == 'invoiced'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                        decoration-info="way4tech_doc_status == 'draft'"
+                                        decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                         decoration-danger="way4tech_payment_status == 'unpaid'"
                                         decoration-warning="way4tech_payment_status == 'partial'"
@@ -563,7 +566,7 @@
                             <field name="direct_cost_block_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'default_bucket': 'direct'}">
-                                <list decoration-muted="state == 'billed'">
+                                <list decoration-muted="way4tech_doc_status == 'posted'">
                                     <control>
                                         <create string="Create New Bill Block"/>
                                     </control>
@@ -575,10 +578,11 @@
                                     <field name="amount_untaxed" string="Amount" sum="Amount"/>
                                     <field name="amount_tax" string="VAT" sum="VAT"/>
                                     <field name="amount_total" string="Total" sum="Total"/>
-                                    <field name="state" widget="badge"
-                                           decoration-info="state == 'draft'"
-                                           decoration-warning="state == 'invoice_draft'"
-                                           decoration-success="state == 'billed'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                           decoration-info="way4tech_doc_status == 'draft'"
+                                           decoration-warning="way4tech_doc_status == 'created_draft'"
+                                           decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                            decoration-danger="way4tech_payment_status == 'unpaid'"
                                            decoration-warning="way4tech_payment_status == 'partial'"
@@ -613,14 +617,15 @@
                                         <button name="action_view_bill" type="object"
                                                 string="View Bill" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
-                                        <field name="state" widget="statusbar"
-                                               statusbar_visible="draft,invoice_draft,billed"/>
+                                        <field name="state" invisible="1"/>
+                                        <field name="way4tech_doc_status" widget="statusbar"
+                                               statusbar_visible="draft,created_draft,posted"/>
                                     </header>
                                     <div class="alert alert-warning" role="alert"
                                          invisible="state != 'invoice_draft'">
                                         The linked bill has been reset to draft. Open it with
                                         <strong>View Bill</strong>, correct it and post it again;
-                                        this block will return to Bill Created. To bill something
+                                        this block will return to Posted. To bill something
                                         else, cancel or delete that bill and the block is released.
                                     </div>
                                     <sheet>
@@ -672,7 +677,7 @@
                             <field name="direct_cost_unassigned_line_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'direct'}">
-                                <list editable="top" decoration-muted="state == 'billed'">
+                                <list editable="top" decoration-muted="way4tech_doc_status == 'posted'">
                                     <!-- Bug 7 mitigation: description leads so a new row
                                          does not open focused on a date cell. -->
                                     <field name="description"/>
@@ -695,10 +700,11 @@
                                     <field name="price"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
-                                    <field name="state" widget="badge"
-                                        decoration-info="state == 'draft'"
-                                        decoration-warning="state == 'invoice_draft'"
-                                        decoration-success="state == 'billed'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                        decoration-info="way4tech_doc_status == 'draft'"
+                                        decoration-warning="way4tech_doc_status == 'created_draft'"
+                                        decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                         decoration-danger="way4tech_payment_status == 'unpaid'"
                                         decoration-warning="way4tech_payment_status == 'partial'"
@@ -757,7 +763,7 @@
                             <field name="operating_exp_block_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'default_bucket': 'operating'}">
-                                <list decoration-muted="state == 'billed'">
+                                <list decoration-muted="way4tech_doc_status == 'posted'">
                                     <control>
                                         <create string="Create New Bill Block"/>
                                     </control>
@@ -769,10 +775,11 @@
                                     <field name="amount_untaxed" string="Amount" sum="Amount"/>
                                     <field name="amount_tax" string="VAT" sum="VAT"/>
                                     <field name="amount_total" string="Total" sum="Total"/>
-                                    <field name="state" widget="badge"
-                                           decoration-info="state == 'draft'"
-                                           decoration-warning="state == 'invoice_draft'"
-                                           decoration-success="state == 'billed'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                           decoration-info="way4tech_doc_status == 'draft'"
+                                           decoration-warning="way4tech_doc_status == 'created_draft'"
+                                           decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                            decoration-danger="way4tech_payment_status == 'unpaid'"
                                            decoration-warning="way4tech_payment_status == 'partial'"
@@ -807,14 +814,15 @@
                                         <button name="action_view_bill" type="object"
                                                 string="View Bill" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
-                                        <field name="state" widget="statusbar"
-                                               statusbar_visible="draft,invoice_draft,billed"/>
+                                        <field name="state" invisible="1"/>
+                                        <field name="way4tech_doc_status" widget="statusbar"
+                                               statusbar_visible="draft,created_draft,posted"/>
                                     </header>
                                     <div class="alert alert-warning" role="alert"
                                          invisible="state != 'invoice_draft'">
                                         The linked bill has been reset to draft. Open it with
                                         <strong>View Bill</strong>, correct it and post it again;
-                                        this block will return to Bill Created. To bill something
+                                        this block will return to Posted. To bill something
                                         else, cancel or delete that bill and the block is released.
                                     </div>
                                     <sheet>
@@ -866,7 +874,7 @@
                             <field name="operating_exp_unassigned_line_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id, 'category_bucket_default': 'operating'}">
-                                <list editable="top" decoration-muted="state == 'billed'">
+                                <list editable="top" decoration-muted="way4tech_doc_status == 'posted'">
                                     <field name="date" string="Accounting Date" widget="date"/>
                                     <field name="bill_date" widget="date"/>
                                     <field name="category_id"
@@ -883,10 +891,11 @@
                                     <field name="price"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
-                                    <field name="state" widget="badge"
-                                        decoration-info="state == 'draft'"
-                                        decoration-warning="state == 'invoice_draft'"
-                                        decoration-success="state == 'billed'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                        decoration-info="way4tech_doc_status == 'draft'"
+                                        decoration-warning="way4tech_doc_status == 'created_draft'"
+                                        decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                         decoration-danger="way4tech_payment_status == 'unpaid'"
                                         decoration-warning="way4tech_payment_status == 'partial'"
@@ -932,7 +941,7 @@
                             <field name="other_payable_block_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
-                                <list decoration-muted="state == 'posted'">
+                                <list decoration-muted="way4tech_doc_status == 'posted'">
                                     <control>
                                         <create string="Create New Other Payable Block"/>
                                     </control>
@@ -941,9 +950,10 @@
                                     <field name="date" widget="date"/>
                                     <field name="line_count" string="Lines"/>
                                     <field name="amount_total" string="Total" sum="Total"/>
-                                    <field name="state" widget="badge"
-                                           decoration-info="state == 'draft'"
-                                           decoration-success="state == 'posted'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                           decoration-info="way4tech_doc_status == 'draft'"
+                                           decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                            decoration-danger="way4tech_payment_status == 'unpaid'"
                                            decoration-warning="way4tech_payment_status == 'partial'"
@@ -974,7 +984,8 @@
                                         <button name="action_view_move" type="object"
                                                 string="View Entry" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
-                                        <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                                        <field name="state" invisible="1"/>
+                                        <field name="way4tech_doc_status" widget="statusbar" statusbar_visible="draft,created_draft,posted"/>
                                     </header>
                                     <sheet>
                                         <div class="oe_title"><h2><field name="name" readonly="1" nolabel="1"/></h2></div>
@@ -1013,7 +1024,7 @@
                             <field name="other_payable_unassigned_line_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
-                                <list editable="top" decoration-muted="state == 'posted'">
+                                <list editable="top" decoration-muted="way4tech_doc_status == 'posted'">
                                     <field name="date" widget="date"/>
                                     <field name="category_id"/>
                                     <field name="description"/>
@@ -1022,9 +1033,10 @@
                                            help="Expense (debit) account, auto-filled from the category map. Editable."/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
-                                    <field name="state" widget="badge"
-                                        decoration-info="state == 'draft'"
-                                        decoration-success="state == 'posted'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                        decoration-info="way4tech_doc_status == 'draft'"
+                                        decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                         decoration-danger="way4tech_payment_status == 'unpaid'"
                                         decoration-warning="way4tech_payment_status == 'partial'"
@@ -1072,7 +1084,7 @@
                             <field name="timesheet_block_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
-                                <list decoration-muted="state == 'invoiced'">
+                                <list decoration-muted="way4tech_doc_status == 'posted'">
                                     <control>
                                         <create string="Create New Invoice"/>
                                     </control>
@@ -1083,10 +1095,11 @@
                                     <field name="amount_untaxed" string="Amount" sum="Amount"/>
                                     <field name="amount_tax" string="VAT" sum="VAT"/>
                                     <field name="amount_total" string="Total" sum="Total"/>
-                                    <field name="state" widget="badge"
-                                           decoration-info="state == 'draft'"
-                                           decoration-warning="state == 'invoice_draft'"
-                                           decoration-success="state == 'invoiced'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                           decoration-info="way4tech_doc_status == 'draft'"
+                                           decoration-warning="way4tech_doc_status == 'created_draft'"
+                                           decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                            decoration-danger="way4tech_payment_status == 'unpaid'"
                                            decoration-warning="way4tech_payment_status == 'partial'"
@@ -1121,8 +1134,9 @@
                                         <button name="action_view_invoice" type="object"
                                                 string="View Invoice" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
-                                        <field name="state" widget="statusbar"
-                                               statusbar_visible="draft,invoice_draft,invoiced"/>
+                                        <field name="state" invisible="1"/>
+                                        <field name="way4tech_doc_status" widget="statusbar"
+                                               statusbar_visible="draft,created_draft,posted"/>
                                     </header>
                                     <sheet>
                                         <div class="oe_title">
@@ -1176,7 +1190,7 @@
                             <field name="unassigned_timesheet_ids"
                                    readonly="state in ('completed', 'cancelled')"
                                    context="{'default_contract_id': id}">
-                                <list editable="top" decoration-muted="state == 'invoiced'">
+                                <list editable="top" decoration-muted="way4tech_doc_status == 'posted'">
                                     <!-- Way 2: single date -->
                                     <field name="date" widget="date"/>
                                     <!-- Way 1: range. Cross-readonly attrs were removed
@@ -1218,9 +1232,10 @@
                                     <field name="tag_ids" widget="many2many_tags" optional="show"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
-                                    <field name="state" widget="badge"
-                                        decoration-info="state == 'draft'"
-                                        decoration-success="state == 'invoiced'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                        decoration-info="way4tech_doc_status == 'draft'"
+                                        decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="way4tech_payment_status" widget="badge" string="Payment" optional="show"
                                         decoration-danger="way4tech_payment_status == 'unpaid'"
                                         decoration-warning="way4tech_payment_status == 'partial'"
@@ -1308,7 +1323,7 @@
                             <field name="commission_line_ids"
                                    readonly="state in ('cancelled', 'completed')"
                                    context="{'default_contract_id': id}">
-                                <list editable="top" decoration-muted="state == 'billed'">
+                                <list editable="top" decoration-muted="way4tech_doc_status == 'posted'">
                                     <!-- bill_month removed from list (2026-07-18 v11.0):
                                          same picker-loop mitigation as inv_month/month. -->
                                     <field name="date" string="Accounting Date" widget="date"/>
@@ -1321,9 +1336,10 @@
                                            help="GL expense account for this commission. Auto-filled from Payroll &amp; Accounting Setup → Sales Person Commission Rules."/>
                                     <field name="amount" sum="Total"/>
                                     <field name="attachment_count" string="Files" optional="show"/>
-                                    <field name="state" widget="badge"
-                                        decoration-info="state == 'draft'"
-                                        decoration-success="state == 'billed'"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="way4tech_doc_status" widget="badge"
+                                        decoration-info="way4tech_doc_status == 'draft'"
+                                        decoration-success="way4tech_doc_status == 'posted'"/>
                                     <field name="approval_label" string="Approval" optional="show"
                                            decoration-warning="approval_state == 'pending'"
                                            decoration-success="approval_state == 'approved'"

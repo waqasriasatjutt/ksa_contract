@@ -97,6 +97,48 @@ class Way4TechManpowerDocLineMixin(models.AbstractModel):
             else:
                 rec.way4tech_payment_status = False
 
+    # ── ITEM 1 (2026-08): the document's LIVE Accounting status ───────────
+    # A single, purely-informational status the contract tabs show in place of
+    # the raw internal state, so the label always matches what Accounting is
+    # actually showing for the generated document:
+    #   Draft          — no invoice/bill/entry created yet
+    #   Created Draft  — the document was created but is still DRAFT in
+    #                    Accounting (nothing confirmed/posted). This is the fix
+    #                    for "shows Bill Created while the bill is still draft".
+    #   Posted         — the document is posted/confirmed in Accounting (the
+    #                    exact word core Accounting uses for account.move).
+    # It is COMPUTED, NOT stored, and reads the move's live state on every read,
+    # so a reset-to-draft in Accounting reverts it to Created Draft for EVERY
+    # document type automatically (this is the ITEM 2 fix for Other Payable).
+    # Because it is a read-only computed display field, it can NEVER block a
+    # delete, edit or any other action — it is informational only.
+    way4tech_doc_status = fields.Selection(
+        [('draft', 'Draft'),
+         ('created_draft', 'Created Draft'),
+         ('posted', 'Posted')],
+        string='Status', compute='_compute_way4tech_doc_status',
+        help='Live Accounting status of the document created from this line — '
+             'Draft (none yet), Created Draft (created but still draft in '
+             'Accounting), or Posted (confirmed/posted). Informational only; '
+             'it never affects delete or any other action.',
+    )
+
+    @api.depends(lambda self: [
+        '%s.state' % f for f in ('invoice_id', 'bill_id', 'move_id')
+        if f in self._fields
+    ])
+    def _compute_way4tech_doc_status(self):
+        for rec in self:
+            move = rec._way4tech_document()
+            if not move or move.state == 'cancel':
+                # No document, or it was cancelled (link is released) — back to
+                # the pre-creation state.
+                rec.way4tech_doc_status = 'draft'
+            elif move.state == 'posted':
+                rec.way4tech_doc_status = 'posted'
+            else:  # account.move draft
+                rec.way4tech_doc_status = 'created_draft'
+
     def action_download_document(self):
         """CR5 item 2b — download THIS line's document as a correct, complete
         PDF. Returns the proper report for that document type, for that single

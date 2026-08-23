@@ -90,8 +90,13 @@ class AccountMoveWay4TechSync(models.Model):
         the row becomes actionable again and its button reverts.
         """
         for move in self:
+            # ITEM 2 (2026-08): 'entry' added so a RESET-to-draft on an Other
+            # Payable journal entry flows back to its contract row (it was
+            # skipped here before, leaving the row stuck at 'posted'). The
+            # per-model `allowed` set below still scopes each row model to its
+            # own move type, so invoices/bills are unaffected.
             if move.move_type not in ('out_invoice', 'out_refund',
-                                      'in_invoice', 'in_refund'):
+                                      'in_invoice', 'in_refund', 'entry'):
                 continue
             for model_name, fk_field, draft_state, done_state, allowed in _SOURCE_LINE_MAP:
                 if move.move_type not in allowed:
@@ -113,10 +118,14 @@ class AccountMoveWay4TechSync(models.Model):
                 elif move.state == 'cancel':
                     vals = {'state': draft_state, fk_field: False}
                 else:  # draft — keep the link
-                    has_mid = 'invoice_draft' in dict(
-                        rows._fields['state'].selection,
-                    )
-                    vals = {'state': 'invoice_draft' if has_mid else done_state}
+                    # Prefer the model's dedicated middle state ('invoice_draft'
+                    # on the bill/invoice tabs, 'created_draft' on Other Payable);
+                    # models without one just hold their done state.
+                    sel = dict(rows._fields['state'].selection)
+                    mid = ('invoice_draft' if 'invoice_draft' in sel
+                           else ('created_draft' if 'created_draft' in sel
+                                 else None))
+                    vals = {'state': mid or done_state}
                 stale = rows.filtered(
                     lambda r: any(r[k] != v for k, v in vals.items())
                 )
