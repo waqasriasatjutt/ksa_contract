@@ -55,6 +55,20 @@ class AccountMoveLine(models.Model):
         store=True,
         readonly=False,
     )
+    # Alzain Fix 2 (2026-08): back-reference from an invoice line to the
+    # Manpower Invoice Block income line that owns it. Set only on lines the
+    # block manages. Needed for the two-way DRAFT sync: after an income row is
+    # removed from the wizard its forward pin (income_line.invoice_line_id) is
+    # gone, so this back-pin is the only way to know which invoice line to
+    # delete — and, the other way, which invoice lines already have a wizard
+    # row (so a line added in Accounting spawns exactly one new row).
+    # ondelete='set null' so deleting the wizard row never cascades to the
+    # invoice line; copy=False so a duplicated invoice does not carry the pin.
+    way4tech_income_line_id = fields.Many2one(
+        "way4tech.manpower.contract.income.line",
+        string="Source Income Line",
+        index=True, copy=False, ondelete="set null",
+    )
 
     @api.depends("move_id.way4tech_tag_ids")
     def _compute_way4tech_line_tags(self):
@@ -67,3 +81,24 @@ class AccountMoveLine(models.Model):
         for line in self:
             if line.move_id:
                 line.move_id.way4tech_tag_ids = line.way4tech_tag_ids
+
+    def unlink(self):
+        """Alzain Fix 2 (2026-08): when a block-owned invoice line is deleted in
+        Accounting while the invoice is still DRAFT, remove its Manpower Invoice
+        Block wizard row too, so the wizard mirrors the deletion. Guarded so the
+        block→invoice reconcile (which deletes owned lines itself) does not try
+        to double-remove an already-gone row."""
+        if not self.env.context.get("way4tech_block_syncing"):
+            rows = self.env["way4tech.manpower.contract.income.line"].sudo().search(
+                [("invoice_line_id", "in", self.ids)]
+            )
+            rows = rows.filtered(
+                lambda r: r.invoice_block_id and r.invoice_id
+                and r.invoice_id.state == "draft"
+            )
+            if rows:
+                rows.with_context(
+                    way4tech_block_syncing=True,
+                    way4tech_skip_move_sync=True,
+                ).unlink()
+        return super().unlink()

@@ -398,12 +398,17 @@
                                     </header>
                                     <div class="alert alert-warning" role="alert"
                                          invisible="state != 'invoice_draft'">
-                                        The linked invoice has been reset to draft. Open it
-                                        with <strong>View Invoice</strong>, correct it and
-                                        confirm it again — this block will return to
-                                        Invoiced. To bill something different instead,
-                                        cancel or delete that invoice and this block is
-                                        released.
+                                        The linked invoice is in <strong>draft</strong>. You
+                                        can edit the lines below <em>or</em> on the invoice
+                                        itself (<strong>View Invoice</strong>) — adding,
+                                        editing, removing and re-ordering rows syncs both
+                                        ways. For a <strong>note</strong>, a
+                                        <strong>section</strong> heading, or picking from the
+                                        <strong>Catalog</strong>, use View Invoice. When
+                                        you are done, confirm the invoice again and this block
+                                        returns to Invoiced. To bill something different
+                                        instead, cancel or delete that invoice and this block
+                                        is released.
                                     </div>
                                     <sheet>
                                         <div class="oe_title">
@@ -429,12 +434,17 @@
                                                 <field name="currency_id" invisible="1"/>
                                             </group>
                                         </group>
-                                        <field name="line_ids" readonly="state != 'draft'"
+                                        <field name="line_ids"
+                                               readonly="state not in ('draft', 'invoice_draft')"
                                                context="{'default_contract_id': parent.id}">
                                             <list editable="bottom">
                                                 <!-- CR3-FINAL round 2, polish 12: drag handle,
                                                      so the order typed here is the order the
-                                                     invoice prints in. -->
+                                                     invoice prints in. Alzain Fix 2 (2026-08):
+                                                     editable in 'invoice_draft' too — while the
+                                                     linked invoice is draft, add/edit/remove/
+                                                     re-order here syncs to the invoice both
+                                                     ways. -->
                                                 <field name="sequence" widget="handle"/>
                                                 <!-- CR4 item 5: product (optional column). No
                                                      account/tax effect. Prints above the

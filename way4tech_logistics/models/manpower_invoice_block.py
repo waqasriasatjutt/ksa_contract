@@ -201,24 +201,11 @@ class Way4TechManpowerInvoiceBlock(models.Model):
         # backwards). sequence-then-id is the order shown in the block grid.
         source_lines = self.line_ids.sorted(lambda l: (l.sequence, l.id))
         invoice_lines = []
+        seq = 10
         for line in source_lines:
-            sale_account = line.sale_account_id or settings.manpower_income_account_id
-            if not sale_account:
-                raise UserError(_(
-                    'Line "%s" has no Sale Account, and no Manpower Income '
-                    'Account is set in Payroll & Accounting Setup.'
-                ) % (line.description or ''))
-            line_vals = {
-                # CR4 item 5c: product name above the description on the invoice.
-                'name': line._way4tech_invoice_line_name(),
-                'quantity': line.quantity or 1.0,
-                'price_unit': line.price or 0.0,
-                'account_id': sale_account.id,
-                'tax_ids': [(6, 0, [vat_tax.id])],
-            }
-            if distribution:
-                line_vals['analytic_distribution'] = distribution
-            invoice_lines.append((0, 0, line_vals))
+            invoice_lines.append((0, 0, self._way4tech_income_line_move_vals(
+                line, settings, vat_tax, distribution, seq)))
+            seq += 10
 
         move_vals = {
             'move_type': 'out_invoice',
@@ -260,13 +247,17 @@ class Way4TechManpowerInvoiceBlock(models.Model):
         # existing CR2 G4 per-line sync-back keeps reading the right subtotal
         # on a MULTI-line invoice (reading move.amount_untaxed here would
         # attribute the whole invoice to every line).
-        created_lines = invoice.invoice_line_ids
-        for source, created in zip(self.line_ids, created_lines):
-            source.write({
-                'invoice_id': invoice.id,
-                'invoice_line_id': created.id,
-                'state': 'invoiced',
-            })
+        # Match each created invoice line to its source row by the back-pin
+        # the vals-builder stamped (way4tech_income_line_id) — robust to any
+        # line reordering account.move does, unlike a positional zip.
+        for created in invoice.invoice_line_ids:
+            source = created.way4tech_income_line_id
+            if source:
+                source.write({
+                    'invoice_id': invoice.id,
+                    'invoice_line_id': created.id,
+                    'state': 'invoiced',
+                })
         self.write({'invoice_id': invoice.id, 'state': 'invoiced'})
         contract.invoice_ids = [(4, invoice.id)]
         # Part A: the approval is spent. It unlocks nothing else, ever.
@@ -305,6 +296,119 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    # ── Alzain Fix 2 (2026-08): two-way DRAFT sync with the invoice ─────────
+    def _way4tech_income_line_move_vals(self, line, settings, vat_tax,
+                                        distribution, seq):
+        """Build the account.move.line values for ONE income row. Shared by
+        action_create_invoice and the draft two-way sync so a line born either
+        way carries the exact same account, tax, analytic, order and back-pin.
+        The back-pin (way4tech_income_line_id) is what lets the wizard and a
+        draft invoice stay reconciled when rows are added / removed / reordered.
+        """
+        self.ensure_one()
+        sale_account = line.sale_account_id or settings.manpower_income_account_id
+        if not sale_account:
+            raise UserError(_(
+                'Line "%s" has no Sale Account, and no Manpower Income '
+                'Account is set in Payroll & Accounting Setup.'
+            ) % (line.description or ''))
+        vals = {
+            # CR4 item 5c: product name above the description on the invoice.
+            'name': line._way4tech_invoice_line_name(),
+            'quantity': line.quantity or 1.0,
+            'price_unit': line.price or 0.0,
+            'account_id': sale_account.id,
+            'tax_ids': [(6, 0, [vat_tax.id])],
+            'sequence': seq,
+            'way4tech_income_line_id': line.id,
+        }
+        if distribution:
+            vals['analytic_distribution'] = distribution
+        return vals
+
+    def _way4tech_sync_block_to_invoice(self):
+        """Push the wizard's income rows onto the linked DRAFT invoice — update
+        rows still present, add rows the user typed, delete rows they removed,
+        and apply the drag-drop order. Only PRODUCT lines THIS block owns are
+        touched (matched by the back-pin); any note / section / manual line
+        added in Accounting is left exactly as it is. No-op unless the invoice
+        exists and is draft, and never re-enters the reverse sync (guarded)."""
+        self.ensure_one()
+        inv = self.invoice_id
+        if not inv or inv.state != 'draft':
+            return
+        if (self.env.context.get('way4tech_block_syncing')
+                or self.env.context.get('way4tech_skip_move_sync')):
+            return
+        contract = self.contract_id
+        settings = self.env['way4tech.payroll.settings'].get_for_company(
+            contract.company_id.id)
+        distribution = contract._resolve_analytic_distribution(settings)
+        vat_tax = self._get_sale_vat_tax()
+        if not vat_tax:
+            raise UserError(_('No 15% sales tax configured for this company.'))
+        ctx = {'way4tech_block_syncing': True, 'way4tech_skip_move_sync': True}
+        rows = self.line_ids.sorted(lambda l: (l.sequence, l.id))
+        keep_src_ids = set(rows.ids)
+        # invoice product lines this block already owns, keyed by source row id
+        owned = {
+            ml.way4tech_income_line_id.id: ml
+            for ml in inv.invoice_line_ids
+            if ml.way4tech_income_line_id and not ml.display_type
+        }
+        commands = []
+        seq = 10
+        for src in rows:
+            vals = self._way4tech_income_line_move_vals(
+                src, settings, vat_tax, distribution, seq)
+            ml = owned.get(src.id)
+            if not ml and src.invoice_line_id \
+                    and src.invoice_line_id in inv.invoice_line_ids \
+                    and not src.invoice_line_id.display_type:
+                ml = src.invoice_line_id
+            if ml:
+                commands.append((1, ml.id, vals))
+            else:
+                commands.append((0, 0, vals))   # vals carries the back-pin
+            seq += 10
+        # remove block-owned product lines whose income row was deleted
+        for ml in inv.invoice_line_ids:
+            if (ml.way4tech_income_line_id and not ml.display_type
+                    and ml.way4tech_income_line_id.id not in keep_src_ids):
+                commands.append((2, ml.id))
+        if commands:
+            inv.with_context(**ctx).write({'invoice_line_ids': commands})
+        # re-pin every row to its (possibly newly created) invoice line
+        by_src = {
+            ml.way4tech_income_line_id.id: ml
+            for ml in inv.invoice_line_ids
+            if ml.way4tech_income_line_id and not ml.display_type
+        }
+        for src in rows:
+            ml = by_src.get(src.id)
+            if ml and (src.invoice_line_id.id != ml.id
+                       or src.invoice_id.id != inv.id
+                       or src.state != 'invoiced'):
+                src.with_context(**ctx).write({
+                    'invoice_id': inv.id,
+                    'invoice_line_id': ml.id,
+                    'state': 'invoiced',
+                })
+
+    def write(self, vals):
+        """When the wizard's lines change while the invoice is still DRAFT,
+        reflect them onto the invoice. Guarded so the reverse sync never
+        bounces back here."""
+        result = super().write(vals)
+        if (self.env.context.get('way4tech_block_syncing')
+                or self.env.context.get('way4tech_skip_move_sync')):
+            return result
+        if 'line_ids' in vals:
+            for block in self:
+                if block.invoice_id and block.invoice_id.state == 'draft':
+                    block._way4tech_sync_block_to_invoice()
+        return result
 
     def unlink(self):
         """Mirror the line-level guard: a block whose invoice is POSTED can

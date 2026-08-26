@@ -34,11 +34,14 @@ own write() override.
 """
 import logging
 
-from odoo import models, api, _
+from odoo import models, api, fields, _
 
 _logger = logging.getLogger(__name__)
 
 _SYNC_SKIP_KEY = 'way4tech_skip_move_sync'
+# Alzain Fix 2 (2026-08): set while syncing a Manpower Invoice Block ↔ its draft
+# invoice, in EITHER direction, so neither side bounces the change back.
+_BLOCK_SYNC_KEY = 'way4tech_block_syncing'
 
 # Per-source-line-model mapping used by ALL hooks. Order is stable for
 # grep-ability. Each tuple: (model_name, move_fk_field, draft_state,
@@ -151,20 +154,81 @@ class AccountMoveWay4TechSync(models.Model):
         self._way4tech_sync_source_states()
         return result
 
+    # ── Alzain Fix 2 (2026-08): pull invoice edits back onto the wizard ─────
+    def _way4tech_sync_invoice_to_block(self, block):
+        """Pull this DRAFT invoice's PRODUCT-line edits (line added / edited /
+        reordered in Accounting) onto its Manpower Invoice Block wizard rows so
+        both stay in step. Deletions are handled by account.move.line.unlink.
+        Notes and sections stay on the invoice (the wizard bills product rows;
+        use View Invoice for those). Guarded against the reverse push."""
+        self.ensure_one()
+        if self.state != 'draft' or self.move_type not in ('out_invoice', 'out_refund'):
+            return
+        ctx = {_BLOCK_SYNC_KEY: True, _SYNC_SKIP_KEY: True}
+        Income = self.env['way4tech.manpower.contract.income.line']
+        contract = block.contract_id
+        default_date = block.accounting_date or fields.Date.context_today(self)
+        prod_lines = self.invoice_line_ids.filtered(
+            lambda l: not l.display_type).sorted(lambda l: (l.sequence, l.id))
+        seq = 10
+        for ml in prod_lines:
+            row = ml.way4tech_income_line_id
+            if row and row in block.line_ids:
+                row.with_context(**ctx).write({
+                    'description': ml.name or row.description,
+                    'quantity': ml.quantity or 1.0,
+                    'price': ml.price_unit,
+                    'sequence': seq,
+                })
+            else:
+                row = Income.with_context(**ctx).create({
+                    'contract_id': contract.id,
+                    'invoice_block_id': block.id,
+                    'description': ml.name or _('Line'),
+                    'quantity': ml.quantity or 1.0,
+                    'price': ml.price_unit,
+                    'sequence': seq,
+                    'accounting_date': default_date,
+                    'invoice_id': self.id,
+                    'invoice_line_id': ml.id,
+                    'state': 'invoiced',
+                })
+                ml.with_context(**ctx).way4tech_income_line_id = row.id
+            seq += 10
+
     # ── Two-way sync (item 3) ──────────────────────────────────────────────
     def write(self, vals):
         # Amendment C: capture old amount_untaxed so we only fan out when
         # it actually shifts. Cheap dict; only kept when relevant fields
-        # are being written.
+        # are being written. _BLOCK_SYNC_KEY guards the Fix-2 sync's own writes.
         _relevant = {'invoice_line_ids', 'line_ids', 'amount_untaxed', 'amount_total'}
-        do_check_diff = bool(_relevant & set(vals.keys())) and not self.env.context.get(_SYNC_SKIP_KEY)
-        old_amounts = {m.id: m.amount_untaxed for m in self} if do_check_diff else {}
+        touched = (bool(_relevant & set(vals.keys()))
+                   and not self.env.context.get(_SYNC_SKIP_KEY)
+                   and not self.env.context.get(_BLOCK_SYNC_KEY))
+        old_amounts = {m.id: m.amount_untaxed for m in self} if touched else {}
 
         result = super().write(vals)
 
-        if not do_check_diff:
+        if not touched:
             return result
+
+        # Alzain Fix 2: a DRAFT customer invoice made by a Manpower Invoice
+        # Block was edited in Accounting — mirror product-line add/edit/reorder
+        # back onto the wizard. This SUPERSEDES the per-line amount fan-out
+        # below for such moves (the pull already carries price/qty/order).
+        handled = set()
+        if 'invoice_line_ids' in vals:
+            for move in self:
+                if move.move_type in ('out_invoice', 'out_refund') and move.state == 'draft':
+                    block = self.env['way4tech.manpower.invoice.block'].sudo().search(
+                        [('invoice_id', '=', move.id)], limit=1)
+                    if block:
+                        move._way4tech_sync_invoice_to_block(block)
+                        handled.add(move.id)
+
         for move in self:
+            if move.id in handled:
+                continue
             # Amendment G: only fan out for the move_types that could
             # actually be linked to a source line.
             if move.move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'):
