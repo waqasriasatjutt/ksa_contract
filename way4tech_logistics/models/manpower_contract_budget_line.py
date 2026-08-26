@@ -129,6 +129,7 @@ class Way4TechManpowerContractBudgetLine(models.Model):
         'contract_id.project_expense_ids.state',
         'contract_id.project_expense_ids.category_id',
         'contract_id.project_expense_ids.date',
+        'contract_id.project_expense_ids.bill_id.date',
     )
     def _compute_actual_amount(self):
         """CR3-FINAL round 5, issues 1+2 — Actual = billed spend for THIS
@@ -164,12 +165,27 @@ class Way4TechManpowerContractBudgetLine(models.Model):
                 next_month = d.replace(year=d.year + 1, month=1, day=1)
             else:
                 next_month = d.replace(month=d.month + 1, day=1)
+
+            def _eff_date(e):
+                # Alzain Fix 1 (2026-08): the month a billed cost belongs to is
+                # the month its POSTED bill actually posts to the P&L — i.e. the
+                # bill's accounting date — not the expense LINE's own `date`
+                # field, which can diverge from it (e.g. an Operating-Exp bill
+                # block whose Accounting Date is Jul 1 while the line's date is
+                # left at another month). Matching on the line's date left that
+                # cost out of the July budget (Actual stayed 0). Prefer the
+                # posted bill's date; fall back to the line date when there is
+                # no posted bill.
+                if e.bill_id and e.bill_id.date:
+                    return e.bill_id.date
+                return e.date
+
             line.actual_amount = sum(
                 e.amount or 0.0
                 for e in line.contract_id.project_expense_ids
                 if e.category_id == line.category_id
                 and e.state == 'billed'
-                and e.date and month_start <= e.date < next_month
+                and _eff_date(e) and month_start <= _eff_date(e) < next_month
             )
 
     @api.depends("budget_amount", "actual_amount")

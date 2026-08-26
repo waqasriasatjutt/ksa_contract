@@ -84,20 +84,35 @@
                                          record, and without it a transient/new row throws
                                          "Cannot read properties of undefined (reading 'id')". -->
                                     <field name="currency_id" column_invisible="1"/>
+                                    <field name="has_document" column_invisible="1"/>
                                     <field name="date"/>
+                                    <!-- C1: Accounting Date + Bill Month (toggle columns). -->
+                                    <field name="way4tech_accounting_date" optional="show"/>
+                                    <field name="way4tech_bill_month" optional="show"/>
                                     <field name="full_receipt_amount" sum="Received"/>
                                     <field name="receipt_excl_vat" optional="hide"/>
+                                    <!-- C1: per-row VAT amount (with column total). -->
+                                    <field name="way4tech_vat_amount" sum="VAT" optional="show"/>
                                     <field name="commission_amount" sum="Commission"/>
                                     <field name="gross_payable" sum="Gross Payable"/>
                                     <field name="advance_recovered" optional="show"/>
                                     <field name="net_payable" sum="Net"/>
                                     <field name="bill_id" optional="show"/>
                                     <field name="voucher_number" optional="show"/>
+                                    <!-- C1: "Paid By" — the payment(s) that settled the bill. -->
+                                    <field name="way4tech_paid_by" optional="show"/>
                                     <field name="state" widget="badge"
                                         decoration-info="state == 'draft'"
                                         decoration-warning="state == 'billed'"
                                         decoration-success="state == 'voucher'"/>
                                     <field name="payment_status" optional="show"/>
+                                    <!-- C1: attachment count is ALWAYS-ON (same reliability
+                                         reasoning as M1 — an optional column a user once hid
+                                         persists hidden and reads as "missing"), plus the
+                                         attach/view dialog and a view of the generated bill. -->
+                                    <field name="attachment_count" string="Files"/>
+                                    <button name="action_open_attachments" type="object" icon="fa-paperclip" class="btn-sm btn-link" help="Attach or open supporting files for this settlement."/>
+                                    <button name="action_download_document" type="object" icon="fa-download" class="btn-sm btn-link" invisible="not has_document" help="Download the subcontractor bill created from this settlement as a PDF."/>
                                 </list>
                             </field>
                             <group class="oe_subtotal_footer">
