@@ -399,14 +399,40 @@ class Way4TechManpowerInvoiceBlock(models.Model):
     def write(self, vals):
         """When the wizard's lines change while the invoice is still DRAFT,
         reflect them onto the invoice. Guarded so the reverse sync never
-        bounces back here."""
+        bounces back here.
+
+        A row REMOVED from the wizard must delete its invoice line, but by the
+        time super() has run the row is gone and its invoice line's back-pin has
+        been nulled (ondelete='set null'), so it can no longer be identified.
+        We therefore capture those invoice lines from the (2,)/(3,) commands
+        BEFORE super() deletes the rows, then unlink them after.
+        """
+        guard = (self.env.context.get('way4tech_block_syncing')
+                 or self.env.context.get('way4tech_skip_move_sync'))
+        removed_invoice_lines = self.env['account.move.line']
+        if 'line_ids' in vals and not guard:
+            removed_ids = [
+                c[1] for c in vals['line_ids']
+                if isinstance(c, (list, tuple)) and len(c) >= 2 and c[0] in (2, 3)
+            ]
+            if removed_ids:
+                removed_invoice_lines = self.env[
+                    'way4tech.manpower.contract.income.line'
+                ].browse(removed_ids).exists().mapped('invoice_line_id')
         result = super().write(vals)
-        if (self.env.context.get('way4tech_block_syncing')
-                or self.env.context.get('way4tech_skip_move_sync')):
+        if guard:
             return result
         if 'line_ids' in vals:
             for block in self:
                 if block.invoice_id and block.invoice_id.state == 'draft':
+                    stale = removed_invoice_lines.filtered(
+                        lambda l: l.exists()
+                        and l.move_id.id == block.invoice_id.id
+                        and not l.display_type)
+                    if stale:
+                        stale.with_context(
+                            way4tech_block_syncing=True,
+                            way4tech_skip_move_sync=True).unlink()
                     block._way4tech_sync_block_to_invoice()
         return result
 
