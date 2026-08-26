@@ -355,7 +355,7 @@ class Way4TechManpowerInvoiceBlock(models.Model):
         owned = {
             ml.way4tech_income_line_id.id: ml
             for ml in inv.invoice_line_ids
-            if ml.way4tech_income_line_id and not ml.display_type
+            if ml.way4tech_income_line_id and ml.display_type in ('product', False)
         }
         commands = []
         seq = 10
@@ -365,7 +365,7 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             ml = owned.get(src.id)
             if not ml and src.invoice_line_id \
                     and src.invoice_line_id in inv.invoice_line_ids \
-                    and not src.invoice_line_id.display_type:
+                    and src.invoice_line_id.display_type in ('product', False):
                 ml = src.invoice_line_id
             if ml:
                 commands.append((1, ml.id, vals))
@@ -374,7 +374,7 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             seq += 10
         # remove block-owned product lines whose income row was deleted
         for ml in inv.invoice_line_ids:
-            if (ml.way4tech_income_line_id and not ml.display_type
+            if (ml.way4tech_income_line_id and ml.display_type in ('product', False)
                     and ml.way4tech_income_line_id.id not in keep_src_ids):
                 commands.append((2, ml.id))
         if commands:
@@ -383,7 +383,7 @@ class Way4TechManpowerInvoiceBlock(models.Model):
         by_src = {
             ml.way4tech_income_line_id.id: ml
             for ml in inv.invoice_line_ids
-            if ml.way4tech_income_line_id and not ml.display_type
+            if ml.way4tech_income_line_id and ml.display_type in ('product', False)
         }
         for src in rows:
             ml = by_src.get(src.id)
@@ -428,7 +428,7 @@ class Way4TechManpowerInvoiceBlock(models.Model):
                     stale = removed_invoice_lines.filtered(
                         lambda l: l.exists()
                         and l.move_id.id == block.invoice_id.id
-                        and not l.display_type)
+                        and l.display_type in ('product', False))
                     if stale:
                         stale.with_context(
                             way4tech_block_syncing=True,

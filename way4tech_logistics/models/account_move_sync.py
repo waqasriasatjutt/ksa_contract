@@ -169,7 +169,7 @@ class AccountMoveWay4TechSync(models.Model):
         contract = block.contract_id
         default_date = block.accounting_date or fields.Date.context_today(self)
         prod_lines = self.invoice_line_ids.filtered(
-            lambda l: not l.display_type).sorted(lambda l: (l.sequence, l.id))
+            lambda l: l.display_type in ('product', False)).sorted(lambda l: (l.sequence, l.id))
         seq = 10
         for ml in prod_lines:
             row = ml.way4tech_income_line_id
