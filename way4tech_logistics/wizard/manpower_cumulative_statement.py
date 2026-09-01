@@ -124,6 +124,12 @@ class Way4TechManpowerCumulativeWizard(models.TransientModel):
             ('start_date', '>=', self.date_from),
             ('start_date', '<=', self.date_to),
             ('state', '!=', 'cancelled'),
+            # Fixes2 (2026-08): the monthly-uniqueness rule is now
+            # company-specific, so the same client + month can exist in two
+            # companies. Scope the statement to the active company selection so
+            # two companies' contracts are never merged and summed into one
+            # client/project group.
+            ('company_id', 'in', self.env.companies.ids),
         ]
         if self.client_id:
             domain.append(('client_id', '=', self.client_id.id))

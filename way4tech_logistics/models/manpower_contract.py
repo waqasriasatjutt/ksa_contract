@@ -1120,11 +1120,22 @@ class Way4TechManpowerContract(models.Model):
     # existing contracts doesn't retroactively enforce.
     def _auto_init(self):
         res = super()._auto_init()
+        # Fixes2 (2026-08): the monthly-unique key is now COMPANY-SCOPED — two
+        # independent companies may each hold a contract for the same client +
+        # month + project. Drop the old company-agnostic index and build a new,
+        # company-scoped one. A NEW name is required: tools.create_index keys on
+        # the name, so reusing the old name would never rebuild it with the new
+        # columns. Both statements run on every -u and are idempotent (DROP IF
+        # EXISTS is a no-op after the first run; create_index skips by name).
+        self.env.cr.execute(
+            "DROP INDEX IF EXISTS way4tech_manpower_contract_month_unique_idx"
+        )
         tools.create_index(
             self.env.cr,
-            'way4tech_manpower_contract_month_unique_idx',
+            'way4tech_manpower_contract_company_month_unique_idx',
             self._table,
             [
+                'company_id',
                 'client_id',
                 'contract_month',
                 "COALESCE(way4tech_project_id, 0)",
@@ -1137,6 +1148,7 @@ class Way4TechManpowerContract(models.Model):
     # ── CR3 P1 Python-side uniqueness (nicer error than IntegrityError) ────
     @api.constrains(
         'client_id', 'contract_month', 'way4tech_project_id', 'state',
+        'company_id',
     )
     def _check_monthly_unique(self):
         for rec in self:
@@ -1147,8 +1159,11 @@ class Way4TechManpowerContract(models.Model):
                 continue
             if not rec.client_id:
                 continue
+            # Fixes2 (2026-08): company-scoped — a duplicate is only a duplicate
+            # WITHIN the same company (matches the company-scoped DB index).
             dup = self.search([
                 ('id', '!=', rec.id),
+                ('company_id', '=', rec.company_id.id),
                 ('client_id', '=', rec.client_id.id),
                 ('contract_month', '=', rec.contract_month),
                 ('way4tech_project_id', '=', rec.way4tech_project_id.id or False),
@@ -1156,32 +1171,33 @@ class Way4TechManpowerContract(models.Model):
             ], limit=1)
             if dup:
                 raise ValidationError(_(
-                    'A monthly contract already exists for this client + '
-                    'month + project — %(dup)s.\n\n'
-                    'One record = one client-month-project. If you need a '
-                    'second contract for the same slot, cancel the existing '
+                    'A monthly contract already exists in this company for this '
+                    'client + month + project — %(dup)s.\n\n'
+                    'One record = one company-client-month-project. If you need '
+                    'a second contract for the same slot, cancel the existing '
                     'one first, or pick a different Start Date, '
                     'Client, or Project.'
                 ) % {'dup': dup.display_name or dup.reference or dup.id})
 
-    # ── Item 6 (2026-08): friendly monthly-unique message, matching the DB
-    # index EXACTLY (incl. its GLOBAL, company-agnostic scope) ───────────────
+    # ── Item 6 (2026-08) / Fixes2 (2026-08): friendly monthly-unique message,
+    # matching the DB index EXACTLY — now COMPANY-SCOPED ─────────────────────
     def _way4tech_monthly_blocker(self):
-        """The active/completed contract that already holds this record's
-        monthly-unique key (client + month + project), matching the partial
-        unique index way4tech_manpower_contract_month_unique_idx exactly.
+        """The active/completed contract IN THE SAME COMPANY that already holds
+        this record's monthly-unique key (company + client + month + project),
+        matching the partial unique index
+        way4tech_manpower_contract_company_month_unique_idx exactly.
 
-        Uses sudo() ON PURPOSE: that index has NO company_id, so it blocks
-        globally across companies, but the multi-company record rule hides a
-        blocker in another company from an ordinary search() — which is why the
-        user saw the raw DB error with the client group showing "(0)" and the
-        earlier friendly message never fired. sudo() makes this lookup see what
-        the index sees. Read-only; returns the blocker or an empty recordset."""
+        Keeps sudo(): the company filter already limits the result to this
+        record's own company, but a custom record rule could still hide a
+        sibling contract from a restricted user, and we want the friendly
+        UserError to fire ahead of the raw IntegrityError. Read-only; returns
+        the blocker or an empty recordset."""
         self.ensure_one()
         if not (self.contract_month and self.client_id):
             return self.browse()
         return self.sudo().search([
             ('id', '!=', self.id),
+            ('company_id', '=', self.company_id.id),
             ('client_id', '=', self.client_id.id),
             ('contract_month', '=', self.contract_month),
             ('way4tech_project_id', '=', self.way4tech_project_id.id or False),
@@ -1189,31 +1205,28 @@ class Way4TechManpowerContract(models.Model):
         ], limit=1)
 
     def _way4tech_assert_monthly_free(self):
-        """Raise a clear, actionable message naming the blocking contract (and
-        its company, since it may be one the user cannot currently see) BEFORE
-        the raw DB unique-index error. The key includes Project, so the only
-        genuine way to keep a SEPARATE contract in the same client-month is a
-        distinct Project — the message says so; renaming alone will not work."""
+        """Raise a clear, actionable message naming the blocking contract BEFORE
+        the raw DB unique-index error. Fixes2 (2026-08): the key is now
+        company-scoped, so the blocker is always in THIS company. The key
+        includes Project, so the only genuine way to keep a SEPARATE contract in
+        the same company-client-month is a distinct Project — the message says
+        so; renaming alone will not work."""
         self.ensure_one()
         dup = self._way4tech_monthly_blocker()
         if not dup:
             return
-        same_company = dup.company_id and dup.company_id == self.company_id
-        where = '' if same_company else (_(' (in company "%s")') % (
-            dup.company_id.name or _('another company')))
         raise UserError(_(
-            'A contract for this client and month already exists: '
-            '"%(dup)s" (%(ref)s)%(where)s.\n\n'
+            'A contract for this client and month already exists in this '
+            'company: "%(dup)s" (%(ref)s).\n\n'
             'Open that contract instead of creating a new one. If you '
             'genuinely need a SEPARATE contract for the same client and the '
             'same month, set a different Project on this one first — the '
-            'monthly uniqueness rule is per client + month + project, so a '
-            'distinct Project makes it a genuinely separate record. Renaming '
-            'alone is not enough.'
+            'monthly uniqueness rule is per company + client + month + project, '
+            'so a distinct Project makes it a genuinely separate record. '
+            'Renaming alone is not enough.'
         ) % {
             'dup': dup.display_name,
             'ref': dup.reference or dup.id,
-            'where': where,
         })
 
     # ── Auto-name builder — single source of truth ──────────────────────────
