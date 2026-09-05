@@ -178,6 +178,9 @@ class AccountMoveWay4TechSync(models.Model):
                     'description': ml.name or row.description,
                     'quantity': ml.quantity or 1.0,
                     'price': ml.price_unit,
+                    # Fixes4 item 3 (2026-09): per-line VAT syncs back too, so a
+                    # tax changed on the invoice shows on the wizard row.
+                    'tax_ids': [(6, 0, ml.tax_ids.ids)],
                     'sequence': seq,
                 })
             else:
@@ -187,6 +190,7 @@ class AccountMoveWay4TechSync(models.Model):
                     'description': ml.name or _('Line'),
                     'quantity': ml.quantity or 1.0,
                     'price': ml.price_unit,
+                    'tax_ids': [(6, 0, ml.tax_ids.ids)],
                     'sequence': seq,
                     'accounting_date': default_date,
                     'invoice_id': self.id,

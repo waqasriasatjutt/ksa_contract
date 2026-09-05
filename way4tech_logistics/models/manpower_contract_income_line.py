@@ -97,6 +97,38 @@ class Way4TechManpowerContractIncomeLine(models.Model):
                 contract.company_id.id,
             )
             line.sale_account_id = settings.manpower_income_account_id or False
+
+    # Fixes4 item 3 (2026-09): PER-LINE VAT. The block used to force ONE 15%
+    # rate onto every line it generated; the client needs mixed rates on a
+    # single invoice (line 1 = 15%, line 2 = none, line 3 = 15%). Stored compute
+    # with readonly=False, same pattern as sale_account_id above: a row created
+    # any way (UI, block, import, code) defaults to the company's 15% sale VAT,
+    # and the user can change it or CLEAR it — cleared means genuinely no VAT on
+    # that line. Because it is a stored compute, existing rows are back-filled
+    # with the 15% default on upgrade, so nothing changes for current invoices.
+    tax_ids = fields.Many2many(
+        "account.tax", string="Taxes",
+        domain="[('type_tax_use', '=', 'sale'), ('company_id', '=', company_id)]",
+        compute="_compute_tax_ids", store=True, readonly=False,
+        help="VAT applied to THIS line on the generated invoice. Leave empty "
+             "for a line that carries no VAT.",
+    )
+
+    @api.depends("contract_id")
+    def _compute_tax_ids(self):
+        for line in self:
+            if line.tax_ids:
+                continue          # never overwrite an explicit choice
+            contract = line.contract_id
+            if not contract:
+                continue
+            line.tax_ids = self.env["account.tax"].search([
+                ("type_tax_use", "=", "sale"),
+                ("amount_type", "=", "percent"),
+                ("amount", "=", 15.0),
+                ("company_id", "=", contract.company_id.id),
+            ], limit=1)
+
     # CR3-FINAL round 4, item 8: explicit 2-decimal display. Without digits a
     # Float renders at the generic precision, so the block grid showed
     # 2.000000 / 1,000.000000.
@@ -200,21 +232,16 @@ class Way4TechManpowerContractIncomeLine(models.Model):
                     "No sale account configured. Set one on the income line OR set "
                     "'Manpower Income Account' in Payroll & Accounting Setup."
                 ))
-            vat_tax = self.env["account.tax"].search([
-                ("type_tax_use", "=", "sale"),
-                ("amount_type", "=", "percent"),
-                ("amount", "=", 15.0),
-                ("company_id", "=", contract.company_id.id),
-            ], limit=1)
-            if not vat_tax:
-                raise UserError(_("No 15% sales tax configured for this company."))
-
+            # Fixes4 item 3 (2026-09): VAT now comes from the LINE's own Taxes
+            # (defaulted to the company's 15% sale VAT by _compute_tax_ids), not
+            # one hard-coded rate. An empty tax set is a valid, deliberate
+            # "no VAT on this line".
             line_vals = {
                 "name": line._way4tech_invoice_line_name(),
                 "quantity": line.quantity or 1.0,
                 "price_unit": line.price or 0.0,
                 "account_id": sale_account.id,
-                "tax_ids": [(6, 0, [vat_tax.id])],
+                "tax_ids": [(6, 0, line.tax_ids.ids)],
             }
             if distribution:
                 line_vals["analytic_distribution"] = distribution

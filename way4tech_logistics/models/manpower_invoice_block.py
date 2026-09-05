@@ -136,20 +136,28 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             ('company_id', '=', company.id),
         ], limit=1)
 
-    @api.depends('line_ids', 'line_ids.amount', 'contract_id.company_id')
+    @api.depends('line_ids', 'line_ids.amount', 'line_ids.tax_ids',
+                 'contract_id.company_id')
     def _compute_totals(self):
         for block in self:
             block.line_count = len(block.line_ids)
             untaxed = sum(block.line_ids.mapped('amount'))
             block.amount_untaxed = untaxed
-            # Compute VAT through the tax record rather than hard-coding 15%,
-            # so the preview matches whatever the invoice will actually post.
-            tax = block._get_sale_vat_tax()
-            if tax and untaxed:
-                block.amount_tax = tax.amount / 100.0 * untaxed
-            else:
-                block.amount_tax = 0.0
-            block.amount_total = untaxed + block.amount_tax
+            # Fixes4 item 3 (2026-09): VAT is PER LINE now, so total each line's
+            # own taxes instead of applying one rate to the whole block. Using
+            # compute_all keeps this preview exactly equal to what the invoice
+            # posts (mixed rates, no-VAT lines, price-included taxes).
+            currency = block.currency_id or block.contract_id.company_id.currency_id
+            tax_total = 0.0
+            for line in block.line_ids:
+                if not line.tax_ids:
+                    continue
+                res = line.tax_ids.compute_all(
+                    line.amount or 0.0, currency=currency or None, quantity=1.0)
+                tax_total += (res.get('total_included', 0.0)
+                              - res.get('total_excluded', 0.0))
+            block.amount_tax = tax_total
+            block.amount_total = untaxed + tax_total
 
     # ── Actions ───────────────────────────────────────────────────────────
     def action_create_invoice(self):
@@ -297,6 +305,42 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             'target': 'current',
         }
 
+    # ── Fixes4 item 1 (2026-09): the same native Accounting invoice actions,
+    # available from this wizard, operating on THIS block's invoice ─────────
+    # These are deliberately THIN PROXIES: they call the very same account.move
+    # methods the core Accounting invoice form calls, so the dialogs (Credit
+    # Note reason / journal / reversal date / Reverse / Reverse and Create
+    # Invoice, and Debit Note) and every accounting effect behind them are
+    # identical to core. Nothing in core Credit/Debit Note is changed or
+    # duplicated — this only surfaces the existing actions here for convenience.
+    def _way4tech_invoice_for_action(self):
+        """The invoice these actions operate on (the one shown in this block)."""
+        self.ensure_one()
+        if not self.invoice_id:
+            raise UserError(_('This block has not been invoiced yet.'))
+        return self.invoice_id
+
+    def action_way4tech_credit_note(self):
+        """Open core Accounting's own Credit Note (reversal) dialog."""
+        return self._way4tech_invoice_for_action().action_reverse()
+
+    def action_way4tech_debit_note(self):
+        """Open core Accounting's own Debit Note dialog."""
+        move = self._way4tech_invoice_for_action()
+        if not hasattr(move, 'action_debit_note'):
+            raise UserError(_(
+                'The Debit Note app is not installed on this database, so that '
+                'dialog is not available. Install "Debit Notes" '
+                '(account_debit_note) to enable it.'))
+        return move.action_debit_note()
+
+    def action_way4tech_reset_to_draft(self):
+        """Reset the linked invoice to draft, exactly as Accounting's own Reset
+        to Draft does. The block follows to "Invoice in Draft" through the
+        existing state sync, and its lines re-open for editing."""
+        self._way4tech_invoice_for_action().button_draft()
+        return True
+
     # ── Alzain Fix 2 (2026-08): two-way DRAFT sync with the invoice ─────────
     def _way4tech_income_line_move_vals(self, line, settings, vat_tax,
                                         distribution, seq):
@@ -319,7 +363,10 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             'quantity': line.quantity or 1.0,
             'price_unit': line.price or 0.0,
             'account_id': sale_account.id,
-            'tax_ids': [(6, 0, [vat_tax.id])],
+            # Fixes4 item 3 (2026-09): per-line VAT — take the taxes from the
+            # LINE (defaulted to the company 15% sale VAT) instead of forcing
+            # one rate onto every line. Empty = a deliberate no-VAT line.
+            'tax_ids': [(6, 0, line.tax_ids.ids)],
             'sequence': seq,
             'way4tech_income_line_id': line.id,
         }

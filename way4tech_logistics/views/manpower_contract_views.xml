@@ -392,6 +392,21 @@
                                         <button name="action_view_invoice" type="object"
                                                 string="View Invoice" class="btn-secondary"
                                                 invisible="state == 'draft'"/>
+                                        <!-- Fixes4 item 1 (2026-09): the same native Accounting
+                                             actions, on this block's invoice, immediately to the
+                                             right of View Invoice. They call core's own methods,
+                                             so the dialogs and all the accounting behind them are
+                                             identical to Accounting. Shown once the invoice is
+                                             posted, which is what these three act on. -->
+                                        <button name="action_way4tech_credit_note" type="object"
+                                                string="Credit Note" class="btn-secondary"
+                                                invisible="state != 'invoiced'"/>
+                                        <button name="action_way4tech_debit_note" type="object"
+                                                string="Debit Note" class="btn-secondary"
+                                                invisible="state != 'invoiced'"/>
+                                        <button name="action_way4tech_reset_to_draft" type="object"
+                                                string="Reset to Draft" class="btn-secondary"
+                                                invisible="state != 'invoiced'"/>
                                         <field name="state" invisible="1"/>
                                         <field name="way4tech_doc_status" widget="statusbar"
                                                statusbar_visible="draft,created_draft,posted"/>
@@ -462,6 +477,12 @@
                                                 <field name="tag_ids" widget="many2many_tags"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
+                                                <!-- Fixes4 item 3 (2026-09): per-line VAT, so one
+                                                     invoice can mix 15% and no-VAT lines. Defaults
+                                                     to the company's 15% sale VAT; clear it on a
+                                                     line that carries no VAT. -->
+                                                <field name="tax_ids" widget="many2many_tags"
+                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="accounting_date" widget="date"
                                                        optional="hide"/>
@@ -670,6 +691,12 @@
                                                 <field name="account_id"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
+                                                <!-- Fixes4 item 3 (2026-09): per-line VAT, so one
+                                                     invoice can mix 15% and no-VAT lines. Defaults
+                                                     to the company's 15% sale VAT; clear it on a
+                                                     line that carries no VAT. -->
+                                                <field name="tax_ids" widget="many2many_tags"
+                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
@@ -867,6 +894,12 @@
                                                 <field name="account_id"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
+                                                <!-- Fixes4 item 3 (2026-09): per-line VAT, so one
+                                                     invoice can mix 15% and no-VAT lines. Defaults
+                                                     to the company's 15% sale VAT; clear it on a
+                                                     line that carries no VAT. -->
+                                                <field name="tax_ids" widget="many2many_tags"
+                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
