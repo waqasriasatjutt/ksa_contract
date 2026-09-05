@@ -5,6 +5,14 @@
     <record id="view_commission_settlement_form" model="ir.ui.view">
         <field name="name">way4tech.commission.settlement.form</field>
         <field name="model">way4tech.commission.settlement</field>
+        <!-- Fixes5 (2026-09): this rich 2-tab settlement form MUST be the model
+             default. The paperclip attach dialog (view_commission_settlement_attach_form)
+             shares this model with no priority, and ir.ui.view orders by
+             (priority, name) — "...attach.form" sorts before "...form", so once
+             the attach form was re-added it silently became the default and the
+             Settlements o2m opened the simple attach modal instead of this flow.
+             An explicit low priority pins this as the unambiguous default. -->
+        <field name="priority">1</field>
         <field name="arch" type="xml">
             <form string="Settlement">
                 <header>

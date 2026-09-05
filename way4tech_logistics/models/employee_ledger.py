@@ -169,10 +169,18 @@ class EmployeeDeduction(models.Model):
     @api.depends('employee_id')
     def _compute_partner_id(self):
         for rec in self:
-            if rec.employee_id and rec.employee_id.address_home_id:
-                rec.partner_id = rec.employee_id.address_home_id
-            elif rec.employee_id and rec.employee_id.user_id and rec.employee_id.user_id.partner_id:
-                rec.partner_id = rec.employee_id.user_id.partner_id
+            emp = rec.employee_id
+            # Fixes4 item 5 (2026-09): hr.employee.address_home_id was removed in
+            # Odoo 17+, so the old reference raised AttributeError and broke
+            # creating/editing every Employee Advance/Deduction (and with it the
+            # outstanding-balance ledger that Salary Import's "Fill from Ledger"
+            # reads). Resolve the partner the O19-safe way the rest of the module
+            # already uses — the employee work contact, then the user partner —
+            # all guarded.
+            if emp and getattr(emp, 'work_contact_id', False):
+                rec.partner_id = emp.work_contact_id
+            elif emp and emp.user_id and emp.user_id.partner_id:
+                rec.partner_id = emp.user_id.partner_id
             elif not rec.partner_id:
                 rec.partner_id = False
 
