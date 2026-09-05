@@ -691,12 +691,6 @@
                                                 <field name="account_id"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
-                                                <!-- Fixes4 item 3 (2026-09): per-line VAT, so one
-                                                     invoice can mix 15% and no-VAT lines. Defaults
-                                                     to the company's 15% sale VAT; clear it on a
-                                                     line that carries no VAT. -->
-                                                <field name="tax_ids" widget="many2many_tags"
-                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
@@ -894,12 +888,6 @@
                                                 <field name="account_id"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
-                                                <!-- Fixes4 item 3 (2026-09): per-line VAT, so one
-                                                     invoice can mix 15% and no-VAT lines. Defaults
-                                                     to the company's 15% sale VAT; clear it on a
-                                                     line that carries no VAT. -->
-                                                <field name="tax_ids" widget="many2many_tags"
-                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
