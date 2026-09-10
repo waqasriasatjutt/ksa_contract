@@ -394,6 +394,30 @@ class CommissionSettlement(models.Model):
                     'or reverse those documents in Accounting first.'
                 ) % ', '.join(blockers))
 
+    # ── Fixes6 item 4 (2026-09): detect an untouched, empty settlement ────
+    def _way4tech_is_pristine_empty(self):
+        """True when this settlement holds nothing at all.
+
+        Opening the invoice picker is a BUTTON on the settlement, and Odoo saves
+        a record before it can run a button — so clicking "Select Client
+        Invoices" on a brand-new row commits an empty settlement. Cancelling the
+        picker then left that empty shell behind as a ghost line. This tells the
+        picker's Cancel whether the row is safe to remove again: only a draft
+        with no invoices allocated, no money on it and no document of any kind
+        counts as pristine. Anything carrying real content is never touched.
+        """
+        self.ensure_one()
+        if self.state != 'draft':
+            return False
+        if (self.allocation_ids or self.bill_id or self.salesperson_bill_id
+                or self.payment_id or self.voucher_number):
+            return False
+        if self.full_receipt_amount:
+            return False
+        if getattr(self, 'attachment_count', 0):
+            return False
+        return True
+
     # ── Invoice-selection wizard opener (CB1 §5) ──────────────────────────
     def action_select_invoices(self):
         self.ensure_one()

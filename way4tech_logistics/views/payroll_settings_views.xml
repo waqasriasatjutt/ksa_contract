@@ -269,9 +269,14 @@
                                         <field name="category_expense_type" string="Bucket" readonly="1"/>
                                         <field name="account_id"
                                                domain="[('company_ids', 'in', [parent.company_id])]"/>
-                                        <field name="input_vat_tax_id"
-                                               string="Input VAT Account"
-                                               domain="[('type_tax_use', '=', 'purchase'), ('company_id', '=', parent.company_id)]"/>
+                                        <!-- Fixes6 item 2 (2026-09): the fixed "Input VAT Account"
+                                             column is removed from this table. VAT is now set per
+                                             line on the Project Direct Cost and Project Operating
+                                             Exp lines, the same way it already works on Project
+                                             Income. The mapping FIELD itself is deliberately kept
+                                             on the model (untouched) so every existing category
+                                             still seeds the default VAT onto new cost lines and no
+                                             existing calculation changes. -->
                                         <field name="company_id" column_invisible="1"/>
                                     </list>
                                 </field>

@@ -34,7 +34,13 @@
                 </group>
                 <footer>
                     <button name="action_confirm" type="object" string="Confirm Selection" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <!-- Fixes6 item 4 (2026-09): an object button, not
+                         special="cancel". Opening this picker saves the
+                         settlement, so a plain close left an empty ghost row
+                         behind; action_cancel removes that row when it is still
+                         completely untouched. -->
+                    <button name="action_cancel" type="object" string="Cancel"
+                            class="btn-secondary"/>
                 </footer>
             </form>
         </field>

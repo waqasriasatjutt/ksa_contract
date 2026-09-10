@@ -124,29 +124,32 @@ class Way4TechManpowerBillBlock(models.Model):
             else:
                 block.name = _('Draft Bill')
 
-    def _way4tech_line_input_vat(self, line, settings):
-        """The Input VAT tax mapped to this expense line's category (or empty).
-        Same source the single-line path reads in project.expense."""
-        row = settings.manpower_expense_category_account_ids.filtered(
-            lambda m: m.category_id == line.category_id
-        )[:1]
-        return row.input_vat_tax_id if row else self.env['account.tax']
+    def _way4tech_line_input_vat(self, line, settings=None):
+        """Fixes6 item 2 (2026-09): Input VAT now lives on the LINE itself (its
+        Taxes field, defaulted from the category mapping), so it can differ line
+        by line. Kept as a helper so every caller reads the one same source.
+        `settings` is still accepted for backward compatibility, unused."""
+        return line.tax_ids
 
-    @api.depends('line_ids', 'line_ids.amount', 'line_ids.category_id',
+    @api.depends('line_ids', 'line_ids.amount', 'line_ids.tax_ids',
                  'contract_id.company_id')
     def _compute_totals(self):
         for block in self:
             block.line_count = len(block.line_ids)
             untaxed = sum(block.line_ids.mapped('amount'))
             block.amount_untaxed = untaxed
+            # Fixes6 item 2: total each line's OWN taxes through compute_all, so
+            # the preview matches exactly what the bill posts even when the lines
+            # mix rates or some carry no VAT at all.
+            currency = block.currency_id or block.contract_id.company_id.currency_id
             tax_total = 0.0
-            if block.line_ids:
-                settings = self.env['way4tech.payroll.settings'].get_for_company(
-                    (block.company_id or self.env.company).id)
-                for line in block.line_ids:
-                    tax = block._way4tech_line_input_vat(line, settings)
-                    if tax:
-                        tax_total += (tax.amount / 100.0) * (line.amount or 0.0)
+            for line in block.line_ids:
+                if not line.tax_ids:
+                    continue
+                res = line.tax_ids.compute_all(
+                    line.amount or 0.0, currency=currency or None, quantity=1.0)
+                tax_total += (res.get('total_included', 0.0)
+                              - res.get('total_excluded', 0.0))
             block.amount_tax = tax_total
             block.amount_total = untaxed + tax_total
 

@@ -21,6 +21,7 @@ VAT — so nothing about how these documents post to the GL changes.
 """
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from odoo.tools.safe_eval import safe_eval
 
 
 class Way4TechManpowerInvoiceBlock(models.Model):
@@ -320,9 +321,53 @@ class Way4TechManpowerInvoiceBlock(models.Model):
             raise UserError(_('This block has not been invoiced yet.'))
         return self.invoice_id
 
+    def _way4tech_native_move_action(self, method_name):
+        """Return core Accounting's own action for this block's invoice, with the
+        INVOICE injected as the active record.
+
+        Fixes6 item 1 (2026-09): the native Credit Note and Debit Note wizards
+        read the move they act on from `active_ids` / `active_model` in the
+        context — that is how the Accounting invoice form hands the move over.
+        Launched from this block's button, the context carried the BLOCK instead,
+        so the reversal wizard resolved the wrong journal ("Journal should be the
+        same type as the reversed entry") and the debit-note wizard received an
+        empty move_ids (IndexError: tuple index out of range). Passing the move
+        explicitly, both on the call and on the returned action, makes both
+        dialogs behave exactly as they do in core Accounting — for every journal
+        and contract type. Core Accounting itself is untouched.
+        """
+        move = self._way4tech_invoice_for_action()
+        active = {
+            'active_model': 'account.move',
+            'active_ids': move.ids,
+            'active_id': move.id,
+        }
+        action = getattr(move.with_context(**active), method_name)()
+        if not isinstance(action, dict):
+            return action
+        # Merge our active_* over whatever context the core action carries. The
+        # raw context may arrive as a string (straight off ir.actions.act_window),
+        # so evaluate it defensively rather than discarding its defaults.
+        raw = action.get('context')
+        ctx = {}
+        if isinstance(raw, dict):
+            ctx = dict(raw)
+        elif isinstance(raw, str) and raw.strip() not in ('', '{}'):
+            try:
+                ctx = dict(safe_eval(raw, {
+                    'uid': self.env.uid,
+                    'context': dict(self.env.context),
+                    **active,
+                }) or {})
+            except Exception:              # noqa: BLE001 - never block the dialog
+                ctx = {}
+        ctx.update(active)
+        action['context'] = ctx
+        return action
+
     def action_way4tech_credit_note(self):
         """Open core Accounting's own Credit Note (reversal) dialog."""
-        return self._way4tech_invoice_for_action().action_reverse()
+        return self._way4tech_native_move_action('action_reverse')
 
     def action_way4tech_debit_note(self):
         """Open core Accounting's own Debit Note dialog."""
@@ -332,7 +377,7 @@ class Way4TechManpowerInvoiceBlock(models.Model):
                 'The Debit Note app is not installed on this database, so that '
                 'dialog is not available. Install "Debit Notes" '
                 '(account_debit_note) to enable it.'))
-        return move.action_debit_note()
+        return self._way4tech_native_move_action('action_debit_note')
 
     def action_way4tech_reset_to_draft(self):
         """Reset the linked invoice to draft, exactly as Accounting's own Reset

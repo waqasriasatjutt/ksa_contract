@@ -691,6 +691,12 @@
                                                 <field name="account_id"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
+                                                <!-- Fixes6 item 2 (2026-09): Input VAT is now editable
+                                                     per line here, the same as Project Income. Defaults
+                                                     from the expense category mapping; clear it for a
+                                                     cost line that carries no VAT. -->
+                                                <field name="tax_ids" widget="many2many_tags"
+                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>
@@ -888,6 +894,12 @@
                                                 <field name="account_id"/>
                                                 <field name="quantity" sum="Quantity"/>
                                                 <field name="price"/>
+                                                <!-- Fixes6 item 2 (2026-09): Input VAT is now editable
+                                                     per line here, the same as Project Income. Defaults
+                                                     from the expense category mapping; clear it for a
+                                                     cost line that carries no VAT. -->
+                                                <field name="tax_ids" widget="many2many_tags"
+                                                       string="Taxes" options="{'no_create': True}"/>
                                                 <field name="amount" sum="Amount (excl. VAT)"/>
                                                 <field name="vendor_id" column_invisible="1"/>
                                                 <field name="contract_id" column_invisible="1"/>

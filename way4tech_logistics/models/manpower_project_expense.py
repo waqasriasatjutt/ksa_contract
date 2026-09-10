@@ -156,6 +156,44 @@ class ManpowerProjectExpense(models.Model):
              'Auto-filled from Payroll & Accounting Setup based on expense type. '
              'Override here if needed for this specific expense.',
     )
+    # ── Fixes6 item 2 (2026-09): PER-LINE Input VAT on cost lines ──────────
+    # Direct Cost and Operating Exp lines used to take their VAT from a single
+    # fixed "Input VAT Account" mapped per expense category, so it could not be
+    # varied per line the way Project Income now can. This makes VAT a normal
+    # editable column on the line. Stored compute + readonly=False, exactly the
+    # pattern already used for sale_account_id / income tax_ids: a row created
+    # any way defaults to the category's configured Input VAT tax (so nothing
+    # about existing expenses changes, and existing rows are back-filled on
+    # upgrade), and the user can change it or CLEAR it for a VAT-free line.
+    tax_ids = fields.Many2many(
+        comodel_name='account.tax',
+        string='Taxes',
+        domain="[('type_tax_use', '=', 'purchase'), ('company_id', '=', company_id)]",
+        compute='_compute_tax_ids', store=True, readonly=False,
+        help='Input VAT applied to THIS cost line on the vendor bill. '
+             'Defaults to the expense category mapping; leave empty for a line '
+             'that carries no VAT.',
+    )
+
+    @api.depends('category_id', 'company_id')
+    def _compute_tax_ids(self):
+        for line in self:
+            if line.tax_ids:
+                continue          # never overwrite an explicit choice
+            line.tax_ids = line._way4tech_category_input_vat()
+
+    def _way4tech_category_input_vat(self):
+        """The Input VAT tax configured for this line's expense category, used
+        only as the DEFAULT for tax_ids. Returns an empty recordset when the
+        category has no mapping."""
+        self.ensure_one()
+        if not (self.category_id and self.company_id):
+            return self.env['account.tax']
+        settings = self.env['way4tech.payroll.settings'].get_for_company(
+            self.company_id.id)
+        row = settings.manpower_expense_category_account_ids.filtered(
+            lambda m: m.category_id == self.category_id)[:1]
+        return row.input_vat_tax_id if row else self.env['account.tax']
     # ── CR3 P9 (v13.0): Quantity + Price columns on expense tabs ────────────
     # Mirrors the Project Income line pattern (qty × price = amount). Kept
     # writable (readonly=False) so legacy rows that only had `amount` can
@@ -432,17 +470,16 @@ class ManpowerProjectExpense(models.Model):
             'price_unit': bl_price,
             'account_id': self.account_id.id,
         }
-        # CR2 G2: apply the category's Input VAT tax (if configured on the
-        # settings map row) to the bill line so the purchase-side VAT posts.
-        # Direct Cost REQUIRES an Input VAT tax to be configured — mirrors
-        # the hard-fail pattern used for Output VAT on Project Income
-        # invoices. Operating Exp missing tax silently skips (VAT-free).
-        _map_row = settings.manpower_expense_category_account_ids.filtered(
-            lambda m: m.category_id == self.category_id
-        )[:1]
-        if _map_row and _map_row.input_vat_tax_id:
-            bill_line_vals['tax_ids'] = [(6, 0, [_map_row.input_vat_tax_id.id])]
-        elif _is_direct:
+        # Fixes6 item 2 (2026-09): the purchase-side VAT now comes from the
+        # LINE's own Taxes (defaulted from the category mapping by
+        # _compute_tax_ids), so it can differ line by line exactly as it can on
+        # Project Income. The CR2 G2 Direct Cost guard is kept but narrowed to a
+        # genuine CONFIG GAP - the line carries no tax AND its category has none
+        # mapped either. A line whose tax the user deliberately cleared, on a
+        # category that does have one, is a valid VAT-free cost line and passes.
+        if self.tax_ids:
+            bill_line_vals['tax_ids'] = [(6, 0, self.tax_ids.ids)]
+        elif _is_direct and not self._way4tech_category_input_vat():
             raise UserError(_(
                 'No Input VAT tax configured for category "%s" (Direct Cost). '
                 'Configure it in Configuration → Payroll & Accounting Setup → '

@@ -52,7 +52,18 @@ class CommissionInvoiceSelectWizard(models.TransientModel):
         client = settlement.partner_id
         settings = settlement.receipt_id._settings()
         Alloc = self.env['way4tech.commission.settlement.invoice']
-        domain = [('partner_id', '=', client.id), ('move_type', '=', 'out_invoice'),
+        # Fixes6 item 3 (2026-09): match the whole client FAMILY rather than the
+        # one exact contact. When a record's Client is a child contact of the
+        # customer (an "Invoice"/"Payable"/delivery address), the invoices are
+        # billed to the parent company, so an exact partner_id match listed
+        # nothing at all. child_of on the commercial partner covers the parent
+        # and its children together, and can only ever return MORE rows than the
+        # old exact match - never fewer - so no previously working case changes.
+        # NOTE: this cannot join two SEPARATE top-level partners that merely have
+        # similar names; that is a data issue (pick the customer the invoices are
+        # actually billed to, or make the contact a child of it).
+        domain = [('partner_id', 'child_of', client.commercial_partner_id.id),
+                  ('move_type', '=', 'out_invoice'),
                   ('state', '=', 'posted'), ('company_id', '=', settlement.company_id.id)]
         # Scope to the Commissioning sales journal only (never Direct Business).
         if settings.commission_journal_id:
@@ -80,6 +91,38 @@ class CommissionInvoiceSelectWizard(models.TransientModel):
                 'selected': bool(already),
             })
         return out
+
+    def action_cancel(self):
+        """Fixes6 item 4 (2026-09): cancelling must not leave a line behind.
+
+        Opening this picker is a button on the settlement, and Odoo saves the
+        record before it can run a button — so clicking "Select Client Invoices"
+        on a brand-new settlement row commits an empty settlement. Discarding the
+        Create Settlements dialog never created one, but cancelling here left the
+        saved empty shell behind as a ghost row in the Settlements list. So on
+        cancel we remove that row again, but ONLY while it is still completely
+        untouched (see _way4tech_is_pristine_empty). A settlement that already
+        holds anything real is left exactly as it is and we simply close.
+        """
+        self.ensure_one()
+        settlement = self.settlement_id
+        if settlement and settlement._way4tech_is_pristine_empty():
+            receipt = settlement.receipt_id
+            settlement.unlink()
+            # Go back to the record itself: the settlement form underneath this
+            # dialog is now showing a row that no longer exists, so closing onto
+            # it would leave a stale datapoint. Reopening the record refreshes
+            # the Settlements list with the ghost row gone.
+            if receipt:
+                return {
+                    'type': 'ir.actions.act_window',
+                    'name': _('Commissioning Business'),
+                    'res_model': 'way4tech.commission.receipt',
+                    'res_id': receipt.id,
+                    'view_mode': 'form',
+                    'target': 'current',
+                }
+        return {'type': 'ir.actions.act_window_close'}
 
     def action_confirm(self):
         self.ensure_one()

@@ -273,6 +273,49 @@ class CommissionReceipt(models.Model):
             'context': ctx,
         }
 
+    # ── Fixes6 item 5 (2026-09): protect a processed record from deletion ──
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_processed(self):
+        """A Commissioning record can only be deleted while nothing under it has
+        reached the accounts. Once any of its settlements has been posted, or has
+        produced a subcontractor bill, a salesperson commission bill, a payment,
+        a voucher, or is holding client invoices, deletion is blocked so the
+        accounting trail and the links to those documents are never lost. This
+        mirrors the protection already on the settlement line itself and the same
+        rule core Accounting applies: reset or remove those documents first.
+        """
+        for rec in self:
+            settlements = rec.settlement_ids
+            blockers = []
+            posted = settlements.filtered(lambda s: s.state != 'draft')
+            if posted:
+                blockers.append(_('%s posted settlement(s)') % len(posted))
+            bills = settlements.mapped('bill_id')
+            if bills:
+                blockers.append(_('subcontractor bill(s) %s')
+                                % ', '.join(bills.mapped('display_name')))
+            sp_bills = settlements.mapped('salesperson_bill_id')
+            if sp_bills:
+                blockers.append(_('salesperson commission bill(s) %s')
+                                % ', '.join(sp_bills.mapped('display_name')))
+            payments = settlements.mapped('payment_id')
+            if payments:
+                blockers.append(_('payment(s) %s')
+                                % ', '.join(payments.mapped('display_name')))
+            vouchers = settlements.filtered(lambda s: s.voucher_number)
+            if vouchers:
+                blockers.append(_('%s generated voucher(s)') % len(vouchers))
+            invoices = settlements.mapped('allocation_ids.invoice_id')
+            if invoices:
+                blockers.append(_('%s linked client invoice(s)') % len(invoices))
+            if blockers:
+                raise UserError(_(
+                    'This Commissioning record cannot be deleted because it still '
+                    'has %s. Removing it would break the accounting trail. Reset '
+                    'those settlements to draft, and cancel or reverse the linked '
+                    'bills, vouchers, payments and invoices in Accounting first.'
+                ) % ', '.join(blockers))
+
     def _settings(self):
         return self.env['way4tech.payroll.settings'].get_for_company(
             self.company_id.id)

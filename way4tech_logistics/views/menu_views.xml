@@ -119,6 +119,19 @@
         sequence="60"
     />
 
+    <!-- Fixes6 item 6 (2026-09): "Maintenance" already carries the Maintenance
+         Logs list action, but it also has children, and Odoo renders any menu
+         that has children as a section header - clicking it only expands the
+         submenu, so the list view itself was unreachable. Give the list its own
+         entry, first in the section, exactly like Trucks and Trips have. -->
+    <menuitem
+        id="menu_truck_maintenance_logs"
+        name="Maintenance Logs"
+        parent="menu_truck_maintenance"
+        action="way4tech_logistics.action_truck_maintenance"
+        sequence="10"
+    />
+
     <menuitem
         id="menu_maintenance_history_report"
         name="Maintenance History Report"
