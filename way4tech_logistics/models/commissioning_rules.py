@@ -38,10 +38,10 @@ class CommissioningSubcontractorRule(models.Model):
     currency_id = fields.Many2one(
         related='company_id.currency_id', readonly=True)
 
-    _sql_constraints = [
-        ('settings_partner_unique', 'unique(settings_id, partner_id)',
-         'One commission rule per subcontractor per company.'),
-    ]
+    _settings_partner_unique = models.Constraint(
+        'unique(settings_id, partner_id)',
+        'One commission rule per subcontractor per company.',
+    )
 
     def _resolve(self, excl_vat_base):
         """Commission amount for an ex-VAT base under this rule."""
@@ -77,7 +77,7 @@ class CommissioningSalespersonRule(models.Model):
     currency_id = fields.Many2one(
         related='company_id.currency_id', readonly=True)
 
-    _sql_constraints = [
-        ('settings_employee_unique', 'unique(settings_id, employee_id)',
-         'One salesperson rule per employee per company.'),
-    ]
+    _settings_employee_unique = models.Constraint(
+        'unique(settings_id, employee_id)',
+        'One salesperson rule per employee per company.',
+    )

@@ -33,10 +33,10 @@ class Way4TechCashflowAlertConfig(models.Model):
     ], string='Auto-Send Frequency', default='daily', required=True)
     notes = fields.Text()
 
-    _sql_constraints = [
-        ('company_uniq', 'UNIQUE(company_id)',
-         'Only one Cash Flow Alert configuration per company.'),
-    ]
+    _company_uniq = models.Constraint(
+        'UNIQUE(company_id)',
+        'Only one Cash Flow Alert configuration per company.',
+    )
 
     def action_send_now(self):
         """Manual trigger: send the report immediately."""

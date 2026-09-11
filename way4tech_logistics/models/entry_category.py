@@ -34,10 +34,10 @@ class Way4TechEntryCategory(models.Model):
     color = fields.Integer(string='Color Index', default=0)
     notes = fields.Text(string='Notes / Description')
 
-    _sql_constraints = [
-        ('name_uniq', 'UNIQUE(name)',
-         'Category name must be unique (categories are shared across all companies).'),
-    ]
+    _name_uniq = models.Constraint(
+        'UNIQUE(name)',
+        'Category name must be unique (categories are shared across all companies).',
+    )
 
     @api.model
     def _get_default_categories(self):

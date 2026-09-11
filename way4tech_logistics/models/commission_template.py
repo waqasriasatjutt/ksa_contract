@@ -62,8 +62,7 @@ class Way4TechCommissionTemplate(models.Model):
              'commission_type is "actual". Gated on Actual Profit > 0.',
     )
 
-    _sql_constraints = [(
-        'employee_company_unique',
+    _employee_company_unique = models.Constraint(
         'UNIQUE(employee_id, company_id)',
         'Only one commission template per employee per company is allowed.',
-    )]
+    )

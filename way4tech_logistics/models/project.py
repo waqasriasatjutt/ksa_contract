@@ -15,6 +15,7 @@ class Way4techProject(models.Model):
     note = fields.Char(string='Description')
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ('name_uniq', 'unique(name)', 'A project with this name already exists.'),
-    ]
+    _name_uniq = models.Constraint(
+        'unique(name)',
+        'A project with this name already exists.',
+    )

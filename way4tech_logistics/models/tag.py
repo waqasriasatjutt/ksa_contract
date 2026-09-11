@@ -13,6 +13,7 @@ class Way4techTag(models.Model):
     color = fields.Integer(string='Color')
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ('name_uniq', 'unique(name)', 'A tag with this name already exists.'),
-    ]
+    _name_uniq = models.Constraint(
+        'unique(name)',
+        'A tag with this name already exists.',
+    )

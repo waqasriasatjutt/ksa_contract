@@ -46,8 +46,7 @@ class Way4TechSettingsExpenseAccountMap(models.Model):
     )
     company_id = fields.Many2one(related="settings_id.company_id", store=True, readonly=True)
 
-    _sql_constraints = [(
-        "settings_category_unique",
+    _settings_category_unique = models.Constraint(
         "unique(settings_id, category_id)",
         "Each expense category can be mapped only once per settings record.",
-    )]
+    )
