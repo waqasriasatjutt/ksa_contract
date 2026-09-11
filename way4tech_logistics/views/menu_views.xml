@@ -204,6 +204,22 @@
     />
 
     <menuitem
+        id="menu_manpower_approval_request"
+        name="Approvals"
+        parent="menu_way4tech_manpower"
+        action="way4tech_logistics.action_manpower_approval_request"
+        sequence="44"
+    />
+
+    <menuitem
+        id="menu_manpower_cumulative_statement"
+        name="Cumulative Statement"
+        parent="menu_way4tech_manpower"
+        action="way4tech_logistics.action_manpower_cumulative_wizard"
+        sequence="48"
+    />
+
+    <menuitem
         id="menu_salesperson_profitability_report"
         name="Salesperson Profitability Report"
         parent="menu_way4tech_manpower"

@@ -219,11 +219,6 @@
         </field>
     </record>
 
-    <menuitem id="menu_manpower_approval_request"
-              name="Approvals"
-              parent="menu_way4tech_manpower"
-              action="action_manpower_approval_request"
-              sequence="44"/>
 
     <!-- Send-for-Approval wizard -->
     <record id="view_manpower_approval_wizard_form" model="ir.ui.view">

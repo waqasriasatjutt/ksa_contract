@@ -216,10 +216,4 @@
         <field name="target">new</field>
     </record>
 
-    <menuitem id="menu_manpower_cumulative_statement"
-              name="Cumulative Statement"
-              parent="menu_way4tech_manpower"
-              action="action_manpower_cumulative_wizard"
-              sequence="48"/>
-
 </odoo>

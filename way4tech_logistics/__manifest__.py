@@ -1,6 +1,6 @@
 {
     'name': 'Way4Tech Logistics & HR Extensions',
-    'version': '19.0.4.1.29',
+    'version': '19.0.4.1.30',
     'summary': 'Complete operations management for KSA logistics & manpower companies — payroll, fleet, manpower contracts, investor P&L, and full accounting integration for Odoo 19',
     'description': '''
 Way4Tech Logistics & HR Extensions
@@ -273,10 +273,10 @@ DEPENDENCIES
         'views/commission_settlement_views.xml',
         'views/commission_invoice_select_wizard_views.xml',
         'views/client_po_views.xml',
+        'views/truck_maintenance_views.xml',
         'views/truck_views.xml',
         'views/vehicle_driver_assignment_views.xml',
         'views/truck_trip_views.xml',
-        'views/truck_maintenance_views.xml',
         'views/employee_cost_views.xml',
         'views/manpower_contract_views.xml',
         'views/manpower_project_expense_views.xml',
