@@ -97,6 +97,14 @@
                                     <field name="commission_journal_id" string="Client Sales Journal"
                                            domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
                                            help="The Commissioning sales journal for THIS company (e.g. INV1). Its posted invoices feed the settlement's invoice picker. This is the same journal shown on the Commission Receipts tab — one per-company setting, editable here or there."/>
+                                    <!-- 2026-09-15: client-side accounts, the counterpart of the
+                                         Manpower "Billing" block. Only these two fields are added. -->
+                                    <field name="commissioning_receivable_account_id"
+                                           domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'asset_receivable')]"
+                                           help="Example: 140002 Commissioning Business Receivable. Set on the receivable line of client invoices raised in the Client Sales Journal. Leave empty to keep the customer's default receivable."/>
+                                    <field name="commissioning_vat_output_account_id"
+                                           domain="[('company_ids', 'in', [company_id])]"
+                                           help="Example: 250000 Output VAT. Set on the VAT lines of client invoices raised in the Client Sales Journal when they are confirmed. Leave empty to keep the tax record's own account."/>
                                 </group>
                                 <group string="Salesperson Commission">
                                     <field name="commission_expense_account_id"

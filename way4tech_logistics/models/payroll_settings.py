@@ -170,6 +170,27 @@ class PayrollSettings(models.Model):
              'recovers it against the payable; advances themselves are paid '
              'through normal Accounting.',
     )
+    # ── Commissioning client side (2026-09-15) ──────────────────────────────
+    # The client-invoice counterpart of the Manpower "Billing" block: the
+    # receivable and Output VAT accounts a Commissioning client invoice should
+    # post to. Both are optional and client-editable. They are applied to
+    # invoices raised in the Commissioning sales journal (commission_journal_id)
+    # by account.move (see account_move_commissioning_accounts.py): the
+    # receivable line when the invoice is created and again when it is
+    # confirmed, the VAT lines when it is confirmed. Empty = Odoo's own default
+    # (the customer's receivable, the tax record's account), exactly as today.
+    commissioning_receivable_account_id = fields.Many2one(
+        'account.account', string='Client Receivable Account', check_company=True,
+        help='Accounts-receivable account for client invoices raised in the '
+             'Commissioning sales journal. Example: 140002 Commissioning Business '
+             "Receivable. Leave empty to keep the customer's default receivable.",
+    )
+    commissioning_vat_output_account_id = fields.Many2one(
+        'account.account', string='Client Output VAT Account', check_company=True,
+        help='Output VAT account for client invoices raised in the Commissioning '
+             'sales journal. Example: 250000 Output VAT. Leave empty to keep the '
+             "tax record's own account.",
+    )
     commissioning_subcontractor_rule_ids = fields.One2many(
         'way4tech.commissioning.subcontractor.rule', 'settings_id',
         string='Commissioning Subcontractor Rules',
@@ -652,6 +673,8 @@ class PayrollSettings(models.Model):
         # ── COMMISSIONING BUSINESS (CB1) ─────────────────────────────────────
         _set('commissioning_payable_account_id',  '210002', 'Commissioning Business Payable', 'liability_payable', 'commissioning business payable', 'commissioning payable', 'subcontractor payable')
         _set('subcontractor_advance_account_id',   '142005', 'Advance To Subcontractor',      'asset_receivable',  'advance to subcontractor', 'subcontractor advance', 'commissioning advance')
+        _set('commissioning_receivable_account_id', '140002', 'Commissioning Business Receivable', 'asset_receivable', 'commissioning business receivable', 'commissioning receivable')
+        _set('commissioning_vat_output_account_id', '250000', 'Output VAT',                    'liability_current', 'output vat', 'vat output', 'sales vat')
 
         # ── FLEET / TRUCKS ───────────────────────────────────────────────────
         _set('truck_revenue_account_id',   '500008', 'Transport Revenue',          'income',            'transport revenue', 'fleet income', 'vehicle income')

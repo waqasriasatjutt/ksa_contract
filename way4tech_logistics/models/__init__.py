@@ -47,6 +47,8 @@ from . import commission_template
 from . import manpower_commission_line
 # 2026-07-17 — CR2 G4 two-way sync + delete protection (19.0.2.8.0)
 from . import account_move_sync
+# 2026-09-15 - Commissioning client-side accounts (receivable + Output VAT)
+from . import account_move_commissioning_accounts
 # 2026-07-17 — CR2 G5 monthly signature approval (19.0.2.9.0)
 from . import manpower_contract_signature_request
 # 2026-07-21 — CR3-FINAL P6 multi-line invoice blocks (19.0.3.1.0)
