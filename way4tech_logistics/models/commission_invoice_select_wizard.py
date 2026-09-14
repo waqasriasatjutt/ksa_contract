@@ -68,22 +68,30 @@ class CommissionInvoiceSelectWizard(models.TransientModel):
         # Scope to the Commissioning sales journal only (never Direct Business).
         if settings.commission_journal_id:
             domain.append(('journal_id', '=', settings.commission_journal_id.id))
-        # CB1 item 5: if the record carries an End Date, only offer invoices whose
-        # date falls inside its Start..End window — this covers a single month,
-        # a quarter, or any custom window automatically. With NO End Date (an
-        # open-ended / yearly project) no date clause is added, so that flow is
-        # byte-for-byte unchanged. An invoice with no invoice_date naturally
-        # drops out of a windowed view (a NULL fails a >=/<= comparison).
+        # CB1 item 5: a record that carries an End Date only offers invoices
+        # dated up to that End Date, so a closed period never picks up later
+        # invoices. With NO End Date no date clause is added at all.
+        #
+        # Fixes6 item 3 (2026-09), the real cause of the empty list: this window
+        # used to ALSO apply a lower bound at the record's Start Date. Start Date
+        # defaults to the day the record is created and, by its own definition,
+        # only drives the auto-name and the SUB reference month, so every record
+        # that was given an End Date silently hid every invoice issued before
+        # the record itself existed, which is exactly the unsettled backlog a
+        # new record is opened to settle (ABC: invoice dated 09-09, record
+        # started 09-10, zero rows). The lower bound is gone. Older invoices that
+        # are already fully allocated stay hidden by the pending check below,
+        # and the allocation itself is still FIFO, oldest first.
         receipt = settlement.receipt_id
         if receipt.end_date:
-            if receipt.start_date:
-                domain.append(('invoice_date', '>=', receipt.start_date))
             domain.append(('invoice_date', '<=', receipt.end_date))
         out = []
         for inv in self.env['account.move'].search(domain, order='invoice_date, id'):
             received = Alloc._received_for_invoice(inv, exclude_settlement=settlement)
             pending = inv.amount_total - received
-            if pending <= 0:
+            # Compare at currency precision so a fully allocated invoice that
+            # carries float dust is still treated as consumed.
+            if inv.currency_id.compare_amounts(pending, 0.0) <= 0:
                 continue
             already = settlement.allocation_ids.filtered(lambda a: a.invoice_id == inv)
             out.append({
