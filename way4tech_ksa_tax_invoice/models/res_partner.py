@@ -62,6 +62,40 @@ class ResPartner(models.Model):
     x_additional_no = fields.Char(string='Additional No')
     x_district = fields.Char(string='District (English)')
 
+    def _way4tech_ksa_address_line(self, arabic=False):
+        """One-line address for the printed tax invoice (2026-09-16).
+
+        The Vendor / Customer blocks used to print Street, Building No, City,
+        District, Addl. No, Postal Code and Country as seven rows; the client
+        wants one "Address" line so the page has room for more invoice lines.
+        Same source fields, same order, empty parts simply left out (no stray
+        commas). Display only: nothing on the partner is changed.
+        """
+        self.ensure_one()
+        district = self.x_district or (self.state_id.name if self.state_id else '')
+        if arabic:
+            city = self.x_city_ar or self.city
+            parts = [
+                self.x_street_ar or self.street,
+                self.x_building_no and ('مبنى رقم %s' % self.x_building_no),
+                city and ('مدينة %s' % city),
+                self.x_district_ar or district,
+                self.x_additional_no and ('الرقم الإضافي %s' % self.x_additional_no),
+                self.zip and ('الرمز البريدي %s' % self.zip),
+                self.x_country_ar or (self.country_id.name if self.country_id else ''),
+            ]
+        else:
+            parts = [
+                self.street,
+                self.x_building_no and ('Building #%s' % self.x_building_no),
+                self.city and ('City %s' % self.city),
+                district,
+                self.x_additional_no and ('Addl. No %s' % self.x_additional_no),
+                self.zip and ('Postal Code %s' % self.zip),
+                self.country_id.name if self.country_id else '',
+            ]
+        return ', '.join(str(x).strip() for x in parts if x and str(x).strip())
+
     # ---- Auto-translate hooks ----
     # When an English field is set on create/write, auto-fill the paired Arabic
     # field via Google Translate IF the Arabic field is currently empty. Manual

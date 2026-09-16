@@ -178,8 +178,9 @@ class CommissionSettlement(models.Model):
              'Receipt Ex-VAT. Display only.')
     way4tech_paid_by = fields.Char(
         string='Paid By', compute='_compute_way4tech_paid_by',
-        help='Reference of the payment(s) that settled the subcontractor bill, '
-             'so it is clear how and from where it was paid. Read from the bill.')
+        help='The payment journal(s) the subcontractor bill was settled from, '
+             'for example Cash or Bank. Read from the bill\'s reconciled payments; '
+             'display only.')
 
     @api.depends('date', 'bill_id.date')
     def _compute_way4tech_bill_month(self):
@@ -193,16 +194,36 @@ class CommissionSettlement(models.Model):
             rec.way4tech_vat_amount = \
                 (rec.full_receipt_amount or 0.0) - (rec.receipt_excl_vat or 0.0)
 
-    @api.depends('bill_id', 'bill_id.payment_state')
+    @api.depends('bill_id', 'bill_id.payment_state', 'bill_id.matched_payment_ids',
+                 'bill_id.line_ids.matched_debit_ids', 'bill_id.line_ids.matched_credit_ids',
+                 'payment_id', 'payment_id.state')
     def _compute_way4tech_paid_by(self):
+        """Paid By = the journal(s) the subcontractor bill was actually settled
+        from (2026-09-16). The previous version listed payment *references* and
+        only those made with Register Payment, so bills settled through a bank
+        statement or a manual entry showed nothing. Now the journals are read
+        from what is reconciled against the bill's payable line, whichever way
+        it was paid, plus any posted payment linked to the bill or voucher.
+        Display only: nothing about the payment or reconciliation is touched.
+        """
+        Journal = self.env['account.journal']
         for rec in self:
-            names = []
+            journals = Journal
             bill = rec.bill_id
-            # matched_payment_ids is the standard Accounting link from a bill to
-            # its reconciled payments (guarded in case a build lacks it).
-            if bill and 'matched_payment_ids' in bill._fields:
-                names = [n for n in bill.matched_payment_ids.mapped('name') if n]
-            rec.way4tech_paid_by = ', '.join(names) if names else False
+            if bill:
+                payable = bill.line_ids.filtered(
+                    lambda l: l.display_type == 'payment_term')
+                counterparts = (payable.matched_debit_ids.debit_move_id
+                                | payable.matched_credit_ids.credit_move_id
+                                ).filtered(lambda l: l.move_id != bill)
+                journals |= counterparts.move_id.journal_id
+                if 'matched_payment_ids' in bill._fields:
+                    journals |= bill.matched_payment_ids.filtered(
+                        lambda p: p.state not in ('draft', 'canceled', 'rejected')
+                    ).journal_id
+            if rec.payment_id and rec.payment_id.state not in ('draft', 'canceled', 'rejected'):
+                journals |= rec.payment_id.journal_id
+            rec.way4tech_paid_by = ', '.join(journals.mapped('name')) or False
 
     # ── Computed Data per client (CB1 §10) — read-only ────────────────────
     client_pending_count = fields.Integer(compute='_compute_client_pending')
