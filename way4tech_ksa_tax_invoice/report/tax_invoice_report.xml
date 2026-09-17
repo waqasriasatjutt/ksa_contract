@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <template id="ksa_tax_invoice_document">
+        <!-- 2026-09-17: the footer band (page bottom margin) is sized from the
+             company's footer image so the image prints at full width and the
+             page number still fits below it. Read by Odoo from the <html> tag
+             (data-report-margin-bottom); companies without a footer image keep
+             the paper format's margin. Several invoices in one PDF: the largest. -->
+        <t t-set="ksa_paperformat" t-value="docs.env.ref('way4tech_ksa_tax_invoice.paperformat_ksa_tax_invoice')"/>
+        <t t-set="ksa_usable_w" t-value="docs.env['res.company']._way4tech_paper_usable_width_mm(ksa_paperformat)"/>
+        <!-- Both letterhead images are printed with their blank margins trimmed
+             (render time only, the uploads are untouched), at full width when
+             their shape allows it, never stretched. See res.company. -->
+        <t t-set="data_report_margin_bottom" t-value="max([d.company_id._way4tech_invoice_footer_margin_mm(ksa_paperformat) for d in docs] or [ksa_paperformat.margin_bottom])"/>
+        <t t-set="atco_footer_full_width" t-value="True"/>
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-set="doc" t-value="o"/>
@@ -83,10 +95,22 @@
                             .atco-hdr .atco-lbl { font-weight:bold; color:#1a1a1a; }
                             .atco-hdr .atco-logo { max-height:125px; max-width:170px; height:auto; width:auto; display:inline-block; vertical-align:middle; }
                             .ksa-inv .atco-sep { display:block; border-top:1.2px solid #111111 !important; height:0; margin:3px 0 0 0; padding:0; width:100%; font-size:0; line-height:0; }
-                            /* Letterhead image — fit within the band on BOTH axes so it is never
-                               clipped on the right/bottom whatever its dimensions. Full-width
-                               strip: ~1000x265 px (≈3.8:1). */
-                            .ksa-inv .atco-hdr-img { display:block; max-width:100%; max-height:42mm; width:auto; height:auto; margin:0 auto; border:0 !important; }
+                            /* Letterhead image: sized inline per company from the image's own
+                               aspect ratio (full width when it fits in 42mm of height, else
+                               capped at 42mm and centred); see res.company. */
+                            .ksa-inv .atco-hdr-img { border:0 !important; }
+                            /* 2026-09-17: the tables' rows and sections carry Bootstrap's
+                               "solid, 0 width" border, which this WebKit paints as a hairline
+                               around every borderless cell (a faint frame with L-shaped corners
+                               around the letterhead and down both sides of the page). Rows and
+                               sections never draw borders here; the cells do. */
+                            .ksa-inv table, .ksa-inv thead, .ksa-inv tbody, .ksa-inv tfoot, .ksa-inv tr { border:0 none !important; }
+                            .ksa-inv td.ksa-block-mid { border:0 !important; padding:0 !important; }
+                            /* 2026-09-17: the totals table sits beside the 120px QR code; its six
+                               rows used the generic 16px minimum + 5px padding and stood 20% taller
+                               than the QR, so the QR/totals block needed ~47mm. Rows now follow their
+                               text (4px padding) and the block is the QR's height (~40mm). */
+                            .ksa-inv .ksa-totals td { height:auto; padding:4px 8px; border:1px solid #d0cdcd; }
                         </style>
 
                         <!-- CR7 item 2: brand-colour override (additive; recolours red theme). -->
@@ -104,7 +128,8 @@
                                 <tr>
                                     <td colspan="10" class="ksa-lh">
                                         <div t-if="company.x_invoice_header_image">
-                                            <img t-att-src="image_data_uri(company.x_invoice_header_image)" alt="header" class="atco-hdr-img"/>
+                                            <img t-att-src="image_data_uri(company._way4tech_invoice_image('x_invoice_header_image')[0])" alt="header" class="atco-hdr-img"
+                                                 t-att-style="company._way4tech_invoice_image_style('x_invoice_header_image', company.INVOICE_HEADER_MAX_MM, ksa_usable_w)"/>
                                         </div>
                                         <table t-if="not company.x_invoice_header_image" class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
                                             <tr>
@@ -232,7 +257,12 @@
                                     <tr class="ksa-lines ksa-note-row"><td colspan="10" class="ksa-note"><t t-out="l.name or ''"/></td></tr>
                                 </t>
 
-                                <!-- ══ LAST-PAGE BLOCKS ══ (QR + totals, amount in words, bank) -->
+                                <!-- ══ LAST-PAGE BLOCKS ══ (QR + totals, amount in words, bank)
+                                     2026-09-17: three rows, not one. WebKit never splits a table
+                                     row across pages, so as ONE row the whole section jumped to the
+                                     next page as soon as it did not fit entirely, leaving the rest
+                                     of the previous page blank. As separate rows each part stays
+                                     on the page while it fits and only the remainder moves on. -->
                                 <tr>
                                     <td colspan="10" class="ksa-block-top">
                                         <table class="noborder" style="margin-top:4px;"><tr>
@@ -240,7 +270,7 @@
                                                 <img t-if="o.ksa_qr_image" t-att-src="'data:image/png;base64,%s' % o.ksa_qr_image" style="width:120px; height:120px;"/>
                                             </td>
                                             <td style="width:78%; border:0;">
-                                                <table>
+                                                <table class="ksa-totals">
                                                     <tr><td class="lbl" style="width:40%;">Total Amount (SAR):</td><td class="ksa-right ksa-b" style="width:20%;" t-esc="m(o.amount_untaxed)"/><td class="lbl ksa-ar">المبلغ الإجمالي (ريال سعودي)</td></tr>
                                                     <tr><td class="lbl">Total Discount (SAR):</td><td class="ksa-right" t-esc="m(sum(o.invoice_line_ids.mapped(lambda l: l.price_unit * l.quantity * (l.discount or 0.0) / 100.0)))"/><td class="lbl ksa-ar">إجمالي الخصم (ريال سعودي)</td></tr>
                                                     <tr><td class="lbl">Invoice Taxable Amount (SAR):</td><td class="ksa-right" t-esc="m(o.amount_untaxed)"/><td class="lbl ksa-ar">المبلغ الخاضع للضريبة</td></tr>
@@ -250,11 +280,17 @@
                                                 </table>
                                             </td>
                                         </tr></table>
-
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="10" class="ksa-block-mid">
                                         <table style="margin-top:2px;"><tr><td style="border:0;"><span class="ksa-b">Amount in words : </span><span t-esc="o.ksa_amount_words"/> only.</td></tr></table>
 
                                         <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
-
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="10" class="ksa-block-mid">
                                         <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
                                         <table style="text-align:center;">
                                             <tr>

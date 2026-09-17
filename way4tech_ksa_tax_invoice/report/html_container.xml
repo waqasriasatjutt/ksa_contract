@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- 2026-09-17: Odoo's wkhtmltopdf builder honours data-report-margin-bottom
+         on the <html> tag, but the stock report layout (web.report_layout, which html_container calls) only forwards margin-top,
+         header-spacing, dpi and landscape. Forward margin-bottom the same way so
+         a report can size its footer band (the Tax Invoice does, from the
+         company's footer image). Renders nothing for reports that do not set it. -->
+    <template id="html_container_margin_bottom" inherit_id="web.report_layout">
+        <xpath expr="//html" position="attributes">
+            <attribute name="t-att-data-report-margin-bottom">data_report_margin_bottom</attribute>
+        </xpath>
+    </template>
+</odoo>

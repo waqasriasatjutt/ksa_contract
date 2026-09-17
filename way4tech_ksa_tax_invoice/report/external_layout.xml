@@ -17,8 +17,8 @@
                    atco_header_in_body=True and this inline header is skipped). For
                    every OTHER report using this shared layout the header renders
                    inline at the top of page 1 exactly as before. */
-                table.atco-hdr, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
-                    border: 0 !important;
+                table.atco-hdr, table.atco-hdr > tbody, table.atco-hdr > tbody > tr, table.atco-hdr > tbody > tr > td {
+                    border: 0 none !important;
                     box-shadow: none !important;
                     background: #ffffff !important;
                 }
@@ -83,8 +83,8 @@
 
         <div t-attf-class="footer o_company_#{company.id}_layout">
             <style type="text/css">
-                table.atco-ftr, table.atco-ftr > tbody > tr, table.atco-ftr > tbody > tr > td {
-                    border: 0 !important;
+                table.atco-ftr, table.atco-ftr > tbody, table.atco-ftr > tbody > tr, table.atco-ftr > tbody > tr > td {
+                    border: 0 none !important;
                     box-shadow: none !important;
                     background: #ffffff !important;
                 }
@@ -110,8 +110,14 @@
             </style>
 
             <!-- Item 3 (2026-08): footer image replaces the dynamic footer when set. -->
+            <!-- 2026-09-17: on the Tax Invoice (atco_footer_full_width) the image
+                 fills the usable width, height following its own proportion; the
+                 report sizes the bottom margin to match (see res.company). Every
+                 other report keeps the capped, centred image as before. -->
             <div t-if="company.x_invoice_footer_image">
-                <img t-att-src="image_data_uri(company.x_invoice_footer_image)" alt="footer" class="atco-ftr-img"/>
+                <img t-if="atco_footer_full_width" t-att-src="image_data_uri(company._way4tech_invoice_image('x_invoice_footer_image')[0])" alt="footer" class="atco-ftr-img"
+                     t-att-style="'padding-top:2mm; ' + company._way4tech_invoice_image_style('x_invoice_footer_image', company.INVOICE_FOOTER_MAX_MM, ksa_usable_w or 188)"/>
+                <img t-if="not atco_footer_full_width" t-att-src="image_data_uri(company.x_invoice_footer_image)" alt="footer" class="atco-ftr-img"/>
             </div>
             <div t-if="not company.x_invoice_footer_image">
             <div class="atco-ftr-sep"></div>

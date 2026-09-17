@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'KSA Localization (Tax Invoice, Letterhead, Bilingual Contacts)',
-    'version': '19.0.5.5.2',
+    'version': '19.0.5.5.3',
     'category': 'Accounting',
     'summary': 'KSA localization pack: bilingual Arabic/English tax invoice PDF, '
                'shared ATCO letterhead for all reports, Arabic address fields on '
@@ -14,6 +14,7 @@
         'views/res_partner_views.xml',
         'views/account_move_views.xml',
         'report/paperformat.xml',
+        'report/html_container.xml',
         'report/external_layout.xml',
         'report/report_actions.xml',
         'report/tax_invoice_report.xml',

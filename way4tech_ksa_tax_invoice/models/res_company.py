@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
+import base64
+import functools
+import hashlib
+import io
+import math
+
 from odoo import api, fields, models
+
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover
+    Image = None
 
 
 class ResCompany(models.Model):
@@ -34,6 +45,109 @@ class ResCompany(models.Model):
         help='Single IBAN printed on every company\'s Tax Invoice. Stored once '
              'globally, so it is the same on all companies; Account Number, '
              'Bank, Branch and Swift remain per-company.')
+
+    # ── Letterhead image geometry (2026-09-17) ──────────────────────────────
+    # The header/footer images are whatever each company uploads, so nothing
+    # below assumes a size: every decision is taken from the image's own aspect
+    # ratio at render time. The aspect ratio is always kept (never stretched).
+    PAGE_WIDTH_MM = {'A4': 210.0, 'A5': 148.0, 'A3': 297.0, 'Letter': 215.9, 'Legal': 215.9}
+    INVOICE_HEADER_MAX_MM = 42
+    INVOICE_FOOTER_MAX_MM = 30
+    INVOICE_FOOTER_MIN_BAND_MM = 14
+
+    @staticmethod
+    @functools.lru_cache(maxsize=64)
+    def _way4tech_trim_image(digest, data):
+        """(base64, width/height) of the image with its blank border removed.
+
+        Whatever a company uploads is used as-is, only the plain white (or
+        transparent) margin around the artwork is cut off at render time, so
+        the printed band is as tall as the artwork and no taller. The upload
+        itself is never touched. A tiny padding is kept so anti-aliased edges
+        are not clipped. Anything that cannot be read is returned unchanged.
+        """
+        try:
+            im = Image.open(io.BytesIO(base64.b64decode(data)))
+            fmt = im.format or 'PNG'
+            if im.mode in ('RGBA', 'LA', 'P'):
+                rgba = im.convert('RGBA')
+                flat = Image.new('RGB', rgba.size, (255, 255, 255))
+                flat.paste(rgba, mask=rgba.split()[-1])
+                im = flat
+            gray = im.convert('L')
+            bbox = gray.point(lambda v: 255 if v < 240 else 0).getbbox()
+            if not bbox:
+                return data, (im.width / float(im.height)) if im.height else None
+            pad_x, pad_y = max(int(im.width * 0.01), 2), max(int(im.height * 0.03), 2)
+            box = (max(bbox[0] - pad_x, 0), max(bbox[1] - pad_y, 0),
+                   min(bbox[2] + pad_x, im.width), min(bbox[3] + pad_y, im.height))
+            if box != (0, 0, im.width, im.height):
+                im = im.crop(box)
+                out = io.BytesIO()
+                if fmt == 'JPEG':
+                    im.convert('RGB').save(out, format='JPEG', quality=92)
+                else:
+                    im.save(out, format='PNG')
+                data = base64.b64encode(out.getvalue())
+            return data, (im.width / float(im.height)) if im.height else None
+        except Exception:
+            return data, None
+
+    def _way4tech_invoice_image(self, field):
+        """(base64, ratio) of the trimmed letterhead image in `field`;
+        (False, None) when empty."""
+        self.ensure_one()
+        data = self[field]
+        if not data or Image is None:
+            return data, None
+        if isinstance(data, str):
+            data = data.encode()
+        return self._way4tech_trim_image(hashlib.sha1(data).hexdigest(), data)
+
+    def _way4tech_invoice_image_ratio(self, field):
+        """width / height of the (trimmed) image in `field`, or None."""
+        return self._way4tech_invoice_image(field)[1]
+
+    @api.model
+    def _way4tech_paper_usable_width_mm(self, paperformat):
+        """Printable width of the page: paper width minus the side margins and
+        the report body's own side padding (~4 mm each side)."""
+        if paperformat.format == 'custom' and paperformat.page_width:
+            width = paperformat.page_width
+        else:
+            width = self.PAGE_WIDTH_MM.get(paperformat.format, 210.0)
+            if paperformat.orientation == 'Landscape':
+                width = {'A4': 297.0, 'A5': 210.0, 'A3': 420.0, 'Letter': 279.4, 'Legal': 355.6}.get(paperformat.format, width)
+        return max(width - (paperformat.margin_left or 0) - (paperformat.margin_right or 0) - 8.0, 50.0)
+
+    def _way4tech_invoice_image_style(self, field, max_height_mm, usable_width_mm):
+        """Inline CSS for a letterhead image: the full usable width when the
+        image's shape allows it within `max_height_mm`, otherwise capped at
+        that height and centred. Either way width and height stay in the
+        image's own proportion. `max-width` alone never enlarges an image, so
+        an upload narrower than the page used to print at its pixel size."""
+        self.ensure_one()
+        ratio = self._way4tech_invoice_image_ratio(field)
+        if not ratio:
+            return 'display:block; max-width:100%; height:auto; margin:0 auto;'
+        if usable_width_mm / ratio <= max_height_mm:
+            return 'display:block; width:100%; height:auto; margin:0 auto;'
+        return 'display:block; height:%smm; width:auto; max-width:100%%; margin:0 auto;' % max_height_mm
+
+    def _way4tech_invoice_footer_margin_mm(self, paperformat):
+        """Bottom page margin (mm) for the Tax Invoice: exactly what the
+        company's footer image needs at its printed size (a small gap above
+        it, the image, the page-number line below), so the band is never
+        taller than the artwork. Companies without a footer image keep the
+        paper format's own margin for the dynamic footer."""
+        self.ensure_one()
+        base = paperformat.margin_bottom or 0
+        ratio = self._way4tech_invoice_image_ratio('x_invoice_footer_image')
+        if not ratio:
+            return base
+        usable = self._way4tech_paper_usable_width_mm(paperformat)
+        height = min(usable / ratio, self.INVOICE_FOOTER_MAX_MM)
+        return max(self.INVOICE_FOOTER_MIN_BAND_MM, int(math.ceil(height + 2.0 + 5.0)))
 
     def _compute_x_shared_iban(self):
         val = self.env['ir.config_parameter'].sudo().get_param(
