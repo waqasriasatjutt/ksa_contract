@@ -105,7 +105,6 @@
                                around the letterhead and down both sides of the page). Rows and
                                sections never draw borders here; the cells do. */
                             .ksa-inv table, .ksa-inv thead, .ksa-inv tbody, .ksa-inv tfoot, .ksa-inv tr { border:0 none !important; }
-                            .ksa-inv td.ksa-block-mid { border:0 !important; padding:0 !important; }
                             /* 2026-09-17: the totals table sits beside the 120px QR code; its six
                                rows used the generic 16px minimum + 5px padding and stood 20% taller
                                than the QR, so the QR/totals block needed ~47mm. Rows now follow their
@@ -258,11 +257,14 @@
                                 </t>
 
                                 <!-- ══ LAST-PAGE BLOCKS ══ (QR + totals, amount in words, bank)
-                                     2026-09-17: three rows, not one. WebKit never splits a table
-                                     row across pages, so as ONE row the whole section jumped to the
-                                     next page as soon as it did not fit entirely, leaving the rest
-                                     of the previous page blank. As separate rows each part stays
-                                     on the page while it fits and only the remainder moves on. -->
+                                     One master-table row on purpose (client, 2026-09-18): the
+                                     totals, amount in words and bank details are ONE section and
+                                     must never be split across pages. WebKit never breaks inside a
+                                     table row, so the whole section stays on the current page when
+                                     it fits in the space left and moves to the next page as a unit
+                                     only when it genuinely does not. Page space is maximised
+                                     elsewhere (trimmed full-width letterhead images, a footer band
+                                     sized to the image, a totals box no taller than the QR). -->
                                 <tr>
                                     <td colspan="10" class="ksa-block-top">
                                         <table class="noborder" style="margin-top:4px;"><tr>
@@ -280,17 +282,11 @@
                                                 </table>
                                             </td>
                                         </tr></table>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td colspan="10" class="ksa-block-mid">
+
                                         <table style="margin-top:2px;"><tr><td style="border:0;"><span class="ksa-b">Amount in words : </span><span t-esc="o.ksa_amount_words"/> only.</td></tr></table>
 
                                         <div style="text-align:center; margin:4px 0; font-style:italic;">*This is a computer generated document, no Signature required.</div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td colspan="10" class="ksa-block-mid">
+
                                         <div class="ksa-sec" style="margin-top:2px;"><span>Payee Name: <span t-esc="company.name"/></span><span style="float:right;">اسم المستفيد من الحساب</span></div>
                                         <table style="text-align:center;">
                                             <tr>
