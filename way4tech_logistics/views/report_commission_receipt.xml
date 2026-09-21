@@ -18,10 +18,24 @@
     </record>
 
     <template id="report_commissioning_voucher_doc">
+        <!-- 2026-09-21 layout: the letterhead images print at the full printable
+             width (the ATCO layout honours atco_full_width_letterhead; their
+             vertical band is unchanged) and every table shares one column grid
+             so the Amount edges line up. Figures and data untouched. -->
+        <t t-set="atco_full_width_letterhead" t-value="True"/>
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-call="web.external_layout">
-                    <div class="page">
+                    <div class="page w4t-vch">
+                        <style>
+                            .w4t-vch table.table { width:100%; table-layout:fixed; margin-bottom:10px; }
+                            .w4t-vch table.table th, .w4t-vch table.table td { padding:5px 8px; vertical-align:middle; overflow:hidden; }
+                            .w4t-vch .col-label { width:70%; text-align:left; }
+                            .w4t-vch .col-amt { width:30%; text-align:right; white-space:nowrap; }
+                            .w4t-vch .col-inv { width:45%; text-align:left; }
+                            .w4t-vch .col-date { width:25%; text-align:left; white-space:nowrap; }
+                            .w4t-vch h5 { margin:8px 0 6px 0; }
+                        </style>
                         <div class="row mb-3">
                             <div class="col-8">
                                 <h2 class="mb-0"><t t-esc="o.company_id.name"/></h2>
@@ -41,34 +55,34 @@
                         </div>
 
                         <table class="table table-sm table-bordered">
-                            <thead class="table-light"><tr><th>Calculation</th><th class="text-end">Amount</th></tr></thead>
+                            <thead class="table-light"><tr><th class="col-label">Calculation</th><th class="col-amt">Amount</th></tr></thead>
                             <tbody>
-                                <tr><td>Amount After VAT (received)</td><td class="text-end"><t t-esc="'%.2f' % o.full_receipt_amount"/></td></tr>
-                                <tr><td>VAT (<t t-esc="'%.0f' % o.vat_rate"/>%)</td><td class="text-end"><t t-esc="'%.2f' % (o.full_receipt_amount - o.receipt_excl_vat)"/></td></tr>
-                                <tr><td>Amount Before VAT</td><td class="text-end"><t t-esc="'%.2f' % o.receipt_excl_vat"/></td></tr>
-                                <tr><td>Company Commission</td><td class="text-end"><t t-esc="'%.2f' % o.commission_amount"/></td></tr>
-                                <tr class="fw-bold"><td>Net Amount (Subcontractor)</td><td class="text-end"><t t-esc="'%.2f' % o.gross_payable"/></td></tr>
+                                <tr><td class="col-label">Amount After VAT (received)</td><td class="col-amt"><t t-esc="'%.2f' % o.full_receipt_amount"/></td></tr>
+                                <tr><td class="col-label">VAT (<t t-esc="'%.0f' % o.vat_rate"/>%)</td><td class="col-amt"><t t-esc="'%.2f' % (o.full_receipt_amount - o.receipt_excl_vat)"/></td></tr>
+                                <tr><td class="col-label">Amount Before VAT</td><td class="col-amt"><t t-esc="'%.2f' % o.receipt_excl_vat"/></td></tr>
+                                <tr><td class="col-label">Company Commission</td><td class="col-amt"><t t-esc="'%.2f' % o.commission_amount"/></td></tr>
+                                <tr class="fw-bold"><td class="col-label">Net Amount (Subcontractor)</td><td class="col-amt"><t t-esc="'%.2f' % o.gross_payable"/></td></tr>
                             </tbody>
                         </table>
 
                         <table class="table table-sm table-bordered">
-                            <thead class="table-light"><tr><th>Adjustments</th><th class="text-end">Amount</th></tr></thead>
+                            <thead class="table-light"><tr><th class="col-label">Adjustments</th><th class="col-amt">Amount</th></tr></thead>
                             <tbody>
-                                <tr><td>Advance Recovered / Deducted</td><td class="text-end"><t t-esc="'%.2f' % o.advance_recovered"/></td></tr>
-                                <tr><td>Previous Outstanding</td><td class="text-end"><t t-esc="'%.2f' % o.previous_outstanding"/></td></tr>
-                                <tr><td>Outstanding Paid</td><td class="text-end"><t t-esc="'%.2f' % o.outstanding_paid"/></td></tr>
-                                <tr class="fw-bold table-success"><td>Net Amount Payable</td><td class="text-end"><t t-esc="'%.2f' % o.consolidated_payable"/></td></tr>
+                                <tr><td class="col-label">Advance Recovered / Deducted</td><td class="col-amt"><t t-esc="'%.2f' % o.advance_recovered"/></td></tr>
+                                <tr><td class="col-label">Previous Outstanding</td><td class="col-amt"><t t-esc="'%.2f' % o.previous_outstanding"/></td></tr>
+                                <tr><td class="col-label">Outstanding Paid</td><td class="col-amt"><t t-esc="'%.2f' % o.outstanding_paid"/></td></tr>
+                                <tr class="fw-bold table-success"><td class="col-label">Net Amount Payable</td><td class="col-amt"><t t-esc="'%.2f' % o.consolidated_payable"/></td></tr>
                             </tbody>
                         </table>
 
                         <h5 class="mt-3">Source of Funds</h5>
                         <table class="table table-sm table-bordered">
-                            <thead class="table-light"><tr><th>Client Invoice</th><th>Date</th><th class="text-end">Allocated</th></tr></thead>
+                            <thead class="table-light"><tr><th class="col-inv">Client Invoice</th><th class="col-date">Date</th><th class="col-amt">Allocated</th></tr></thead>
                             <tbody>
                                 <tr t-foreach="o.allocation_ids" t-as="a">
-                                    <td><t t-esc="a.invoice_id.name"/></td>
-                                    <td><t t-esc="a.invoice_date"/></td>
-                                    <td class="text-end"><t t-esc="'%.2f' % a.allocated_amount"/></td>
+                                    <td class="col-inv"><t t-esc="a.invoice_id.name"/></td>
+                                    <td class="col-date"><t t-esc="a.invoice_date"/></td>
+                                    <td class="col-amt"><t t-esc="'%.2f' % a.allocated_amount"/></td>
                                 </tr>
                             </tbody>
                         </table>

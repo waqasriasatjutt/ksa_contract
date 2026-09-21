@@ -57,8 +57,12 @@ class CommissionReceipt(models.Model):
         help='The client AlZain invoices (in its own name) on the '
              "subcontractor's behalf.")
     subcontractor_id = fields.Many2one(
-        'res.partner', string='Subcontractor', required=True,
-        domain=[('supplier_rank', '>', 0)], tracking=True,
+        'res.partner', string='Subcontractor', required=True, tracking=True,
+        # 2026-09-21: no hard supplier_rank domain (same fix the Manpower
+        # vendor pickers got in August). A contact created in Contacts has
+        # supplier_rank = 0 until its first bill is posted, so the old domain
+        # hid it here and in Search More. The form sets
+        # res_partner_search_mode='supplier' so vendors still rank first.
         help='The subcontractor doing the work, who gets 95% of the ex-VAT.')
     client_po_id = fields.Many2one(
         'way4tech.client.po', string='Client PO',
@@ -260,6 +264,10 @@ class CommissionReceipt(models.Model):
             'default_move_type': 'out_invoice',
             'default_partner_id': self.partner_id.id,
             'default_company_id': self.company_id.id,
+            # 2026-09-21: the invoice remembers the record it was raised from,
+            # so its lines take the record's analytic distribution (see
+            # account_move_commissioning_accounts.py), as the bill already does.
+            'default_way4tech_commission_receipt_id': self.id,
         }
         if journal:
             domain.append(('journal_id', '=', journal.id))

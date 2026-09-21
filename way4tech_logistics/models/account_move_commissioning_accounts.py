@@ -19,11 +19,33 @@ Manpower sales journal (ambiguous, left to Odoo), when the settings row has no
 value, or for a move that is no longer draft. With both fields empty every
 invoice posts exactly as before.
 """
-from odoo import api, models
+from odoo import api, fields, models
 
 
 class AccountMoveCommissioningAccounts(models.Model):
     _inherit = 'account.move'
+
+    # 2026-09-21: set when a client invoice is opened from a Commissioning
+    # record (Invoices tab > Client Invoices). It only carries the record's
+    # analytic distribution onto the invoice lines; matching for the
+    # settlement picker is unchanged (partner + journal).
+    way4tech_commission_receipt_id = fields.Many2one(
+        'way4tech.commission.receipt', string='Commissioning Record',
+        copy=False, index=True, ondelete='set null')
+
+    def _way4tech_apply_commissioning_analytic(self):
+        """Give every product line that has no analytic distribution the one
+        configured on the Commissioning record the invoice was raised from.
+        The record is the source of truth; a distribution typed on a line by
+        hand is left alone. Mirrors what the subcontractor bill does."""
+        for move in self:
+            receipt = move.way4tech_commission_receipt_id
+            if move.state != 'draft' or not receipt or not receipt.analytic_distribution:
+                continue
+            lines = move.invoice_line_ids.filtered(
+                lambda l: l.display_type == 'product' and not l.analytic_distribution)
+            if lines:
+                lines.write({'analytic_distribution': receipt.analytic_distribution})
 
     def _way4tech_commissioning_client_settings(self):
         """The settings row whose Commissioning sales journal this move is in,
@@ -69,8 +91,17 @@ class AccountMoveCommissioningAccounts(models.Model):
         # Receivable only at this point: the tax lines are still being
         # regenerated from the product lines while the invoice is edited.
         moves._way4tech_apply_commissioning_client_accounts(with_vat=False)
+        moves._way4tech_apply_commissioning_analytic()
         return moves
+
+    def write(self, vals):
+        res = super().write(vals)
+        if 'invoice_line_ids' in vals or 'line_ids' in vals:
+            # Lines added while the invoice is edited in the form.
+            self._way4tech_apply_commissioning_analytic()
+        return res
 
     def _post(self, soft=True):
         self._way4tech_apply_commissioning_client_accounts(with_vat=True)
+        self._way4tech_apply_commissioning_analytic()
         return super()._post(soft=soft)

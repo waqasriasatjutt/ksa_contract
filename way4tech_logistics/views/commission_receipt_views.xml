@@ -41,7 +41,8 @@
                     <group>
                         <group string="Parties">
                             <field name="partner_id" readonly="state == 'closed'"/>
-                            <field name="subcontractor_id" readonly="state == 'closed'"/>
+                            <field name="subcontractor_id" readonly="state == 'closed'"
+                                   context="{'res_partner_search_mode': 'supplier'}"/>
                             <field name="client_po_id" readonly="state == 'closed'"/>
                             <field name="salesperson_id" readonly="state == 'closed'"/>
                             <!-- C2 (2026-08): Company field removed from the form at the

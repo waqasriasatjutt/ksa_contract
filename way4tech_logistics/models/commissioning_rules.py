@@ -24,8 +24,7 @@ class CommissioningSubcontractorRule(models.Model):
     company_id = fields.Many2one(
         related='settings_id.company_id', store=True, readonly=True)
     partner_id = fields.Many2one(
-        'res.partner', string='Subcontractor', required=True,
-        domain=[('supplier_rank', '>', 0)])
+        'res.partner', string='Subcontractor', required=True)
     is_fix = fields.Boolean(
         string='Fix Amount',
         help='On: a fixed commission amount per settlement. Off: a percent of '

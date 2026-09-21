@@ -49,8 +49,14 @@
             <!-- Inline header — rendered for every report EXCEPT the Tax Invoice
                  (which draws its own repeating letterhead in the report body). -->
             <t t-if="not atco_header_in_body">
+                <!-- 2026-09-21: a report that sets atco_full_width_letterhead gets the
+                     header image trimmed of its blank margins and at the full usable
+                     width, height in its own proportion (capped); every other report
+                     keeps the image as uploaded, as before. -->
                 <div t-if="company.x_invoice_header_image">
-                    <img t-att-src="image_data_uri(company.x_invoice_header_image)" alt="header" class="atco-hdr-img"/>
+                    <img t-if="atco_full_width_letterhead" t-att-src="image_data_uri(company._way4tech_invoice_image('x_invoice_header_image')[0])" alt="header" class="atco-hdr-img"
+                         t-att-style="company._way4tech_invoice_image_style('x_invoice_header_image', company.INVOICE_HEADER_MAX_MM, ksa_usable_w or 188)"/>
+                    <img t-if="not atco_full_width_letterhead" t-att-src="image_data_uri(company.x_invoice_header_image)" alt="header" class="atco-hdr-img"/>
                 </div>
                 <table t-if="not company.x_invoice_header_image" class="atco-hdr" cellpadding="0" cellspacing="0" border="0">
                     <tr>
@@ -110,14 +116,14 @@
             </style>
 
             <!-- Item 3 (2026-08): footer image replaces the dynamic footer when set. -->
-            <!-- 2026-09-17: on the Tax Invoice (atco_footer_full_width) the image
-                 fills the usable width, height following its own proportion; the
-                 report sizes the bottom margin to match (see res.company). Every
-                 other report keeps the capped, centred image as before. -->
+            <!-- 2026-09-17/21: a report that sets atco_full_width_letterhead gets the
+                 footer image trimmed and at the full usable width, height in its own
+                 proportion (the Tax Invoice also sizes its bottom margin to it, see
+                 res.company). Every other report keeps the capped, centred image. -->
             <div t-if="company.x_invoice_footer_image">
-                <img t-if="atco_footer_full_width" t-att-src="image_data_uri(company._way4tech_invoice_image('x_invoice_footer_image')[0])" alt="footer" class="atco-ftr-img"
+                <img t-if="atco_full_width_letterhead" t-att-src="image_data_uri(company._way4tech_invoice_image('x_invoice_footer_image')[0])" alt="footer" class="atco-ftr-img"
                      t-att-style="'padding-top:2mm; ' + company._way4tech_invoice_image_style('x_invoice_footer_image', company.INVOICE_FOOTER_MAX_MM, ksa_usable_w or 188)"/>
-                <img t-if="not atco_footer_full_width" t-att-src="image_data_uri(company.x_invoice_footer_image)" alt="footer" class="atco-ftr-img"/>
+                <img t-if="not atco_full_width_letterhead" t-att-src="image_data_uri(company.x_invoice_footer_image)" alt="footer" class="atco-ftr-img"/>
             </div>
             <div t-if="not company.x_invoice_footer_image">
             <div class="atco-ftr-sep"></div>

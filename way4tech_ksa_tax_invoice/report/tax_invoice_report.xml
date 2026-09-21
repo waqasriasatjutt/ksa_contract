@@ -12,7 +12,7 @@
              (render time only, the uploads are untouched), at full width when
              their shape allows it, never stretched. See res.company. -->
         <t t-set="data_report_margin_bottom" t-value="max([d.company_id._way4tech_invoice_footer_margin_mm(ksa_paperformat) for d in docs] or [ksa_paperformat.margin_bottom])"/>
-        <t t-set="atco_footer_full_width" t-value="True"/>
+        <t t-set="atco_full_width_letterhead" t-value="True"/>
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-set="doc" t-value="o"/>

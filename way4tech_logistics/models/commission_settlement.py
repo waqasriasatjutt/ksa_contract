@@ -679,6 +679,17 @@ class CommissionSettlement(models.Model):
             'ref': _('Salesperson commission %s') % (self.receipt_id.reference or ''),
             'invoice_line_ids': [(0, 0, line_vals)],
         })
+        # 2026-09-21: the subcontractor bill already posts its payable to the
+        # Commissioning payable configured in settings; this bill kept the
+        # payee's generic payable (e.g. 201002). Same rule here: when the
+        # setting is filled it is the source of truth, when empty Odoo's own
+        # default stays. Nothing else about the bill changes.
+        payable = settings.commissioning_payable_account_id
+        if payable:
+            term_lines = bill.line_ids.filtered(
+                lambda l: l.display_type == 'payment_term' and l.account_id != payable)
+            if term_lines:
+                term_lines.write({'account_id': payable.id})
         self.write({'salesperson_bill_id': bill.id,
                     'salesperson_commission_amount': amount})
         return self._open_move(bill, _('Salesperson Commission Bill'))

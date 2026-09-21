@@ -115,7 +115,7 @@
                             <separator string="Subcontractor Commission Rules (per subcontractor)"/>
                             <field name="commissioning_subcontractor_rule_ids">
                                 <list editable="bottom">
-                                    <field name="partner_id"/>
+                                    <field name="partner_id" context="{'res_partner_search_mode': 'supplier'}"/>
                                     <field name="is_fix"/>
                                     <field name="percent" invisible="is_fix"/>
                                     <field name="fix_amount" invisible="not is_fix"/>
