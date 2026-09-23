@@ -149,6 +149,88 @@ class ResCompany(models.Model):
         height = min(usable / ratio, self.INVOICE_FOOTER_MAX_MM)
         return max(self.INVOICE_FOOTER_MIN_BAND_MM, int(math.ceil(height + 2.0 + 5.0)))
 
+    # ── Letterhead alignment (2026-09-23) ──────────────────────────────────
+    # This layout draws the letterhead INSIDE the document body (so it can
+    # repeat per page), not in wkhtmltopdf's header band. A paper format with
+    # a header band reserved for a classic layout (Odoo's A4 keeps 52 mm, the
+    # Saudi A4 65 mm) therefore prints that space empty and pushes the
+    # letterhead a third of the way down the page, and 0 mm side margins let it
+    # run past the printable width. Companies on this layout need a format
+    # shaped for it; the module ships one (report/paperformat.xml).
+    LETTERHEAD_MAX_MARGIN_TOP_MM = 20.0
+    LETTERHEAD_MIN_SIDE_MARGIN_MM = 5.0
+
+    def _way4tech_letterhead_layout(self):
+        return self.env.ref('way4tech_ksa_tax_invoice.external_layout_atco',
+                            raise_if_not_found=False)
+
+    def _way4tech_letterhead_paperformat(self):
+        return self.env.ref('way4tech_ksa_tax_invoice.paperformat_ksa_tax_invoice',
+                            raise_if_not_found=False)
+
+    def _way4tech_effective_paperformat(self):
+        """The paper format this company's reports actually print with."""
+        self.ensure_one()
+        return self.paperformat_id or self.env.ref('base.paperformat_euro',
+                                                   raise_if_not_found=False)
+
+    def _way4tech_letterhead_usable_width_mm(self):
+        """Printable width (mm) of this company's page, for sizing the
+        letterhead images. Falls back to A4 when nothing is configured."""
+        self.ensure_one()
+        pf = self._way4tech_effective_paperformat()
+        if not pf:
+            return 188.0
+        return self._way4tech_paper_usable_width_mm(pf)
+
+    def _way4tech_letterhead_paperformat_is_wrong(self):
+        """True when this company prints the letterhead with a paper format
+        that cannot place it correctly: a reserved top band it never uses, or
+        no side margin so the letterhead overruns the printable width. A format
+        already shaped for a body letterhead (this module's, or any sensible
+        custom one) is left exactly as it is."""
+        self.ensure_one()
+        target = self._way4tech_letterhead_paperformat()
+        pf = self._way4tech_effective_paperformat()
+        if not target or not pf or pf == target:
+            return False
+        return ((pf.margin_top or 0.0) > self.LETTERHEAD_MAX_MARGIN_TOP_MM
+                or (pf.margin_left or 0.0) < self.LETTERHEAD_MIN_SIDE_MARGIN_MM
+                or (pf.margin_right or 0.0) < self.LETTERHEAD_MIN_SIDE_MARGIN_MM)
+
+    def _way4tech_align_letterhead(self):
+        """Point companies that use this letterhead layout at a paper format
+        that can print it. Only a format that is demonstrably wrong for it is
+        replaced; a company already set up correctly is never touched.
+        Returns the companies that were changed."""
+        layout = self._way4tech_letterhead_layout()
+        target = self._way4tech_letterhead_paperformat()
+        if not layout or not target:
+            return self.browse()
+        changed = self.browse()
+        for company in self:
+            if company.external_report_layout_id != layout:
+                continue
+            if company._way4tech_letterhead_paperformat_is_wrong():
+                company.paperformat_id = target.id
+                changed |= company
+        return changed
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A new company prints its letterhead correctly without anyone having
+        to configure it: it starts on this layout and its paper format, unless
+        the values being created already say otherwise."""
+        companies = super().create(vals_list)
+        layout = companies._way4tech_letterhead_layout()
+        target = companies._way4tech_letterhead_paperformat()
+        for company, vals in zip(companies, vals_list):
+            if layout and not vals.get('external_report_layout_id') and not company.external_report_layout_id:
+                company.external_report_layout_id = layout.id
+            if target and not vals.get('paperformat_id'):
+                company.paperformat_id = target.id
+        return companies
+
     def _compute_x_shared_iban(self):
         val = self.env['ir.config_parameter'].sudo().get_param(
             'way4tech_ksa_tax_invoice.shared_iban', '')
@@ -169,6 +251,10 @@ class ResCompany(models.Model):
             for c in self:
                 if c.partner_id and c.partner_id.x_name_ar != vals['x_name_ar']:
                     c.partner_id.sudo().write({'x_name_ar': vals['x_name_ar']})
+        # Switching a company onto this letterhead layout also gives it a paper
+        # format that can print it, unless one was chosen in the same write.
+        if 'external_report_layout_id' in vals and 'paperformat_id' not in vals:
+            self._way4tech_align_letterhead()
         return res
 
     @api.model
