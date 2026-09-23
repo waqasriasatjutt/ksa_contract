@@ -225,10 +225,16 @@ class ResCompany(models.Model):
         layout = companies._way4tech_letterhead_layout()
         target = companies._way4tech_letterhead_paperformat()
         for company, vals in zip(companies, vals_list):
+            to_set = {}
             if layout and not vals.get('external_report_layout_id') and not company.external_report_layout_id:
-                company.external_report_layout_id = layout.id
+                to_set['external_report_layout_id'] = layout.id
             if target and not vals.get('paperformat_id'):
-                company.paperformat_id = target.id
+                to_set['paperformat_id'] = target.id
+            if to_set:
+                # A paper format asked for in these values is kept as asked:
+                # setting the layout here must not trigger the corrector.
+                company.with_context(
+                    way4tech_skip_letterhead_align=True).write(to_set)
         return companies
 
     def _compute_x_shared_iban(self):
@@ -253,7 +259,8 @@ class ResCompany(models.Model):
                     c.partner_id.sudo().write({'x_name_ar': vals['x_name_ar']})
         # Switching a company onto this letterhead layout also gives it a paper
         # format that can print it, unless one was chosen in the same write.
-        if 'external_report_layout_id' in vals and 'paperformat_id' not in vals:
+        if ('external_report_layout_id' in vals and 'paperformat_id' not in vals
+                and not self.env.context.get('way4tech_skip_letterhead_align')):
             self._way4tech_align_letterhead()
         return res
 
