@@ -235,6 +235,9 @@ class ResCompany(models.Model):
                 # setting the layout here must not trigger the corrector.
                 company.with_context(
                     way4tech_skip_letterhead_align=True).write(to_set)
+            elif vals.get('paperformat_id'):
+                # Created with an explicit format: honour it, never re-align.
+                continue
         return companies
 
     def _compute_x_shared_iban(self):
@@ -257,10 +260,16 @@ class ResCompany(models.Model):
             for c in self:
                 if c.partner_id and c.partner_id.x_name_ar != vals['x_name_ar']:
                     c.partner_id.sudo().write({'x_name_ar': vals['x_name_ar']})
-        # Switching a company onto this letterhead layout also gives it a paper
-        # format that can print it, unless one was chosen in the same write.
-        if ('external_report_layout_id' in vals and 'paperformat_id' not in vals
-                and not self.env.context.get('way4tech_skip_letterhead_align')):
+        # Keep the letterhead printable: a company on this layout is re-aligned
+        # when it is switched onto the layout, and when something writes a paper
+        # format that cannot print a body letterhead. The Saudi localization
+        # does exactly that - account.chart.template._get_sa_res_company sets
+        # paperformat_l10n_sa_a4 (65 mm top band, no side margins) on every
+        # company that loads the KSA chart of accounts, which is how the
+        # letterheads ended up a third of the way down the page. A format that
+        # can print the letterhead is always left alone, whoever set it.
+        if not self.env.context.get('way4tech_skip_letterhead_align') and (
+                'external_report_layout_id' in vals or 'paperformat_id' in vals):
             self._way4tech_align_letterhead()
         return res
 
