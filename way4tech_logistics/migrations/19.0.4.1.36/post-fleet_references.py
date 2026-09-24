@@ -18,7 +18,7 @@ _logger = logging.getLogger(__name__)
 TARGETS = [
     ('fleet.vehicle', 'way4tech_sequence', 'way4tech.fleet.vehicle'),
     ('way4tech.truck.trip', 'name', 'way4tech.truck.trip'),
-    ('way4tech.truck.maintenance', 'name', 'way4tech.truck.maintenance'),
+    ('fleet.vehicle.log.services', 'way4tech_ref', 'way4tech.truck.maintenance'),
     ('way4tech.equipment.rental', 'name', 'way4tech.equipment.rental'),
     ('way4tech.equipment.rental.inbound', 'name', 'way4tech.equipment.rental.inbound'),
     ('way4tech.investor.payable', 'name', 'way4tech.investor.payable'),

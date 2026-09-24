@@ -186,7 +186,14 @@ class FleetVehicleLogServices(models.Model):
         _category = self.env.ref('way4tech_logistics.category_maintenance', raise_if_not_found=False)
         if _category:
             bill_vals['way4tech_category_id'] = _category.id
+        # 2026-09-24: use the Fleet purchase journal and payable account from
+        # Payroll & Accounting Setup instead of Odoo's default journal and the
+        # vendor's generic payable.
+        if settings.truck_expense_journal_id:
+            bill_vals['journal_id'] = settings.truck_expense_journal_id.id
         bill = self.env['account.move'].create(bill_vals)
+        settings._way4tech_set_move_counterpart(
+            bill, settings.truck_costs_payable_account_id)
         self.way4tech_bill_id = bill.id
 
         return {
