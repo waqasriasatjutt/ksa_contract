@@ -292,7 +292,10 @@ class Way4TechEquipmentRental(models.Model):
             invoice_vals['way4tech_category_id'] = _category.id
         if self.po_id:
             invoice_vals['way4tech_po_id'] = self.po_id.id
+        # 2026-09-24: the configured Fleet receivable carries the balance.
         invoice = self.env['account.move'].create(invoice_vals)
+        settings._way4tech_set_move_counterpart(
+            invoice, settings.truck_receivable_account_id)
         self.write({'invoice_id': invoice.id})
         return {
             'type': 'ir.actions.act_window',

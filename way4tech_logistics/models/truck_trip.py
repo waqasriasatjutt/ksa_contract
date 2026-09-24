@@ -298,6 +298,18 @@ class Way4TechTruckTrip(models.Model):
         self.ensure_one()
         self.state = 'draft'
 
+    def _way4tech_driver_partner(self):
+        """The driver as a partner, for the Trip Cost Entry lines. Employees
+        carry their partner on work_contact_id (or through their user)."""
+        self.ensure_one()
+        driver = self.driver_id
+        if not driver:
+            return self.env['res.partner']
+        if driver._name == 'res.partner':
+            return driver
+        return (getattr(driver, 'work_contact_id', False)
+                or driver.user_id.partner_id) or self.env['res.partner']
+
     # ── Invoice / Cost Entry Actions ──────────────────────────────────────────
 
     def action_create_invoice(self):
@@ -343,6 +355,11 @@ class Way4TechTruckTrip(models.Model):
             'company_id': self.company_id.id,
             'invoice_line_ids': [(0, 0, invoice_line_vals)],
         }
+        # 2026-09-24: the Fleet sales journal and receivable configured in
+        # Payroll & Accounting Setup are what the trip invoice must use, not
+        # whatever Odoo picks by default.
+        if settings.truck_trip_journal_id:
+            invoice_vals['journal_id'] = settings.truck_trip_journal_id.id
         if settings.truck_trip_journal_id:
             invoice_vals['journal_id'] = settings.truck_trip_journal_id.id
 
@@ -411,6 +428,12 @@ class Way4TechTruckTrip(models.Model):
                     self.name,
                 ),
             ))
+        # 2026-09-24: the driver is the counterparty of the whole entry, so he
+        # is named on every line (expenses and the payable alike) and the trip's
+        # analytic distribution belongs on the expense lines only - the payable
+        # is a balance-sheet line and carrying analytics there double-counted
+        # the trip in analytic reporting.
+        driver_partner = self._way4tech_driver_partner()
         debit_lines = []
         for amount, account, label in cost_items:
             if amount and account:
@@ -420,6 +443,8 @@ class Way4TechTruckTrip(models.Model):
                     'debit': amount,
                     'credit': 0.0,
                 }
+                if driver_partner:
+                    line['partner_id'] = driver_partner.id
                 if analytic_dist:
                     line['analytic_distribution'] = analytic_dist
                 debit_lines.append(line)
@@ -433,8 +458,8 @@ class Way4TechTruckTrip(models.Model):
             'debit': 0.0,
             'credit': total_posted,
         }
-        if analytic_dist:
-            credit_line['analytic_distribution'] = analytic_dist
+        if driver_partner:
+            credit_line['partner_id'] = driver_partner.id
 
         journal = settings.truck_expense_journal_id or settings.employee_cost_journal_id
         # Resolve trip-cost category (Fuel / Diesel)

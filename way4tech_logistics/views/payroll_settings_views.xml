@@ -143,6 +143,8 @@
                                 <field name="truck_revenue_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Account type: Income / Revenue. Credited on customer invoices created for truck trips. &#10;Example: '4300 - Transport Revenue' or '4100 - Fleet Income'. &#10;This is a Profit &amp; Loss income account."/>
+                                <field name="truck_receivable_account_id"
+                                       domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'asset_receivable')]"/>
                                 <field name="truck_trip_journal_id"
                                        domain="[('type', '=', 'sale'), ('company_id', '=', company_id)]"
                                        help="Journal type: Sales. Used for truck trip customer invoices (out_invoice). Usually your 'Customer Invoices' or 'Sales' journal."/>

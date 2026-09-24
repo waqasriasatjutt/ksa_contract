@@ -246,7 +246,10 @@ class Way4TechEquipmentRentalInbound(models.Model):
         if journal:
             bill_vals['journal_id'] = journal.id
 
+        # 2026-09-24: the configured Fleet payable carries the balance.
         bill = self.env['account.move'].create(bill_vals)
+        settings._way4tech_set_move_counterpart(
+            bill, settings.truck_costs_payable_account_id)
         self.bill_id = bill.id
         return {
             'type': 'ir.actions.act_window',

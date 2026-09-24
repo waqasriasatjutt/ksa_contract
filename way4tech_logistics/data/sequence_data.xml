@@ -8,7 +8,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_commission_receipt" model="ir.sequence">
@@ -18,7 +21,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_investor_payable" model="ir.sequence">
@@ -28,7 +34,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_employee_cost" model="ir.sequence">
@@ -38,7 +47,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
 
@@ -49,7 +61,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_truck_maintenance" model="ir.sequence">
@@ -59,7 +74,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_employee_deduction" model="ir.sequence">
@@ -69,7 +87,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_asset_register" model="ir.sequence">
@@ -79,7 +100,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_equipment_rental" model="ir.sequence">
@@ -89,7 +113,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_fleet_vehicle" model="ir.sequence">
@@ -99,7 +126,10 @@
         <field name="padding">10</field>
         <field name="number_increment">1</field>
         <field name="number_next">1000000001</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
     <record id="seq_equipment_rental_inbound" model="ir.sequence">
@@ -109,7 +139,10 @@
         <field name="padding">4</field>
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
-        <field name="company_id" ref="base.main_company"/>
+        <!-- shared by every company: next_by_code only sees sequences of the
+             active company or none, so a company-pinned sequence left every
+             other company's records named "New". -->
+        <field name="company_id" eval="False"/>
     </record>
 
 </odoo>

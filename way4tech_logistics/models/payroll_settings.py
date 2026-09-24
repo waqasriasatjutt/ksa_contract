@@ -260,6 +260,16 @@ class PayrollSettings(models.Model):
              'Debited when monthly installment is paid (Dr this Cr Bank). '
              'Credited when vehicle is purchased on installment (Dr Fixed Asset Cr this).',
     )
+    truck_receivable_account_id = fields.Many2one(
+        'account.account',
+        string='Truck Receivable Account',
+        check_company=True,
+        help='Accounts-receivable account for Fleet customer invoices (truck trips '
+             'and equipment rentals).\n'
+             'Example: 140003 - Truck / Fleet Receivable. Kept separate per business '
+             'division so cash tracking stays clean.\n'
+             'Leave empty to use the customer\'s default receivable.',
+    )
     rental_income_account_id = fields.Many2one(
         'account.account',
         string='Equipment Rental Income Account',
@@ -515,6 +525,26 @@ class PayrollSettings(models.Model):
 
     # ── Methods ───────────────────────────────────────────────────────────────
 
+    def _way4tech_set_move_counterpart(self, move, account):
+        """Post the receivable / payable side of `move` to `account`.
+
+        Odoo balances an invoice or bill on the partner's own default
+        receivable/payable. The Fleet documents are raised by the module from
+        its own configuration, so the configured account is the one that must
+        carry the balance. No account configured, or an account that cannot
+        hold that balance, leaves Odoo's own default in place.
+        """
+        if not move or not account:
+            return
+        expected = ('asset_receivable' if move.move_type in ('out_invoice', 'out_refund')
+                    else 'liability_payable')
+        if account.account_type != expected:
+            return
+        lines = move.line_ids.filtered(
+            lambda l: l.display_type == 'payment_term' and l.account_id != account)
+        if lines:
+            lines.write({'account_id': account.id})
+
     @api.model
     def get_for_company(self, company_id=None):
         """Return the settings record for the given (or current) company."""
@@ -679,6 +709,7 @@ class PayrollSettings(models.Model):
         # ── FLEET / TRUCKS ───────────────────────────────────────────────────
         _set('truck_revenue_account_id',   '500008', 'Transport Revenue',          'income',            'transport revenue', 'fleet income', 'vehicle income')
         _set('truck_expense_account_id',   '400048', 'Vehicle & Fleet Expenses',   'expense',           'vehicle', 'fleet expense', 'truck expense')
+        _set('truck_receivable_account_id', '140003', 'Truck / Fleet Receivable', 'asset_receivable', 'truck receivable', 'fleet receivable', 'direct business receivable')
         _set('truck_costs_payable_account_id', '201099', 'Truck Costs Payable',    'liability_current', 'truck costs payable', 'accrued trip', 'fleet payable')
         _set('investor_payable_account_id','201098', 'Investor Profit Payable',    'liability_current', 'investor', 'profit payable', 'investor payable')
         _set('installment_payable_account_id', '220010', 'Installment Payable',    'liability_non_current', 'installment payable', 'vehicle financing', 'hire purchase')

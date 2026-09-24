@@ -256,7 +256,13 @@ class Way4TechInvestorPayable(models.Model):
         }
         if inv_category:
             bill_vals['way4tech_category_id'] = inv_category.id
+        # 2026-09-24: the Fleet purchase journal and payable account from
+        # Payroll & Accounting Setup, not Odoo's defaults.
+        if settings.truck_expense_journal_id:
+            bill_vals['journal_id'] = settings.truck_expense_journal_id.id
         bill = self.env['account.move'].create(bill_vals)
+        settings._way4tech_set_move_counterpart(
+            bill, settings.truck_costs_payable_account_id)
         self.write({'bill_id': bill.id})
         return {
             'type': 'ir.actions.act_window',
