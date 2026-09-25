@@ -5,7 +5,7 @@ from odoo.exceptions import UserError
 class Way4TechInvestorPayable(models.Model):
     _name = 'way4tech.investor.payable'
     _description = 'Investor Payable'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin']
     _order = 'period_start desc, name desc'
 
     name = fields.Char(
@@ -65,6 +65,18 @@ class Way4TechInvestorPayable(models.Model):
     total_revenue = fields.Monetary(
         string='Total Revenue from Client',
         currency_field='currency_id',
+    )
+    driver_expenses = fields.Monetary(
+        string='Driver Cost',
+        help='Driver salary, overtime and food allowance on the period trips.',
+    )
+    fuel_expenses = fields.Monetary(
+        string='Fuel Cost',
+        help='Fuel and diesel on the period trips.',
+    )
+    maintenance_expenses = fields.Monetary(
+        string='Maintenance Cost',
+        help='Maintenance logs for this vehicle inside the period.',
     )
     total_expenses = fields.Monetary(
         string='Direct Expenses (Driver + Fuel + Maintenance)',
@@ -212,6 +224,9 @@ class Way4TechInvestorPayable(models.Model):
         maintenance_costs = sum(maintenances.mapped('amount'))
         self.write({
             'total_revenue': sum(trips.mapped('revenue')),
+            'driver_expenses': sum(trips.mapped('driver_cost')),
+            'fuel_expenses': sum(trips.mapped('fuel_cost')),
+            'maintenance_expenses': maintenance_costs,
             'total_expenses': trip_operational_costs + maintenance_costs,
         })
 
@@ -234,7 +249,8 @@ class Way4TechInvestorPayable(models.Model):
             raise UserError(_('No investor linked to this truck. Please set an investor on the truck first.'))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = self.truck_id.analytic_account_id or settings.default_analytic_account_id
+        analytic_dist = self._way4tech_analytic_dist(
+            self.truck_id.analytic_account_id, settings.default_analytic_account_id)
 
         bill_line_vals = {
             'name': 'Investor Profit Share - ' + self.name,
@@ -243,8 +259,8 @@ class Way4TechInvestorPayable(models.Model):
         }
         if settings.investor_payable_account_id:
             bill_line_vals['account_id'] = settings.investor_payable_account_id.id
-        if analytic:
-            bill_line_vals['analytic_distribution'] = {str(analytic.id): 100}
+        if analytic_dist:
+            bill_line_vals['analytic_distribution'] = analytic_dist
 
         inv_category = self.env.ref('way4tech_logistics.category_commission', raise_if_not_found=False)
         bill_vals = {
@@ -272,6 +288,16 @@ class Way4TechInvestorPayable(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_posted(self):
+        """No deletion while the investor bill has reached the accounts."""
+        for rec in self:
+            if rec.bill_id and rec.bill_id.state == 'posted':
+                raise UserError(_(
+                    'This record cannot be deleted while its investor bill %s is '
+                    'posted. Reset it to draft or cancel it in Accounting first.'
+                ) % rec.bill_id.display_name)
 
     def action_reset_draft(self):
         self.ensure_one()

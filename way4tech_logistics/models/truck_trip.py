@@ -4,6 +4,7 @@ from odoo.exceptions import UserError, ValidationError
 
 class Way4TechTripProjectAllocation(models.Model):
     _name = 'way4tech.trip.project.allocation'
+    _inherit = ['way4tech.analytic.mixin']
     _description = 'Trip Project Allocation (multi-project split)'
     _order = 'date_from'
 
@@ -30,7 +31,8 @@ class Way4TechTripProjectAllocation(models.Model):
 class Way4TechTruckTrip(models.Model):
     _name = 'way4tech.truck.trip'
     _description = 'Truck Trip / Rental'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin',
+                'way4tech.analytic.mixin', 'way4tech.partner.statement.mixin']
     _order = 'trip_date desc, name desc'
 
     name = fields.Char(
@@ -156,11 +158,19 @@ class Way4TechTruckTrip(models.Model):
     fuel_cost = fields.Monetary(string='Fuel / Diesel Cost', currency_field='currency_id')
     other_cost = fields.Monetary(string='Other Cost', currency_field='currency_id')
 
+    other_cost_total = fields.Monetary(
+        string='Other Cost (Total)',
+        compute='_compute_totals', store=True,
+        currency_field='currency_id',
+        help="Fuel/Diesel + Other Cost (+ third-party hire on a middleman trip). "
+             "The counterpart of Driver Cost (Total); the two add up to Total "
+             "Direct Cost.",
+    )
     total_cost = fields.Monetary(
         string='Total Direct Cost',
         compute='_compute_totals', store=True,
         currency_field='currency_id',
-        help="Driver Cost + Fuel/Diesel + Other Cost.",
+        help="Driver Cost (Total) + Other Cost (Total).",
     )
     gross_profit = fields.Monetary(
         string='Gross Profit',
@@ -217,7 +227,8 @@ class Way4TechTruckTrip(models.Model):
     def _compute_totals(self):
         for rec in self:
             third_party = rec.third_party_cost if rec.trip_type == 'middleman' else 0.0
-            rec.total_cost = rec.fuel_cost + rec.driver_cost + rec.other_cost + third_party
+            rec.other_cost_total = rec.fuel_cost + rec.other_cost + third_party
+            rec.total_cost = rec.driver_cost + rec.other_cost_total
             rec.gross_profit = rec.revenue - rec.total_cost
 
     @api.onchange('truck_id')
@@ -298,6 +309,30 @@ class Way4TechTruckTrip(models.Model):
         self.ensure_one()
         self.state = 'draft'
 
+    def action_view_client_statement(self):
+        return self._way4tech_open_partner_ledger(self.client_id, _('Client'))
+
+    def action_view_driver_statement(self):
+        return self._way4tech_open_partner_ledger(
+            self._way4tech_driver_partner(), _('Driver'))
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_posted(self):
+        """A trip whose invoice or cost entry has reached the accounts cannot
+        be deleted. Reset or cancel the document in Accounting first, the same
+        rule the Commissioning records follow."""
+        for rec in self:
+            blockers = []
+            if rec.invoice_id and rec.invoice_id.state == 'posted':
+                blockers.append(_('invoice %s') % rec.invoice_id.display_name)
+            if rec.cost_move_id and rec.cost_move_id.state == 'posted':
+                blockers.append(_('cost entry %s') % rec.cost_move_id.display_name)
+            if blockers:
+                raise UserError(_(
+                    'Trip %s cannot be deleted while its %s is posted. Reset it '
+                    'to draft or cancel it in Accounting first.'
+                ) % (rec.name, ' and '.join(blockers)))
+
     def _way4tech_driver_partner(self):
         """The driver as a partner, for the Trip Cost Entry lines. Employees
         carry their partner on work_contact_id (or through their user)."""
@@ -320,11 +355,9 @@ class Way4TechTruckTrip(models.Model):
             raise UserError(_('A customer invoice already exists for this trip.'))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = (
-            self.analytic_account_id
-            or self.truck_id.analytic_account_id
-            or settings.default_analytic_account_id
-        )
+        analytic_dist = self._way4tech_analytic_dist(
+            self.analytic_account_id, self.truck_id.analytic_account_id,
+            settings.default_analytic_account_id)
         # KSA 15% VAT on all customer invoices
         vat_tax = self.env['account.tax'].search([
             ('type_tax_use', '=', 'sale'),
@@ -343,8 +376,8 @@ class Way4TechTruckTrip(models.Model):
         }
         if settings.truck_revenue_account_id:
             invoice_line_vals['account_id'] = settings.truck_revenue_account_id.id
-        if analytic:
-            invoice_line_vals['analytic_distribution'] = {str(analytic.id): 100}
+        if analytic_dist:
+            invoice_line_vals['analytic_distribution'] = analytic_dist
         if vat_tax:
             invoice_line_vals['tax_ids'] = [(6, 0, [vat_tax.id])]
 
@@ -404,12 +437,9 @@ class Way4TechTruckTrip(models.Model):
         if not settings.truck_costs_payable_account_id:
             raise UserError(_('Configure Truck Costs Payable Account in Settings → Accounting Setup → Fleet & Trucks.'))
 
-        analytic = (
-            self.analytic_account_id
-            or self.truck_id.analytic_account_id
-            or settings.default_analytic_account_id
-        )
-        analytic_dist = {str(analytic.id): 100} if analytic else False
+        analytic_dist = self._way4tech_analytic_dist(
+            self.analytic_account_id, self.truck_id.analytic_account_id,
+            settings.default_analytic_account_id)
 
         cost_items = [
             (self.driver_basic,           settings.truck_expense_account_id,  'Driver Basic Salary - %s' % self.name),

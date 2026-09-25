@@ -5,7 +5,7 @@ from odoo.exceptions import UserError
 class Way4TechEquipmentRental(models.Model):
     _name = 'way4tech.equipment.rental'
     _description = 'Equipment / Machinery Rental'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin']
     _order = 'rental_start desc, name desc'
 
     name = fields.Char(
@@ -232,7 +232,8 @@ class Way4TechEquipmentRental(models.Model):
                 ) % (self.revenue, self.po_id.remaining_balance, self.po_id.name))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = self.analytic_account_id or settings.default_analytic_account_id
+        analytic_dist = self._way4tech_analytic_dist(
+            self.analytic_account_id, settings.default_analytic_account_id)
 
         # KSA 15% VAT on all customer invoices
         vat_tax = self.env['account.tax'].search([
@@ -271,8 +272,8 @@ class Way4TechEquipmentRental(models.Model):
         income_account = settings.rental_income_account_id or settings.truck_revenue_account_id
         if income_account:
             invoice_line_vals['account_id'] = income_account.id
-        if analytic:
-            invoice_line_vals['analytic_distribution'] = {str(analytic.id): 100}
+        if analytic_dist:
+            invoice_line_vals['analytic_distribution'] = analytic_dist
         if vat_tax:
             invoice_line_vals['tax_ids'] = [(6, 0, [vat_tax.id])]
 

@@ -24,7 +24,7 @@ class FleetVehicleLogServices(models.Model):
       analytic_account_id → way4tech_analytic_account_id (new)
       state            → way4tech_state      (new — fleet has no draft/done workflow)
     """
-    _inherit = 'fleet.vehicle.log.services'
+    _inherit = ['fleet.vehicle.log.services', 'way4tech.analytic.mixin']
 
     way4tech_ref = fields.Char(
         string='Reference',
@@ -156,11 +156,10 @@ class FleetVehicleLogServices(models.Model):
             raise UserError(_('Maintenance cost is zero. Please enter the cost first.'))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        analytic = (
-            self.way4tech_analytic_account_id
-            or (self.vehicle_id and self.vehicle_id.analytic_account_id)
-            or settings.default_analytic_account_id
-        )
+        analytic_dist = self._way4tech_analytic_dist(
+            self.way4tech_analytic_account_id,
+            self.vehicle_id.analytic_account_id if self.vehicle_id else False,
+            settings.default_analytic_account_id)
 
         description = '%s - %s' % (
             self.way4tech_ref,
@@ -173,8 +172,8 @@ class FleetVehicleLogServices(models.Model):
         }
         if settings.truck_expense_account_id:
             bill_line_vals['account_id'] = settings.truck_expense_account_id.id
-        if analytic:
-            bill_line_vals['analytic_distribution'] = {str(analytic.id): 100}
+        if analytic_dist:
+            bill_line_vals['analytic_distribution'] = analytic_dist
 
         bill_vals = {
             'move_type': 'in_invoice',

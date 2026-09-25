@@ -29,6 +29,20 @@
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
+                        <button name="action_view_client_statement" type="object"
+                                class="oe_stat_button" icon="fa-university">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Client</span>
+                                <span class="o_stat_text">Statement</span>
+                            </div>
+                        </button>
+                        <button name="action_view_driver_statement" type="object"
+                                class="oe_stat_button" icon="fa-university">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Driver</span>
+                                <span class="o_stat_text">Statement</span>
+                            </div>
+                        </button>
                         <button name="action_view_invoice" type="object"
                                 class="oe_stat_button" icon="fa-file-text-o"
                                 invisible="invoice_id == False">
@@ -61,7 +75,12 @@
                             <field name="driver_iqama_number" readonly="1"
                                    invisible="not driver_iqama_number"/>
                             <field name="salesperson_id"/>
-                            <field name="analytic_account_id"/>
+                            <!-- 2026-09-25: Analytic Distribution (several accounts
+                                 allowed), as on Manpower Contracts and Commissioning.
+                                 The old single account stays on the record as a
+                                 fallback for anything configured before. -->
+                            <field name="analytic_distribution" widget="analytic_distribution"/>
+                            <field name="analytic_account_id" invisible="1"/>
                         </group>
                         <group string="Route">
                             <field name="origin"/>
@@ -127,6 +146,8 @@
                                 <group string="Other Costs">
                                     <field name="fuel_cost" string="Fuel / Diesel"/>
                                     <field name="other_cost"/>
+                                    <!-- 2026-09-25: the counterpart of Driver Cost (Total). -->
+                                    <field name="other_cost_total" readonly="1" class="o_field_highlight"/>
                                     <!-- 3rd-party hire cost (Middleman trips) -->
                                     <field name="third_party_vendor_id"
                                            invisible="trip_type != 'middleman'"/>
@@ -154,7 +175,8 @@
                                     <field name="project_name"/>
                                     <field name="date_from"/>
                                     <field name="date_to"/>
-                                    <field name="analytic_account_id" optional="show"/>
+                                    <field name="analytic_distribution" widget="analytic_distribution" optional="show"/>
+                                    <field name="analytic_account_id" column_invisible="1"/>
                                     <field name="notes" optional="hide"/>
                                 </list>
                             </field>

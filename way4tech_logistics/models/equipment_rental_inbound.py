@@ -5,7 +5,7 @@ from odoo.exceptions import UserError
 class Way4TechEquipmentRentalInbound(models.Model):
     _name = 'way4tech.equipment.rental.inbound'
     _description = 'Inbound Equipment Rental (From Vendor)'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin']
     _order = 'rental_start desc, name desc'
 
     name = fields.Char(
@@ -202,7 +202,8 @@ class Way4TechEquipmentRentalInbound(models.Model):
                 'Configuration → Payroll & Accounting Setup.'
             ))
 
-        analytic = self.analytic_account_id or settings.default_analytic_account_id
+        analytic_dist = self._way4tech_analytic_dist(
+            self.analytic_account_id, settings.default_analytic_account_id)
 
         # Build description
         rate_labels = {'daily': 'day', 'weekly': 'week', 'monthly': 'month', 'fixed': 'fixed'}
@@ -222,8 +223,8 @@ class Way4TechEquipmentRentalInbound(models.Model):
             'price_unit': self.rate_amount,
             'account_id': expense_account.id,
         }
-        if analytic:
-            bill_line['analytic_distribution'] = {str(analytic.id): 100}
+        if analytic_dist:
+            bill_line['analytic_distribution'] = analytic_dist
 
         _category = self.env.ref('way4tech_logistics.category_rent', raise_if_not_found=False)
         journal = settings.rental_expense_journal_id

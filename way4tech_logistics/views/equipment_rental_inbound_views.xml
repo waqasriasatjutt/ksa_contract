@@ -78,7 +78,8 @@
                         <group string="Project Link">
                             <field name="manpower_contract_id"
                                    readonly="state not in ('draft', 'confirmed')"/>
-                            <field name="analytic_account_id"/>
+                            <field name="analytic_distribution" widget="analytic_distribution"/>
+                            <field name="analytic_account_id" invisible="1"/>
                         </group>
                         <group string="Billing">
                             <field name="bill_id" readonly="1"/>

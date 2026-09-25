@@ -22,6 +22,20 @@
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
+                        <button name="action_view_client_statement" type="object"
+                                class="oe_stat_button" icon="fa-university">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Client</span>
+                                <span class="o_stat_text">Statement</span>
+                            </div>
+                        </button>
+                        <button name="action_view_subcontractor_statement" type="object"
+                                class="oe_stat_button" icon="fa-university">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Subcontractor</span>
+                                <span class="o_stat_text">Statement</span>
+                            </div>
+                        </button>
                         <button name="action_view_bills" type="object"
                                 class="oe_stat_button" icon="fa-file-text-o"
                                 invisible="bill_count == 0">

@@ -373,6 +373,11 @@
                         <group string="Revenue &amp; Direct Costs">
                             <field name="total_revenue" readonly="state != 'draft'"
                                    help="Total client revenue (sum of trip invoices in the period)."/>
+                            <!-- 2026-09-25: the three costs behind Direct Expenses,
+                                 shown separately and still adding up to the total. -->
+                            <field name="driver_expenses" readonly="1"/>
+                            <field name="fuel_expenses" readonly="1"/>
+                            <field name="maintenance_expenses" readonly="1"/>
                             <field name="total_expenses" readonly="state != 'draft'"
                                    help="Direct costs: driver salary + overtime + fuel + maintenance."/>
                             <field name="profit_share_rate" readonly="1"
@@ -443,6 +448,9 @@
                 <field name="period_start"/>
                 <field name="period_end"/>
                 <field name="total_revenue" sum="Total Revenue"/>
+                <field name="driver_expenses" sum="Driver" optional="show"/>
+                <field name="fuel_expenses" sum="Fuel" optional="show"/>
+                <field name="maintenance_expenses" sum="Maintenance" optional="show"/>
                 <field name="total_expenses" sum="Direct Expenses"/>
                 <field name="gross_profit" sum="Gross Profit"/>
                 <field name="investor_amount" sum="Investor Amount" optional="show"/>

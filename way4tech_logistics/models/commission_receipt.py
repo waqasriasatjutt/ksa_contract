@@ -33,7 +33,8 @@ from odoo.exceptions import UserError
 class CommissionReceipt(models.Model):
     _name = 'way4tech.commission.receipt'
     _description = 'Commissioning Business Record'
-    _inherit = ['mail.thread', 'mail.activity.mixin', 'analytic.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'analytic.mixin',
+                'way4tech.partner.statement.mixin']
     _order = 'start_date desc, reference desc, id desc'
     _rec_name = 'name'
 
@@ -323,6 +324,13 @@ class CommissionReceipt(models.Model):
                     'those settlements to draft, and cancel or reverse the linked '
                     'bills, vouchers, payments and invoices in Accounting first.'
                 ) % ', '.join(blockers))
+
+    def action_view_client_statement(self):
+        return self._way4tech_open_partner_ledger(self.partner_id, _('Client'))
+
+    def action_view_subcontractor_statement(self):
+        return self._way4tech_open_partner_ledger(
+            self.subcontractor_id, _('Subcontractor'))
 
     def _settings(self):
         return self.env['way4tech.payroll.settings'].get_for_company(
