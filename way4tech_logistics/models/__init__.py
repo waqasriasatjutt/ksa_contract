@@ -2,6 +2,8 @@
 # does `_inherit = ['way4tech.manpower.approval.mixin']`. Odoo resolves _inherit
 # at class-registration time, so a later import gives
 # "Model X inherits from non-existing model way4tech.manpower.approval.mixin".
+# 2026-09-25 - shared mixins: must load before any model that inherits them
+from . import fleet_shared_mixins
 from . import manpower_approval_request
 # CR5 item 2: doc-line mixin (attachments + download) — same rule, import first.
 from . import manpower_docline_mixin
@@ -47,8 +49,6 @@ from . import commission_template
 from . import manpower_commission_line
 # 2026-07-17 — CR2 G4 two-way sync + delete protection (19.0.2.8.0)
 from . import account_move_sync
-# 2026-09-25 - shared analytic distribution + partner statement helpers
-from . import fleet_shared_mixins
 # 2026-09-15 - Commissioning client-side accounts (receivable + Output VAT)
 from . import account_move_commissioning_accounts
 # 2026-07-17 — CR2 G5 monthly signature approval (19.0.2.9.0)
