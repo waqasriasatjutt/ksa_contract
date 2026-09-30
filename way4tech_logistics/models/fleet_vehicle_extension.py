@@ -544,12 +544,43 @@ class FleetVehicle(models.Model):
         }
 
     # ── Sequence generation ─────────────────────────────────────────────────
+    def _way4tech_category_sequence(self, category):
+        """The number series for one Vehicle Category, created on first use.
+
+        Each category counts on its own, so vehicles read TRUCK-001, CAR-001,
+        BUS-001 and so on. The prefix is the category itself, so a category
+        added to the list later gets its own series without any code change.
+        The series is shared by every company, like the other Fleet sequences.
+        """
+        category = category or 'other'
+        code = 'way4tech.fleet.vehicle.%s' % category
+        Sequence = self.env['ir.sequence'].sudo()
+        sequence = Sequence.search([('code', '=', code)], limit=1)
+        if not sequence:
+            labels = dict(self._fields['vehicle_category'].selection)
+            sequence = Sequence.create({
+                'name': 'Fleet Vehicle - %s' % labels.get(category, category.title()),
+                'code': code,
+                'prefix': '%s-' % category.upper(),
+                'padding': 3,
+                'number_increment': 1,
+                'number_next': 1,
+                'company_id': False,
+            })
+        return sequence
+
     @api.model_create_multi
     def create(self, vals_list):
+        defaults = None
         for vals in vals_list:
             if not vals.get('way4tech_sequence') or vals.get('way4tech_sequence') == _('New'):
-                vals['way4tech_sequence'] = self.env['ir.sequence'].next_by_code(
-                    'way4tech.fleet.vehicle') or _('New')
+                category = vals.get('vehicle_category')
+                if not category:
+                    if defaults is None:
+                        defaults = self.default_get(['vehicle_category'])
+                    category = defaults.get('vehicle_category')
+                vals['way4tech_sequence'] = (
+                    self._way4tech_category_sequence(category).next_by_id() or _('New'))
         return super().create(vals_list)
 
     # ── Expiry cron ─────────────────────────────────────────────────────────
