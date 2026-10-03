@@ -277,8 +277,11 @@ class Way4TechInvestorPayable(models.Model):
         if settings.truck_expense_journal_id:
             bill_vals['journal_id'] = settings.truck_expense_journal_id.id
         bill = self.env['account.move'].create(bill_vals)
+        # 2026-10-03: investor bills carry their own payable when one is
+        # configured, so investor money is not mixed with driver payables.
         settings._way4tech_set_move_counterpart(
-            bill, settings.truck_costs_payable_account_id)
+            bill, settings.investor_bill_payable_account_id
+            or settings.truck_costs_payable_account_id)
         self.write({'bill_id': bill.id})
         return {
             'type': 'ir.actions.act_window',

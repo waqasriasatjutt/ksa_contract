@@ -78,7 +78,10 @@
                                    help="The food delivery platform client this batch belongs to (e.g. HungerStation, Keeta, The Chefz). &#10;&#10;Optional — leave blank for own internal employees. &#10;&#10;When set, automatically fills the Analytic Account below (if the partner has a linked analytic account), enabling per-client profit tracking in analytic reports."/>
                             <field name="platform_id"
                                    help="Default platform for all lines in this import. &#10;&#10;Each platform (HungerStation, Keeta, The Chefz, etc.) has its own contract terms: fixed salary amount, minimum working days, order target, bonus per extra order, and deduction per short order. &#10;&#10;Individual lines can override with their own platform if you have mixed-platform batches."/>
-                            <field name="analytic_account_id"
+                            <!-- 2026-10-03: several analytic accounts allowed, as on Manpower,
+                                 Commissioning and Fleet. The single account stays as a fallback. -->
+                            <field name="analytic_distribution" widget="analytic_distribution"/>
+                            <field name="analytic_account_id" invisible="1"
                                    help="Cost centre / analytic dimension applied to all journal entry lines when posting salaries. &#10;&#10;Use this to track salary costs per branch, per client, or per project. &#10;&#10;Priority: &#10;1. This field (most specific) &#10;2. Company default in Settings → Accounting Setup → Analytics tab &#10;3. No analytic (if both are blank) &#10;&#10;Tip: link an analytic account to the Client partner and it will fill automatically when you select a client above."/>
                             <field name="company_id"
                                    groups="base.group_multi_company"

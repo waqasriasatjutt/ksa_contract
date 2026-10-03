@@ -158,6 +158,9 @@ class FleetVehicle(models.Model):
     installment_monthly_amount = fields.Monetary(
         string='Monthly Installment',
         currency_field='currency_id',
+        compute='_compute_installment_monthly', store=True, readonly=False,
+        help='Worked out from the financed amount and the number of '
+             'installments. Type over it if the agreement says otherwise.',
     )
     installment_start_date = fields.Date(
         string='First Installment Date',
@@ -168,8 +171,8 @@ class FleetVehicle(models.Model):
     )
     installment_total_months = fields.Integer(
         string='Total Installments',
-        compute='_compute_installment_info',
-        store=True,
+        help='Number of monthly installments agreed with the financier. '
+             'The monthly amount is worked out from it.',
     )
     installment_remaining_balance = fields.Monetary(
         string='Outstanding Balance',
@@ -308,30 +311,40 @@ class FleetVehicle(models.Model):
     )
 
     # ── Computed: installment info ────────────────────────────────────────────
+    @api.depends('is_installment', 'installment_total_price',
+                 'installment_down_payment', 'installment_total_months')
+    def _compute_installment_monthly(self):
+        """2026-10-03: the monthly installment follows the agreement: the
+        financed amount (price less down payment) divided by the number of
+        installments. It stays editable, so a figure typed by hand wins."""
+        for rec in self:
+            if not rec.is_installment or not rec.installment_total_months:
+                if not rec.is_installment:
+                    rec.installment_monthly_amount = 0.0
+                continue
+            financed = (rec.installment_total_price or 0.0) - (rec.installment_down_payment or 0.0)
+            rec.installment_monthly_amount = max(financed, 0.0) / rec.installment_total_months
+
     @api.depends(
         'is_installment', 'installment_total_price', 'installment_down_payment',
         'installment_monthly_amount', 'installments_paid', 'installment_start_date',
+        'installment_total_months',
     )
     def _compute_installment_info(self):
-        import math
         from dateutil.relativedelta import relativedelta
         for rec in self:
-            if not rec.is_installment or not rec.installment_monthly_amount:
-                rec.installment_total_months = 0
+            if not rec.is_installment:
                 rec.installment_remaining_balance = 0.0
                 rec.installment_end_date = False
                 continue
-            financed = rec.installment_total_price - rec.installment_down_payment
-            monthly = rec.installment_monthly_amount
-            total_months = math.ceil(financed / monthly) if monthly > 0 else 0
+            financed = (rec.installment_total_price or 0.0) - (rec.installment_down_payment or 0.0)
+            monthly = rec.installment_monthly_amount or 0.0
             paid_amount = rec.installments_paid * monthly
-            remaining = max(0.0, financed - paid_amount)
-            end_date = False
-            if rec.installment_start_date and total_months:
-                end_date = rec.installment_start_date + relativedelta(months=total_months - 1)
-            rec.installment_total_months = total_months
-            rec.installment_remaining_balance = remaining
-            rec.installment_end_date = end_date
+            rec.installment_remaining_balance = max(0.0, financed - paid_amount)
+            months = rec.installment_total_months
+            rec.installment_end_date = (
+                rec.installment_start_date + relativedelta(months=months - 1)
+                if rec.installment_start_date and months else False)
 
     @api.depends('license_plate')
     def _compute_way4tech_counts(self):
@@ -498,6 +511,10 @@ class FleetVehicle(models.Model):
             ))
 
         amount = min(self.installment_monthly_amount, self.installment_remaining_balance)
+        if amount <= 0:
+            raise UserError(_(
+                'The monthly installment is zero. Set the Total Installments '
+                'and the financed amount on the vehicle first.'))
         analytic = self.analytic_account_id or settings.default_analytic_account_id
 
         bill_line = {
@@ -520,8 +537,14 @@ class FleetVehicle(models.Model):
         }
         if inst_category:
             bill_vals['way4tech_category_id'] = inst_category.id
+        # 2026-10-03: the Fleet purchase journal from Payroll & Accounting
+        # Setup, not whichever purchase journal Odoo happens to pick first.
+        if settings.truck_expense_journal_id:
+            bill_vals['journal_id'] = settings.truck_expense_journal_id.id
 
         bill = self.env['account.move'].create(bill_vals)
+        settings._way4tech_set_move_counterpart(
+            bill, settings.truck_costs_payable_account_id)
         self.installments_paid += 1
         return {
             'type': 'ir.actions.act_window',

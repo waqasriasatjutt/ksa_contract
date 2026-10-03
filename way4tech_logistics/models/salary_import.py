@@ -5,7 +5,7 @@ from odoo.exceptions import UserError
 class SalaryImport(models.Model):
     _name = 'way4tech.salary.import'
     _description = 'Worker Salary Import'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin']
     _order = 'date desc, name desc'
 
     name = fields.Char(
@@ -231,6 +231,15 @@ class SalaryImport(models.Model):
             if not line.loan_balance_before and totals.get('loan', 0.0) > 0:
                 line.loan_balance_before = totals.get('loan', 0.0)
 
+    def _way4tech_employee_partner(self, employee):
+        """The employee as a partner, for the payroll journal lines. Employees
+        carry their partner on work_contact_id, or through their user."""
+        if not employee:
+            return self.env['res.partner']
+        return (employee.work_contact_id
+                or employee.user_partner_id
+                or employee.user_id.partner_id) or self.env['res.partner']
+
     def action_post_to_accounting(self):
         """
         Simple direct posting: create one journal entry for all employee
@@ -262,17 +271,22 @@ class SalaryImport(models.Model):
         debit_acc_id = settings.salary_expense_account_id.id
         credit_acc_id = settings.salary_payable_account_id.id
 
-        # Build analytic distribution if an analytic account is set
-        analytic = (
-            self.analytic_account_id
-            or settings.default_analytic_account_id
-        )
-        analytic_distribution = {str(analytic.id): 100} if analytic else {}
+        # 2026-10-03: the import's own Analytic Distribution first, then the
+        # single account kept for records set up before, then the company
+        # default distribution and finally its single account.
+        analytic_distribution = self._way4tech_analytic_dist(
+            self.analytic_account_id,
+            settings.analytic_distribution,
+            settings.default_analytic_account_id,
+        ) or {}
 
         # Rebuild lines with analytic if available
         move_lines = []
         for line in valid_lines:
-            partner_id = line.employee_id.user_partner_id.id or False
+            # 2026-10-03: name the employee on both journal lines. Only
+            # employees with a linked user carried a partner before, so most
+            # payroll lines reached the ledger with no counterparty at all.
+            partner_id = self._way4tech_employee_partner(line.employee_id).id or False
             amount = currency.round(line.net_payable)
             debit_vals = {
                 'name': line.employee_id.name,

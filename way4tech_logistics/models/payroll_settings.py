@@ -10,6 +10,7 @@ class PayrollSettings(models.Model):
     commission invoice and every vendor bill will use the right accounts.
     """
     _name = 'way4tech.payroll.settings'
+    _inherit = ['way4tech.analytic.mixin']
     _description = 'Way4Tech Payroll & Accounting Settings'
     _rec_name = 'company_id'
     _check_company_auto = True
@@ -259,6 +260,14 @@ class PayrollSettings(models.Model):
              'Example: 220010 – Installment Payable / 220020 – Vehicle Financing Payable.\n'
              'Debited when monthly installment is paid (Dr this Cr Bank). '
              'Credited when vehicle is purchased on installment (Dr Fixed Asset Cr this).',
+    )
+    investor_bill_payable_account_id = fields.Many2one(
+        'account.account',
+        string='Investor Payable Account',
+        check_company=True,
+        help='Accounts-payable account carrying the balance of Investor Bills.\n'
+             'Keeps investor profit shares separate from driver and supplier '
+             'payables. Leave empty to use the Truck Trip Costs Payable Account.',
     )
     truck_receivable_account_id = fields.Many2one(
         'account.account',

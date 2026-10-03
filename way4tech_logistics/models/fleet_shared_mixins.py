@@ -31,9 +31,12 @@ class Way4TechAnalyticMixin(models.AbstractModel):
         self.ensure_one()
         if self.analytic_distribution:
             return self.analytic_distribution
-        for account in fallbacks:
-            if account:
-                return {str(account.id): 100}
+        for fallback in fallbacks:
+            if not fallback:
+                continue
+            if isinstance(fallback, dict):      # a distribution, e.g. from settings
+                return fallback
+            return {str(fallback.id): 100}      # a single analytic account
         return False
 
 

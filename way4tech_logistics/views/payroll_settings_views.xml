@@ -171,6 +171,8 @@
                                 <field name="truck_expense_journal_id"
                                        domain="[('type', 'in', ['general', 'purchase']), ('company_id', '=', company_id)]"
                                        help="Journal type: General or Purchase. Used for trip operational cost journal entries (fuel, driver, other costs). &#10;Leave blank to fall back to the Employee Compliance Journal."/>
+                                <field name="investor_bill_payable_account_id"
+                                       domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'liability_payable')]"/>
                                 <field name="investor_payable_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Account type: Expense or Liability. Used on vendor bills created for investor profit share payments. &#10;Example: '5500 - Investor Profit Share' (Expense) or '2200 - Investor Payable' (Liability). &#10;Choose Expense if you want the profit share to flow through P&amp;L, or Liability if you want a balance sheet clearing account."/>
@@ -391,6 +393,11 @@
                         <!-- ── ANALYTICS ── -->
                         <page string="Analytics">
                             <group>
+                                <!-- 2026-10-03: several analytic accounts allowed, the same
+                                     way Manpower, Commissioning and Fleet already work. The
+                                     single account below stays as a fallback. -->
+                                <field name="analytic_distribution" widget="analytic_distribution"
+                                       string="Default Analytic Distribution"/>
                                 <field name="default_analytic_account_id"
                                        help="Analytic / cost centre account used as the company-wide fallback. Applied to payslip lines, freelancer bills, commission invoices, fleet invoices, and compliance journal entries when no specific analytic account is set on the individual document. &#10;Example: 'Operations - Main Branch'. &#10;Individual documents (Salary Import, Commission Receipt, Truck Trip, Manpower Contract) can override this with their own Analytic Account field."/>
                             </group>
