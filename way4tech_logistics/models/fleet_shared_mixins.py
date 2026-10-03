@@ -16,13 +16,12 @@ import re
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-# Words that say nothing about which company this is, so they are skipped when
-# a document code is suggested from the company name.
-_GENERIC_WORDS = {
-    'al', 'the', 'and', 'est', 'llc', 'wll', 'ltd', 'co', 'company', 'sons',
-    'establishment', 'contracting', 'contracts', 'trading', 'traders',
-    'services', 'service', 'logistic', 'logistics', 'facility', 'general',
-    'international', 'group', 'enterprises', 'enterprise', 'holding',
+# Legal forms only. Words like Trading, Contracting or Logistics stay in: they
+# are what tells two of this client's companies apart, and dropping them turned
+# "Future Power Trading EST" into FP instead of FPT.
+_LEGAL_FORMS = {
+    'est', 'ests', 'llc', 'wll', 'ltd', 'limited', 'co', 'company', 'corp',
+    'establishment', 'establishments', 'inc', 'plc', 'sa', 'sarl',
 }
 
 
@@ -55,19 +54,21 @@ class ResCompanyDocPrefix(models.Model):
         return companies
 
     def _way4tech_suggest_doc_prefix(self):
-        """A short code from the company name: the initials of its meaningful
-        words, or the word itself when the name holds only one. A code another
+        """A short code from the company name: the initials of its first three
+        words, so "Al zain Towers Contracting EST" suggests AZT. A code another
         company already uses gets a number after it, so two companies cannot
         mint the same reference."""
         self.ensure_one()
-        words = [w for w in re.split(r'[^A-Za-z0-9]+', self.name or '') if w]
-        meaningful = [w for w in words if w.lower() not in _GENERIC_WORDS] or words
-        if not meaningful:
+        # Letters only: a company named after its account number should not put
+        # that number in the code.
+        words = [w for w in re.split(r'[^A-Za-z]+', self.name or '') if w]
+        words = [w for w in words if w.lower() not in _LEGAL_FORMS] or words
+        if not words:
             code = 'DOC'
-        elif len(meaningful) == 1:
-            code = meaningful[0][:6].upper()
+        elif len(words) == 1:
+            code = words[0][:4].upper()
         else:
-            code = ''.join(word[0] for word in meaningful[:3]).upper()
+            code = ''.join(word[0] for word in words[:3]).upper()
         taken = set(self.sudo().with_context(active_test=False).search(
             [('id', '!=', self.id)]).mapped('way4tech_doc_prefix'))
         candidate, suffix = code, 1

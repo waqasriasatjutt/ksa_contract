@@ -124,7 +124,7 @@ class TruckProfitabilityWizard(models.TransientModel):
         for trip in trips:
             if self.report_type == 'truck':
                 key = ('truck', trip.truck_id.id)
-                holder = bucket(key, trip.truck_id.name,
+                holder = bucket(key, trip.truck_id._way4tech_label(),
                                 trip.truck_id.license_plate)
             else:
                 key = ('client', trip.client_id.id)
@@ -137,7 +137,7 @@ class TruckProfitabilityWizard(models.TransientModel):
             holder['rows'].append({
                 'date': trip.trip_date,
                 'reference': trip.name or '',
-                'truck': trip.truck_id.name or '',
+                'truck': trip.truck_id._way4tech_label() if trip.truck_id else '',
                 'client': trip.client_id.name or '',
                 'kind': trip_types.get(trip.trip_type, trip.trip_type or ''),
                 'revenue': trip.revenue,
@@ -150,7 +150,7 @@ class TruckProfitabilityWizard(models.TransientModel):
         for log in logs:
             if self.report_type == 'truck':
                 key = ('truck', log.vehicle_id.id)
-                holder = bucket(key, log.vehicle_id.name,
+                holder = bucket(key, log.vehicle_id._way4tech_label(),
                                 log.vehicle_id.license_plate)
             else:
                 # Maintenance belongs to a truck, not to a customer, so it sits
@@ -160,7 +160,7 @@ class TruckProfitabilityWizard(models.TransientModel):
             holder['rows'].append({
                 'date': log.date,
                 'reference': log.way4tech_ref or '',
-                'truck': log.vehicle_id.name or '',
+                'truck': log.vehicle_id._way4tech_label() if log.vehicle_id else '',
                 'client': '',
                 'kind': _('Maintenance'),
                 'revenue': 0.0,
