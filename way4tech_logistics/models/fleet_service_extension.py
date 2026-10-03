@@ -152,15 +152,33 @@ class FleetVehicleLogServices(models.Model):
         """A maintenance log whose vendor bill has reached the accounts cannot
         be deleted; once the bill is reset to draft, cancelled or removed in
         Accounting, the log deletes freely. A log that never produced a bill is
-        never blocked."""
+        never blocked.
+
+        Both bills count: the one our Create Vendor Bill button raises, and the
+        one Odoo's own fleet billing links through account_move_line_id."""
+        # account_move_line_id comes from Odoo's account_fleet module, which
+        # may not be installed.
+        has_core_link = 'account_move_line_id' in self._fields
         for rec in self:
-            bill = rec.way4tech_bill_id.exists()
-            if bill and bill.state == 'posted':
-                raise UserError(_(
-                    'Maintenance log %s cannot be deleted while its vendor bill '
-                    '%s is posted. Reset it to draft or cancel it in Accounting '
-                    'first.'
-                ) % (rec.way4tech_ref or rec.display_name, bill.display_name))
+            core_bill = (rec.account_move_line_id.exists().move_id
+                         if has_core_link else self.env['account.move'])
+            for bill in (rec.way4tech_bill_id.exists() | core_bill):
+                if bill.state == 'posted':
+                    raise UserError(_(
+                        'Maintenance log %s cannot be deleted while its vendor '
+                        'bill %s is posted. Reset it to draft or cancel it in '
+                        'Accounting first.'
+                    ) % (rec.way4tech_ref or rec.display_name, bill.display_name))
+
+    def unlink(self):
+        """2026-10-03: Odoo's account_fleet module locks a service log for good
+        the moment a bill has ever been created from it, whatever state that
+        bill is now in, so a log whose bill was deleted in Accounting could
+        never be removed. The rule the client asked for is the state of the
+        document, which the guard above applies, so we take the escape hatch
+        account_fleet itself provides."""
+        return super(FleetVehicleLogServices, self.with_context(
+            ignore_linked_bill_constraint=True)).unlink()
 
     def action_create_bill(self):
         self.ensure_one()
