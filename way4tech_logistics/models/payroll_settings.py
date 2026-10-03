@@ -269,6 +269,24 @@ class PayrollSettings(models.Model):
              'Debited when monthly installment is paid (Dr this Cr Bank). '
              'Credited when vehicle is purchased on installment (Dr Fixed Asset Cr this).',
     )
+    installment_expense_account_id = fields.Many2one(
+        'account.account',
+        string='Installment Expense Account',
+        check_company=True,
+        help='Expense account on the line of a vehicle installment bill.\n'
+             'Example: 520003 - Logistic Business Expense. Leave empty to use '
+             'the Truck Expense Account.',
+    )
+    installment_journal_id = fields.Many2one(
+        'account.journal',
+        string='Installment Purchase Journal',
+        check_company=True,
+        domain=[('type', '=', 'purchase')],
+        help='Purchase journal for vehicle installment bills.\n'
+             'Example: Logistic Business Purchase. Leave empty and the Truck '
+             'Expense Journal is used when it is a purchase journal, otherwise '
+             'Odoo picks the company default.',
+    )
     investor_bill_payable_account_id = fields.Many2one(
         'account.account',
         string='Investor Payable Account',
@@ -541,6 +559,20 @@ class PayrollSettings(models.Model):
     )
 
     # ── Methods ───────────────────────────────────────────────────────────────
+
+    def _way4tech_installment_bill_journal(self):
+        """The purchase journal a vehicle installment bill is raised in.
+
+        A bill cannot sit in a general journal, so the Truck Expense Journal is
+        only borrowed when it happens to be a purchase journal. Nothing set
+        leaves the choice to Odoo, as before.
+        """
+        self.ensure_one()
+        if self.installment_journal_id:
+            return self.installment_journal_id
+        if self.truck_expense_journal_id.type == 'purchase':
+            return self.truck_expense_journal_id
+        return self.env['account.journal']
 
     def _way4tech_set_move_counterpart(self, move, account):
         """Post the receivable / payable side of `move` to `account`.

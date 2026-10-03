@@ -179,6 +179,10 @@
                                 <field name="investor_payable_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Account type: Expense or Liability. Used on vendor bills created for investor profit share payments. &#10;Example: '5500 - Investor Profit Share' (Expense) or '2200 - Investor Payable' (Liability). &#10;Choose Expense if you want the profit share to flow through P&amp;L, or Liability if you want a balance sheet clearing account."/>
+                                <field name="installment_journal_id"
+                                       domain="[('company_id', '=', company_id), ('type', '=', 'purchase')]"/>
+                                <field name="installment_expense_account_id"
+                                       domain="[('company_ids', 'in', [company_id]), ('account_type', '=', 'expense')]"/>
                                 <field name="installment_payable_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Account type: Liability (non-current or current). Debited when an installment payment journal entry is created for a financed vehicle. &#10;Example: '2210 - Installment Payable' or '2220 - Vehicle Financing Liability'. &#10;Credit side is filled by the user on the draft journal entry (Bank/Cash account)."/>

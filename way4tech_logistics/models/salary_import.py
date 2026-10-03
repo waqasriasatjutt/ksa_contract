@@ -5,7 +5,8 @@ from odoo.exceptions import UserError
 class SalaryImport(models.Model):
     _name = 'way4tech.salary.import'
     _description = 'Worker Salary Import'
-    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin',
+                'way4tech.posted.guard.mixin']
     _order = 'date desc, name desc'
 
     name = fields.Char(
@@ -140,6 +141,15 @@ class SalaryImport(models.Model):
         store=True,
     )
     notes = fields.Text(string='Notes')
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_posted(self):
+        """A salary import whose journal entry has reached the accounts cannot
+        be deleted; reset or cancel the entry in Accounting first."""
+        for rec in self:
+            rec._way4tech_block_if_posted(
+                _('Salary import %s') % rec.name,
+                [(rec.accounting_move_id, _('journal entry'))])
 
     @api.model_create_multi
     def create(self, vals_list):

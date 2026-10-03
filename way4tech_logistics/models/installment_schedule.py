@@ -52,8 +52,11 @@ class Way4TechInstallmentSchedule(models.Model):
     @api.depends('vehicle_id', 'installment_number')
     def _compute_name(self):
         for rec in self:
-            vehicle_name = rec.vehicle_id.display_name or rec.vehicle_id.license_plate or 'Vehicle'
-            rec.name = f'{vehicle_name} — Installment #{rec.installment_number}'
+            # 2026-10-03: the plate first. Odoo's own display_name is built from
+            # the model and the brand, so a vehicle without them reads
+            # "//No Plate" and that was ending up on the bill.
+            rec.name = '%s — Installment #%02d' % (
+                rec.vehicle_id._way4tech_label(), rec.installment_number)
 
     @api.depends('due_date', 'move_id', 'move_id.state', 'move_id.payment_state')
     def _compute_state(self):
@@ -94,11 +97,10 @@ class Way4TechInstallmentSchedule(models.Model):
             raise UserError(_('A bill already exists for this installment. Please check it first.'))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        if not settings.installment_payable_account_id:
+        if not self.amount:
             raise UserError(_(
-                'Set the Installment Payable Account in\n'
-                'Configuration → Payroll & Accounting Setup → Fleet & Trucks tab.'
-            ))
+                'This installment has no amount. Enter it on the schedule line '
+                'first.'))
 
         vendor = self.vehicle_id.installment_vendor_id
         if not vendor:
@@ -112,12 +114,21 @@ class Way4TechInstallmentSchedule(models.Model):
             or settings.default_analytic_account_id
         )
 
+        # 2026-10-03: the line carries an EXPENSE account. It used to carry the
+        # Installment Payable account, which is a liability, so Odoo did not
+        # treat it as an invoice line at all and the bill opened with nothing in
+        # it. The payable is the counterpart, set below, not the line.
+        label = '%s - Installment #%02d' % (
+            self.vehicle_id._way4tech_label(), self.installment_number)
         bill_line = {
-            'name': f'Installment #{self.installment_number} — {self.vehicle_id.display_name}',
+            'name': label,
             'quantity': 1.0,
             'price_unit': self.amount,
-            'account_id': settings.installment_payable_account_id.id,
         }
+        expense = (settings.installment_expense_account_id
+                   or settings.truck_expense_account_id)
+        if expense:
+            bill_line['account_id'] = expense.id
         if analytic:
             bill_line['analytic_distribution'] = {str(analytic.id): 100}
 
@@ -126,14 +137,19 @@ class Way4TechInstallmentSchedule(models.Model):
             'move_type': 'in_invoice',
             'partner_id': vendor.id,
             'invoice_date': self.due_date or fields.Date.today(),
-            'ref': f'Installment #{self.installment_number} — {self.vehicle_id.display_name or self.vehicle_id.license_plate}',
+            'ref': label,
             'company_id': self.company_id.id,
             'invoice_line_ids': [(0, 0, bill_line)],
         }
         if inst_category:
             bill_vals['way4tech_category_id'] = inst_category.id
+        journal = settings._way4tech_installment_bill_journal()
+        if journal:
+            bill_vals['journal_id'] = journal.id
 
         bill = self.env['account.move'].create(bill_vals)
+        settings._way4tech_set_move_counterpart(
+            bill, settings.truck_costs_payable_account_id)
         self.write({'move_id': bill.id})
         return {
             'type': 'ir.actions.act_window',

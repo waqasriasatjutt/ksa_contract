@@ -5,7 +5,8 @@ from odoo.exceptions import UserError
 class Way4TechEquipmentRentalInbound(models.Model):
     _name = 'way4tech.equipment.rental.inbound'
     _description = 'Inbound Equipment Rental (From Vendor)'
-    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'way4tech.analytic.mixin',
+                'way4tech.posted.guard.mixin']
     _order = 'rental_start desc, name desc'
 
     name = fields.Char(
@@ -147,6 +148,14 @@ class Way4TechEquipmentRentalInbound(models.Model):
             rec.total_cost = rec.rental_duration * rec.rate_amount
 
     # ── Sequence ──────────────────────────────────────────────────────────────
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_posted(self):
+        """Equipment rented from a vendor: the vendor bill decides."""
+        for rec in self:
+            rec._way4tech_block_if_posted(
+                _('Equipment rental %s') % (rec.name or rec.equipment_name),
+                [(rec.bill_id, _('bill'))])
 
     @api.model_create_multi
     def create(self, vals_list):

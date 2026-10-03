@@ -40,32 +40,32 @@
                     <t t-set="ar_digits" t-value="lambda s: (s or '').replace('0','٠').replace('1','١').replace('2','٢').replace('3','٣').replace('4','٤').replace('5','٥').replace('6','٦').replace('7','٧').replace('8','٨').replace('9','٩') if s else ''"/>
                     <div class="page ksa-inv">
                         <style>
-                            .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.35; }
+                            .ksa-inv { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 8.5px; color:#1a1a1a; width:100%; line-height:1.1; }
                             .ksa-inv table { border-collapse: collapse; width:100%; }
-                            .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:3px 6px; vertical-align:middle;
+                            .ksa-inv td, .ksa-inv th { border:1px solid #d0cdcd; padding:2px 3px; vertical-align:middle;
                                                        overflow-wrap:break-word; word-break:break-word; }
                             .ksa-inv td:empty:after { content:"\00a0"; white-space:pre; }
                             .ksa-red { color:#8a1c1c; }
                             .ksa-b { font-weight:bold; }
                             .ksa-ar { direction:rtl; text-align:right; letter-spacing:normal; }
-                            .ksa-title { background:#8a1c1c; color:#fff; text-align:center; font-size:15px; font-weight:bold; padding:6px 8px; }
+                            .ksa-title { background:#8a1c1c; color:#fff; text-align:center; font-size:15px; font-weight:bold; padding:4px 8px; }
                             .ksa-title .en { letter-spacing:2px; }
                             .ksa-title .ar { margin-left:22px; }
-                            .ksa-sec { background:#f4e9e9; color:#8a1c1c; font-weight:bold; border:1px solid #8a1c1c; padding:5px 8px; font-size:10px; line-height:1.35; overflow:hidden; }
-                            .ksa-sec-slate { background:#475569; color:#ffffff; font-weight:bold; border:1px solid #334155; padding:5px 8px; font-size:10px; line-height:1.35; overflow:hidden; letter-spacing:0.3px; }
+                            .ksa-sec { background:#f4e9e9; color:#8a1c1c; font-weight:bold; border:1px solid #8a1c1c; padding:3px 6px; font-size:10px; line-height:1.15; overflow:hidden; }
+                            .ksa-sec-slate { background:#475569; color:#ffffff; font-weight:bold; border:1px solid #334155; padding:3px 6px; font-size:10px; line-height:1.15; overflow:hidden; letter-spacing:0.3px; }
                             .ksa-vc-wrap { width:100%; border-collapse:separate; border-spacing:6px 0; margin-top:3px; }
                             .ksa-vc-wrap > tbody > tr > td { width:50%; vertical-align:top; padding:0; border:0; }
                             .ksa-vc-wrap .vc-block table { border-collapse:collapse; width:100%; }
-                            .ksa-vc-wrap .vc-block td, .ksa-vc-wrap .vc-block th { border:1px solid #d0cdcd; padding:2px 5px; vertical-align:middle; }
+                            .ksa-vc-wrap .vc-block td, .ksa-vc-wrap .vc-block th { border:1px solid #d0cdcd; padding:2px 3px; vertical-align:middle; }
                             .ksa-inv .lbl { color:#8a1c1c; font-weight:bold; white-space:nowrap; }
                             .ksa-inv .noborder td { border:0; padding:2px 4px; }
-                            .ksa-th { background:#8a1c1c; color:#fff; font-weight:bold; text-align:center; font-size:7.5px; line-height:1.4; }
-                            .ksa-lines td { padding:4px 6px; vertical-align:middle; }
-                            .ksa-lines th { padding:4px 6px; }
+                            .ksa-th { background:#8a1c1c; color:#fff; font-weight:bold; text-align:center; font-size:7.5px; line-height:1.15; }
+                            .ksa-lines td { padding:2px 3px; vertical-align:middle; }
+                            .ksa-lines th { padding:2px 3px; }
                             .ksa-lines tr.zebra td { background:#faf6f6; }
                             .ksa-lines tr.ksa-note-row td.ksa-note {
                                 background:#fff8f8; color:#333; font-style:italic; text-align:left;
-                                padding:5px 8px; border-top:1px dashed #d0cdcd; white-space:pre-wrap;
+                                padding:3px 6px; border-top:1px dashed #d0cdcd; white-space:pre-wrap;
                             }
                             .ksa-right { text-align:right; }
                             .ksa-center { text-align:center; }
@@ -110,7 +110,7 @@
                                rows used the generic 16px minimum + 5px padding and stood 20% taller
                                than the QR, so the QR/totals block needed ~47mm. Rows now follow their
                                text (4px padding) and the block is the QR's height (~40mm). */
-                            .ksa-inv .ksa-totals td { height:auto; padding:4px 8px; border:1px solid #d0cdcd; }
+                            .ksa-inv .ksa-totals td { height:auto; padding:2px 4px; border:1px solid #d0cdcd; }
                         </style>
 
                         <!-- CR7 item 2: brand-colour override (additive; recolours red theme). -->
@@ -173,7 +173,7 @@
                                                     <div class="vc-block">
                                                         <div class="ksa-sec-slate"><span>Vendor Details</span><span style="float:right;">المورد</span></div>
                                                         <table>
-                                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="company.name"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(company.x_name_ar or cp.x_name_ar or company.name)"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
+                                                            <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="company.name"/><td style="width:36%;" class="ksa-ar" t-esc="ar_digits(company.x_name_ar or cp.x_name_ar or company.name)"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
                                                             <!-- 2026-09-16: the seven address rows are one "Address" line now, so the
                                                                  page keeps its space for invoice lines. Same fields, same order, empty
                                                                  parts left out. Display only. -->
@@ -187,7 +187,7 @@
                                                     <div class="vc-block">
                                                         <div class="ksa-sec-slate"><span>Customer Details</span><span style="float:right;">تفاصيل شركة العميل</span></div>
                                                         <table>
-                                                            <tr><td class="lbl" style="width:22%;">Name:</td><td style="width:28%;" t-esc="bp.name or ''"/><td style="width:28%;" class="ksa-ar" t-esc="ar_digits(bp.x_name_ar or bp.name or '')"/><td class="lbl ksa-ar" style="width:22%;">الاسم</td></tr>
+                                                            <tr><td class="lbl" style="width:14%;">Name:</td><td style="width:36%;" t-esc="bp.name or ''"/><td style="width:36%;" class="ksa-ar" t-esc="ar_digits(bp.x_name_ar or bp.name or '')"/><td class="lbl ksa-ar" style="width:14%;">الاسم</td></tr>
                                                             <!-- 2026-09-16: the seven address rows are one "Address" line now, so the
                                                                  page keeps its space for invoice lines. Same fields, same order, empty
                                                                  parts left out. Display only. -->

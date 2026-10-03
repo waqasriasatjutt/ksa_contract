@@ -109,8 +109,11 @@
                         <group>
                             <field name="accounting_move_id" readonly="1"
                                    help="The journal entry created when you click Post to Accounting."/>
-                            <field name="analytic_account_id"
-                                   help="Analytic account applied to the salary expense lines for cost centre tracking."/>
+                            <!-- 2026-10-03: analytic was showing twice. The
+                                 Analytic Distribution at the top of the form is
+                                 the one to use; the single account stays on the
+                                 record as a fallback for imports set up before
+                                 it existed, but off the form. -->
                         </group>
                     </group>
 

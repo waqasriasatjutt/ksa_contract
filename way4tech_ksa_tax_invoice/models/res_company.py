@@ -216,6 +216,26 @@ class ResCompany(models.Model):
                 changed |= company
         return changed
 
+    def _way4tech_adopt_letterhead_layout(self):
+        """Put every company on this letterhead and on a paper format that can
+        print it, then align the format.
+
+        2026-10-03: the corrector above only ever looked at companies that were
+        already on this layout, so a company left on an Odoo stock layout kept a
+        reserved top band and its letterhead started half way down the page. The
+        client asked for one letterhead on every company, existing and future,
+        with nothing to set up per company. A company already on this layout
+        with a sensible format is still left alone.
+        Returns the companies that were changed."""
+        layout = self._way4tech_letterhead_layout()
+        if not layout:
+            return self.browse()
+        moved = self.filtered(lambda c: c.external_report_layout_id != layout)
+        if moved:
+            moved.with_context(way4tech_skip_letterhead_align=True).write(
+                {'external_report_layout_id': layout.id})
+        return moved | self._way4tech_align_letterhead()
+
     @api.model_create_multi
     def create(self, vals_list):
         """A new company prints its letterhead correctly without anyone having
@@ -226,7 +246,11 @@ class ResCompany(models.Model):
         target = companies._way4tech_letterhead_paperformat()
         for company, vals in zip(companies, vals_list):
             to_set = {}
-            if layout and not vals.get('external_report_layout_id') and not company.external_report_layout_id:
+            # 2026-10-03: adopt the layout unless these values name one. A
+            # company created through Odoo's own wizard arrives carrying a stock
+            # layout, and the old "only when empty" test let it keep that, so
+            # the new company printed a letterhead nobody had asked for.
+            if layout and not vals.get('external_report_layout_id'):
                 to_set['external_report_layout_id'] = layout.id
             if target and not vals.get('paperformat_id'):
                 to_set['paperformat_id'] = target.id

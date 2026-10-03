@@ -133,6 +133,35 @@ class Way4TechAnalyticMixin(models.AbstractModel):
         return False
 
 
+class Way4TechPostedGuardMixin(models.AbstractModel):
+    """Deletion follows the state of the document, not whether one ever existed.
+
+    Nothing linked, the record deletes. An invoice, bill or journal entry that
+    is posted blocks it. Set that document to draft, cancel it or delete it in
+    Accounting and the record deletes again, which is the rule Truck Trips
+    already follow.
+    """
+    _name = 'way4tech.posted.guard.mixin'
+    _description = 'Deletion guard for records carrying an accounting document'
+
+    def _way4tech_block_if_posted(self, subject, documents):
+        """subject: how to name this record in the message.
+        documents: (move, what to call it) pairs."""
+        blockers = []
+        for move, label in documents:
+            # exists() matters: a document deleted in Accounting leaves a stale
+            # reference behind, and reading .state on it would keep the record
+            # locked for good.
+            move = move.exists()
+            if move and move.state == 'posted':
+                blockers.append('%s %s' % (label, move.display_name))
+        if blockers:
+            raise UserError(_(
+                '%s cannot be deleted while its %s is posted. Reset it to draft '
+                'or cancel it in Accounting first.'
+            ) % (subject, ' and '.join(blockers)))
+
+
 class Way4TechPartnerStatementMixin(models.AbstractModel):
     _name = 'way4tech.partner.statement.mixin'
     _description = 'Open the Partner Ledger for a partner on this record'

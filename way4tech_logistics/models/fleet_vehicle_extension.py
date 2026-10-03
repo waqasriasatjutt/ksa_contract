@@ -504,12 +504,6 @@ class FleetVehicle(models.Model):
             ))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        if not settings.installment_payable_account_id:
-            raise UserError(_(
-                'Set the Installment Payable Account in '
-                'Configuration → Payroll & Accounting Setup → Fleet & Trucks tab.'
-            ))
-
         amount = min(self.installment_monthly_amount, self.installment_remaining_balance)
         if amount <= 0:
             raise UserError(_(
@@ -517,12 +511,18 @@ class FleetVehicle(models.Model):
                 'and the financed amount on the vehicle first.'))
         analytic = self.analytic_account_id or settings.default_analytic_account_id
 
+        # 2026-10-03: an expense account on the line, not the Installment
+        # Payable liability. See installment_schedule.action_pay.
         bill_line = {
-            'name': 'Installment #%d — %s' % (self.installments_paid + 1, self.name),
+            'name': 'Installment #%02d - %s' % (
+                self.installments_paid + 1, self._way4tech_label()),
             'quantity': 1.0,
             'price_unit': amount,
-            'account_id': settings.installment_payable_account_id.id,
         }
+        expense = (settings.installment_expense_account_id
+                   or settings.truck_expense_account_id)
+        if expense:
+            bill_line['account_id'] = expense.id
         if analytic:
             bill_line['analytic_distribution'] = {str(analytic.id): 100}
 
@@ -537,10 +537,11 @@ class FleetVehicle(models.Model):
         }
         if inst_category:
             bill_vals['way4tech_category_id'] = inst_category.id
-        # 2026-10-03: the Fleet purchase journal from Payroll & Accounting
-        # Setup, not whichever purchase journal Odoo happens to pick first.
-        if settings.truck_expense_journal_id:
-            bill_vals['journal_id'] = settings.truck_expense_journal_id.id
+        # 2026-10-03: the installment purchase journal from Payroll &
+        # Accounting Setup, not whichever journal Odoo happens to pick first.
+        journal = settings._way4tech_installment_bill_journal()
+        if journal:
+            bill_vals['journal_id'] = journal.id
 
         bill = self.env['account.move'].create(bill_vals)
         settings._way4tech_set_move_counterpart(
@@ -565,6 +566,14 @@ class FleetVehicle(models.Model):
             'domain': [('vehicle_id', '=', self.id)],
             'context': {'default_vehicle_id': self.id},
         }
+
+    def _way4tech_label(self):
+        """How this vehicle reads on a document. Odoo builds display_name from
+        the model and the brand, so a vehicle carrying neither reads
+        "//No Plate"; the plate or our own fleet number says more."""
+        self.ensure_one()
+        return (self.license_plate or self.way4tech_sequence
+                or self.name or _('Vehicle'))
 
     # ── Sequence generation ─────────────────────────────────────────────────
     def _way4tech_category_sequence(self, category):
