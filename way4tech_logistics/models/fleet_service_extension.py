@@ -146,6 +146,21 @@ class FleetVehicleLogServices(models.Model):
 
     # ── Vendor bill creation ──────────────────────────────────────────────────
 
+    @api.ondelete(at_uninstall=False)
+    def _unlink_protect_posted(self):
+        """A maintenance log whose vendor bill has reached the accounts cannot
+        be deleted; once the bill is reset to draft, cancelled or removed in
+        Accounting, the log deletes freely. A log that never produced a bill is
+        never blocked."""
+        for rec in self:
+            bill = rec.way4tech_bill_id.exists()
+            if bill and bill.state == 'posted':
+                raise UserError(_(
+                    'Maintenance log %s cannot be deleted while its vendor bill '
+                    '%s is posted. Reset it to draft or cancel it in Accounting '
+                    'first.'
+                ) % (rec.way4tech_ref or rec.display_name, bill.display_name))
+
     def action_create_bill(self):
         self.ensure_one()
         if self.way4tech_bill_id:

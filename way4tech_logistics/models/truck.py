@@ -293,11 +293,12 @@ class Way4TechInvestorPayable(models.Model):
     def _unlink_protect_posted(self):
         """No deletion while the investor bill has reached the accounts."""
         for rec in self:
-            if rec.bill_id and rec.bill_id.state == 'posted':
+            bill = rec.bill_id.exists()
+            if bill and bill.state == 'posted':
                 raise UserError(_(
                     'This record cannot be deleted while its investor bill %s is '
                     'posted. Reset it to draft or cancel it in Accounting first.'
-                ) % rec.bill_id.display_name)
+                ) % bill.display_name)
 
     def action_reset_draft(self):
         self.ensure_one()

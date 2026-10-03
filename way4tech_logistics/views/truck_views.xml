@@ -373,6 +373,9 @@
                         <group string="Revenue &amp; Direct Costs">
                             <field name="total_revenue" readonly="state != 'draft'"
                                    help="Total client revenue (sum of trip invoices in the period)."/>
+                            <!-- 2026-10-03: Analytic Distribution on the record itself;
+                                 it is carried onto the Investor Bill when that is created. -->
+                            <field name="analytic_distribution" widget="analytic_distribution"/>
                             <!-- 2026-09-25: the three costs behind Direct Expenses,
                                  shown separately and still adding up to the total. -->
                             <field name="driver_expenses" readonly="1"/>

@@ -323,10 +323,15 @@ class Way4TechTruckTrip(models.Model):
         rule the Commissioning records follow."""
         for rec in self:
             blockers = []
-            if rec.invoice_id and rec.invoice_id.state == 'posted':
-                blockers.append(_('invoice %s') % rec.invoice_id.display_name)
-            if rec.cost_move_id and rec.cost_move_id.state == 'posted':
-                blockers.append(_('cost entry %s') % rec.cost_move_id.display_name)
+            # exists() matters: a document deleted in Accounting leaves a stale
+            # reference behind in the cache, and reading .state on it would
+            # otherwise keep the trip locked forever.
+            invoice = rec.invoice_id.exists()
+            cost_move = rec.cost_move_id.exists()
+            if invoice and invoice.state == 'posted':
+                blockers.append(_('invoice %s') % invoice.display_name)
+            if cost_move and cost_move.state == 'posted':
+                blockers.append(_('cost entry %s') % cost_move.display_name)
             if blockers:
                 raise UserError(_(
                     'Trip %s cannot be deleted while its %s is posted. Reset it '
@@ -393,12 +398,16 @@ class Way4TechTruckTrip(models.Model):
         # whatever Odoo picks by default.
         if settings.truck_trip_journal_id:
             invoice_vals['journal_id'] = settings.truck_trip_journal_id.id
-        if settings.truck_trip_journal_id:
-            invoice_vals['journal_id'] = settings.truck_trip_journal_id.id
 
         if self.po_id:
             invoice_vals['way4tech_po_id'] = self.po_id.id
         invoice = self.env['account.move'].create(invoice_vals)
+        # 2026-10-03: the Truck Receivable Account configured in Fleet settings
+        # carries the balance of the trip invoice. The journal was already being
+        # applied; the receivable was not, so the invoice kept the customer's
+        # own default account.
+        settings._way4tech_set_move_counterpart(
+            invoice, settings.truck_receivable_account_id)
         self.write({'invoice_id': invoice.id})
         return {
             'type': 'ir.actions.act_window',
