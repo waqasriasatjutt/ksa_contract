@@ -46,7 +46,11 @@ def migrate(cr, version):
 
     # Every company that existed before this upgrade gets a code suggested from
     # its name. Companies created after it get one as they are created.
-    for company in env['res.company'].sudo().with_context(active_test=False).search([]):
+    # Active companies go first: where two companies suggest the same code the
+    # second one gets a number after it, and that should land on the archived
+    # duplicate, not on the company the client actually trades through.
+    companies = env['res.company'].sudo().with_context(active_test=False).search([])
+    for company in companies.sorted(lambda c: (not c.active, c.id)):
         if not company.way4tech_doc_prefix:
             company.way4tech_doc_prefix = company._way4tech_suggest_doc_prefix()
 
