@@ -92,6 +92,35 @@
 
             <t t-if="not disable_atco_address_layout" t-call="web.address_layout"/>
             <h2 t-if="layout_document_title" t-out="layout_document_title"/>
+            <!-- 2026-10-03: one compact density for every report on this layout -
+                 customer invoices, vendor bills, credit and debit notes,
+                 commission vouchers, manpower bills and the logistics reports.
+                 The space came from padding, line-height and the gaps around
+                 tables, never from the font size or the page size. Only data
+                 tables are touched (the letterhead and footer tables carry no
+                 "table" class), and a cell is free to grow, so a long
+                 description, address or note wraps instead of being clipped. -->
+            <style type="text/css">
+                .page table.table { margin-bottom: 0.45rem !important; }
+                .page table.table &gt; thead &gt; tr &gt; th,
+                .page table.table &gt; thead &gt; tr &gt; td,
+                .page table.table &gt; tbody &gt; tr &gt; th,
+                .page table.table &gt; tbody &gt; tr &gt; td,
+                .page table.table &gt; tfoot &gt; tr &gt; th,
+                .page table.table &gt; tfoot &gt; tr &gt; td {
+                    padding: 2px 5px !important;
+                    line-height: 1.35;
+                    height: auto !important;
+                    overflow-wrap: break-word;
+                    word-break: break-word;
+                }
+                /* a column asked to stay on one line still does */
+                .page table.table .text-nowrap { white-space: nowrap; }
+                .page h2, .page h3, .page h4, .page h5 { margin-bottom: 0.35rem; }
+                .page p { margin-bottom: 0.35rem; }
+                /* the first block starts at the top of the printable area */
+                .page &gt; *:first-child { margin-top: 0 !important; }
+            </style>
             <t t-out="0"/>
         </div>
 

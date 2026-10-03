@@ -17,6 +17,7 @@
                     <group string="Options">
                         <field name="report_type"/>
                         <field name="state_filter"/>
+                        <field name="include_maintenance"/>
                     </group>
                 </group>
                 <group string="Optional Filters">

@@ -1,5 +1,6 @@
-from collections import defaultdict
-from odoo import api, fields, models, _
+from datetime import date
+
+from odoo import fields, models, _
 from odoo.exceptions import UserError
 
 
@@ -52,6 +53,13 @@ class TruckProfitabilityWizard(models.TransientModel):
         string='Filter by Clients',
         help='Leave empty to include all clients.',
     )
+    include_maintenance = fields.Boolean(
+        string='Include Maintenance Cost',
+        default=True,
+        help='Counts the maintenance logged against each truck in the period as '
+             'a cost, so the profit is after maintenance. Every log is listed as '
+             'its own line. Untick to report trip costs only.',
+    )
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
@@ -73,82 +81,121 @@ class TruckProfitabilityWizard(models.TransientModel):
             domain.append(('client_id', 'in', self.client_ids.ids))
         return domain
 
-    def get_grouped_data(self):
-        """
-        Called from the QWeb template to get grouped/aggregated trip data.
-        Returns a list of dicts sorted by group name:
-          [{
-              'label': str,            # truck name or client name
-              'trips': recordset,      # way4tech.truck.trip
-              'trip_count': int,
-              'total_revenue': float,
-              'total_cost': float,
-              'total_profit': float,
-              'margin_pct': float,     # % profit margin
-          }, ...]
+    def _maintenance_domain(self):
+        """Maintenance logged in the period, for the trucks in scope."""
+        domain = [
+            ('date', '>=', self.date_from),
+            ('date', '<=', self.date_to),
+            ('company_id', '=', self.env.company.id),
+            ('amount', '!=', 0),
+        ]
+        if self.truck_ids:
+            domain.append(('vehicle_id', 'in', self.truck_ids.ids))
+        return domain
+
+    def get_report_rows(self):
+        """Every entry in the period as its own row, grouped by truck or client.
+
+        One row per trip and one row per maintenance log, so ten maintenance
+        logs read as ten lines. Profit on a row is its revenue less its driver,
+        fuel, other and maintenance cost, and a group's totals are the sum of
+        its rows.
         """
         self.ensure_one()
         trips = self.env['way4tech.truck.trip'].search(
-            self._build_domain(), order='trip_date asc'
-        )
+            self._build_domain(), order='trip_date asc, id asc')
+        logs = self.env['fleet.vehicle.log.services']
+        if self.include_maintenance:
+            logs = logs.search(self._maintenance_domain(), order='date asc, id asc')
 
-        buckets = defaultdict(lambda: {
-            'trips': self.env['way4tech.truck.trip'],
-            'total_revenue': 0.0,
-            'total_cost': 0.0,
-            'total_profit': 0.0,
-        })
+        trip_types = dict(
+            self.env['way4tech.truck.trip']._fields['trip_type'].selection or [])
+        buckets = {}
+
+        def bucket(key, label, sub_label):
+            if key not in buckets:
+                buckets[key] = {
+                    'label': label or _('(Unassigned)'),
+                    'sub_label': sub_label or '',
+                    'rows': [],
+                }
+            return buckets[key]
 
         for trip in trips:
-            key = trip.truck_id.id if self.report_type == 'truck' else trip.client_id.id
-            b = buckets[key]
-            b['trips'] |= trip
-            b['total_revenue'] += trip.revenue
-            b['total_cost'] += trip.total_cost
-            b['total_profit'] += trip.gross_profit
-
-        result = []
-        for key, data in buckets.items():
             if self.report_type == 'truck':
-                rec = self.env['fleet.vehicle'].browse(key)
-                label = rec.name or _('(No Truck)')
-                sub_label = rec.license_plate or ''
+                key = ('truck', trip.truck_id.id)
+                holder = bucket(key, trip.truck_id.name,
+                                trip.truck_id.license_plate)
             else:
-                rec = self.env['res.partner'].browse(key)
-                label = rec.name or _('(No Client)')
-                sub_label = rec.commercial_company_name or ''
-
-            rev = data['total_revenue']
-            margin = (data['total_profit'] / rev * 100.0) if rev else 0.0
-            result.append({
-                'label': label,
-                'sub_label': sub_label,
-                'trips': data['trips'].sorted(key=lambda t: t.trip_date),
-                'trip_count': len(data['trips']),
-                'total_revenue': rev,
-                'total_cost': data['total_cost'],
-                'total_profit': data['total_profit'],
-                'margin_pct': margin,
+                key = ('client', trip.client_id.id)
+                holder = bucket(key, trip.client_id.name,
+                                trip.client_id.commercial_company_name)
+            # Other Cost carries the trip's own other costs and, on a middleman
+            # trip, the third-party hire. Left out of the profit, those costs
+            # would simply disappear from the report.
+            other = trip.other_cost_total - trip.fuel_cost
+            holder['rows'].append({
+                'date': trip.trip_date,
+                'reference': trip.name or '',
+                'truck': trip.truck_id.name or '',
+                'client': trip.client_id.name or '',
+                'kind': trip_types.get(trip.trip_type, trip.trip_type or ''),
+                'revenue': trip.revenue,
+                'driver': trip.driver_cost,
+                'fuel': trip.fuel_cost,
+                'other': other,
+                'maintenance': 0.0,
             })
 
-        result.sort(key=lambda r: r['label'])
-        return result
+        for log in logs:
+            if self.report_type == 'truck':
+                key = ('truck', log.vehicle_id.id)
+                holder = bucket(key, log.vehicle_id.name,
+                                log.vehicle_id.license_plate)
+            else:
+                # Maintenance belongs to a truck, not to a customer, so it sits
+                # in its own group and the grand total still ties.
+                key = ('client', 0)
+                holder = bucket(key, _('Vehicle Maintenance'), '')
+            holder['rows'].append({
+                'date': log.date,
+                'reference': log.way4tech_ref or '',
+                'truck': log.vehicle_id.name or '',
+                'client': '',
+                'kind': _('Maintenance'),
+                'revenue': 0.0,
+                'driver': 0.0,
+                'fuel': 0.0,
+                'other': 0.0,
+                'maintenance': log.amount,
+            })
 
-    def get_grand_totals(self):
-        """Grand-total row for the report footer."""
-        self.ensure_one()
-        trips = self.env['way4tech.truck.trip'].search(self._build_domain())
-        rev = sum(trips.mapped('revenue'))
-        cost = sum(trips.mapped('total_cost'))
-        profit = sum(trips.mapped('gross_profit'))
-        margin = (profit / rev * 100.0) if rev else 0.0
+        groups = []
+        for holder in buckets.values():
+            rows = sorted(holder['rows'], key=lambda r: (r['date'] or date.min,
+                                                         r['reference']))
+            for row in rows:
+                row['cost'] = row['driver'] + row['fuel'] + row['other'] + row['maintenance']
+                row['profit'] = row['revenue'] - row['cost']
+                row['margin'] = (row['profit'] / row['revenue'] * 100.0
+                                 if row['revenue'] else 0.0)
+            holder['rows'] = rows
+            holder['totals'] = self._sum_rows(rows)
+            groups.append(holder)
+        groups.sort(key=lambda g: g['label'])
         return {
-            'trip_count': len(trips),
-            'total_revenue': rev,
-            'total_cost': cost,
-            'total_profit': profit,
-            'margin_pct': margin,
+            'groups': groups,
+            'totals': self._sum_rows([r for g in groups for r in g['rows']]),
         }
+
+    def _sum_rows(self, rows):
+        totals = {'count': len(rows)}
+        for key in ('revenue', 'driver', 'fuel', 'other', 'maintenance',
+                    'cost', 'profit'):
+            totals[key] = sum(row.get(key, 0.0) for row in rows)
+        totals['margin'] = (totals['profit'] / totals['revenue'] * 100.0
+                            if totals['revenue'] else 0.0)
+        return totals
 
     # ── actions ───────────────────────────────────────────────────────────────
 

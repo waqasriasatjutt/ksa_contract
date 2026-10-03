@@ -11,8 +11,101 @@ Two things the client asked for across several screens at once:
 * Partner Statement buttons, which open Odoo's own Partner Ledger filtered to
   one partner, exactly as the Manpower Contract button already does.
 """
-from odoo import _, models
+import re
+
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+
+# Words that say nothing about which company this is, so they are skipped when
+# a document code is suggested from the company name.
+_GENERIC_WORDS = {
+    'al', 'the', 'and', 'est', 'llc', 'wll', 'ltd', 'co', 'company', 'sons',
+    'establishment', 'contracting', 'contracts', 'trading', 'traders',
+    'services', 'service', 'logistic', 'logistics', 'facility', 'general',
+    'international', 'group', 'enterprises', 'enterprise', 'holding',
+}
+
+
+class ResCompanyDocPrefix(models.Model):
+    """Document references carry the company's own short code.
+
+    Every number series in this module used to start with "WAY4TECH", our name
+    inside the client's paperwork, and one shared counter meant two companies
+    could reach the same number. Each company now has its own code and its own
+    counter, and the code is theirs to change.
+    """
+    _inherit = 'res.company'
+
+    way4tech_doc_prefix = fields.Char(
+        string='Document Code',
+        help='Short code at the front of the references this system generates, '
+             'for example AZT/TRIP/2026/0001. Suggested from the company name '
+             'when the company is created; change it to whatever this company '
+             'uses and the next record created follows.',
+    )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A company created from now on gets its own document code, so its
+        records never fall back onto a shared one."""
+        companies = super().create(vals_list)
+        for company in companies:
+            if not company.way4tech_doc_prefix:
+                company.way4tech_doc_prefix = company._way4tech_suggest_doc_prefix()
+        return companies
+
+    def _way4tech_suggest_doc_prefix(self):
+        """A short code from the company name: the initials of its meaningful
+        words, or the word itself when the name holds only one. A code another
+        company already uses gets a number after it, so two companies cannot
+        mint the same reference."""
+        self.ensure_one()
+        words = [w for w in re.split(r'[^A-Za-z0-9]+', self.name or '') if w]
+        meaningful = [w for w in words if w.lower() not in _GENERIC_WORDS] or words
+        if not meaningful:
+            code = 'DOC'
+        elif len(meaningful) == 1:
+            code = meaningful[0][:6].upper()
+        else:
+            code = ''.join(word[0] for word in meaningful[:3]).upper()
+        taken = set(self.sudo().with_context(active_test=False).search(
+            [('id', '!=', self.id)]).mapped('way4tech_doc_prefix'))
+        candidate, suffix = code, 1
+        while candidate in taken:
+            suffix += 1
+            candidate = '%s%s' % (code, suffix)
+        return candidate
+
+    def _way4tech_doc_sequence(self, base_code, label, token):
+        """The number series for one company and one kind of record, created on
+        first use.
+
+        Keyed by code and left unpinned, like the other sequences here, so it is
+        found whatever company is active. A code the client edits is picked up
+        on the next record created.
+        """
+        self.ensure_one()
+        # sudo: a record may be created for a company the user cannot read, and
+        # it still needs a reference.
+        company = self.sudo()
+        code = '%s.company.%s' % (base_code, self.id)
+        prefix = '%s/%s/%%(year)s/' % (
+            company.way4tech_doc_prefix or company._way4tech_suggest_doc_prefix(), token)
+        Sequence = self.env['ir.sequence'].sudo()
+        sequence = Sequence.search([('code', '=', code)], limit=1)
+        if not sequence:
+            sequence = Sequence.create({
+                'name': '%s - %s' % (label, company.name or self.id),
+                'code': code,
+                'prefix': prefix,
+                'padding': 4,
+                'number_increment': 1,
+                'number_next': 1,
+                'company_id': False,
+            })
+        elif sequence.prefix != prefix:
+            sequence.prefix = prefix
+        return sequence
 
 
 class Way4TechAnalyticMixin(models.AbstractModel):

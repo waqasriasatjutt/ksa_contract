@@ -117,9 +117,10 @@ class Way4TechEmployeeCost(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', _('New')) == _('New'):
-                vals['name'] = self.env['ir.sequence'].next_by_code(
-                    'way4tech.employee.cost'
-                ) or _('New')
+                company = (self.env['res.company'].browse(vals['company_id'])
+                           if vals.get('company_id') else self.env.company)
+                vals['name'] = company._way4tech_doc_sequence(
+                    'way4tech.employee.cost', 'Employee Cost', 'EMP/COST').next_by_id() or _('New')
         return super().create(vals_list)
 
     def action_compute_gosi(self):

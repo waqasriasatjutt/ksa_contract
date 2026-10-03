@@ -25,6 +25,9 @@
 
                     <group>
                         <field name="company_id" readonly="1"/>
+                        <!-- 2026-10-03: references carry this company's own
+                             code instead of "WAY4TECH". Editable. -->
+                        <field name="company_doc_prefix" placeholder="e.g. AZT"/>
                     </group>
 
                     <notebook>

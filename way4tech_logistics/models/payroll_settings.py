@@ -28,6 +28,14 @@ class PayrollSettings(models.Model):
         ondelete='cascade',
     )
 
+    company_doc_prefix = fields.Char(
+        related='company_id.way4tech_doc_prefix', readonly=False,
+        string='Document Code',
+        help='Short code at the front of the references this system generates, '
+             'for example AZT/TRIP/2026/0001. Suggested from the company name; '
+             'change it and the next record created uses the new code.',
+    )
+
     # ── Payroll ───────────────────────────────────────────────────────────────
     payroll_journal_id = fields.Many2one(
         'account.journal',

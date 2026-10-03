@@ -176,9 +176,10 @@ class Way4TechAssetRegister(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if not vals.get('ref'):
-                vals['ref'] = self.env['ir.sequence'].next_by_code(
-                    'way4tech.asset.register'
-                ) or '/'
+                company = (self.env['res.company'].browse(vals['company_id'])
+                           if vals.get('company_id') else self.env.company)
+                vals['ref'] = company._way4tech_doc_sequence(
+                    'way4tech.asset.register', 'Asset Register', 'ASSET').next_by_id() or '/'
         return super().create(vals_list)
 
     # ── Business Logic ────────────────────────────────────────────────────────

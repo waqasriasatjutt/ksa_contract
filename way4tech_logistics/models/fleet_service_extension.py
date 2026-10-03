@@ -113,9 +113,10 @@ class FleetVehicleLogServices(models.Model):
         default_service_type = None
         for vals in vals_list:
             if vals.get('way4tech_ref', _('New')) == _('New'):
-                vals['way4tech_ref'] = self.env['ir.sequence'].next_by_code(
-                    'way4tech.truck.maintenance'
-                ) or _('New')
+                company = (self.env['res.company'].browse(vals['company_id'])
+                           if vals.get('company_id') else self.env.company)
+                vals['way4tech_ref'] = company._way4tech_doc_sequence(
+                    'way4tech.truck.maintenance', 'Maintenance Log', 'MAINT').next_by_id() or _('New')
             if not vals.get('service_type_id'):
                 if default_service_type is None:
                     default_service_type = self.env['fleet.service.type'].search([], limit=1)
