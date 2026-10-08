@@ -544,8 +544,12 @@ class FleetVehicle(models.Model):
             bill_vals['journal_id'] = journal.id
 
         bill = self.env['account.move'].create(bill_vals)
+        # 2026-10-08: the Installment Payable Account from Payroll &
+        # Accounting Setup, not the vendor's default payable. Falls back to the
+        # Truck Trip Costs Payable when the installment one is not set.
         settings._way4tech_set_move_counterpart(
-            bill, settings.truck_costs_payable_account_id)
+            bill, settings.installment_payable_account_id
+            or settings.truck_costs_payable_account_id)
         self.installments_paid += 1
         return {
             'type': 'ir.actions.act_window',

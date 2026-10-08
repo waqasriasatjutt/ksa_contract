@@ -1,3 +1,5 @@
+import base64
+import io
 from datetime import date
 
 from odoo import fields, models, _
@@ -53,6 +55,8 @@ class TruckProfitabilityWizard(models.TransientModel):
         string='Filter by Clients',
         help='Leave empty to include all clients.',
     )
+    xlsx_file = fields.Binary(string='Excel File', readonly=True, attachment=False)
+    xlsx_filename = fields.Char(string='Excel File Name', readonly=True)
     include_maintenance = fields.Boolean(
         string='Include Maintenance Cost',
         default=True,
@@ -89,6 +93,11 @@ class TruckProfitabilityWizard(models.TransientModel):
             ('company_id', '=', self.env.company.id),
             ('amount', '!=', 0),
         ]
+        # 2026-10-08: logs Odoo created by itself when a bill carrying a vehicle
+        # was posted hold the price of the vehicle, not a maintenance cost.
+        if 'way4tech_not_maintenance' in self.env[
+                'fleet.vehicle.log.services']._fields:
+            domain.append(('way4tech_not_maintenance', '=', False))
         if self.truck_ids:
             domain.append(('vehicle_id', 'in', self.truck_ids.ids))
         return domain
@@ -198,6 +207,134 @@ class TruckProfitabilityWizard(models.TransientModel):
         return totals
 
     # ── actions ───────────────────────────────────────────────────────────────
+
+    def action_export_xlsx(self):
+        """The same report as a spreadsheet: a summary sheet and a detail sheet,
+        the same columns, totals and order as the PDF."""
+        self.ensure_one()
+        if self.date_from > self.date_to:
+            raise UserError(_('From Date must be on or before To Date.'))
+        try:
+            import openpyxl
+            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        except ImportError:
+            raise UserError(_(
+                'The openpyxl Python library is required for the Excel export.'))
+
+        data = self.get_report_rows()
+        symbol = self.env.company.currency_id.symbol or ''
+        head_font = Font(bold=True, color='FFFFFF')
+        head_fill = PatternFill('solid', fgColor='44546A')
+        total_fill = PatternFill('solid', fgColor='FFF2CC')
+        thin = Side(style='thin', color='B0B0B0')
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        money = '#,##0.00'
+
+        def put(sheet, row, values, bold=False, fill=None):
+            for col, value in enumerate(values, 1):
+                cell = sheet.cell(row=row, column=col, value=value)
+                cell.border = border
+                if isinstance(value, float):
+                    cell.number_format = money
+                    cell.alignment = Alignment(horizontal='right')
+                else:
+                    cell.alignment = Alignment(
+                        horizontal='left', vertical='top', wrap_text=False)
+                if bold:
+                    cell.font = Font(bold=True)
+                if fill:
+                    cell.fill = fill
+            return row + 1
+
+        book = openpyxl.Workbook()
+        summary = book.active
+        summary.title = 'Summary'
+        summary['A1'] = '%s  %s to %s' % (
+            self._way4tech_report_title(), self.date_from, self.date_to)
+        summary['A1'].font = Font(bold=True, size=13)
+        headers = [self._way4tech_group_heading(), 'Entries',
+                   'Revenue (%s)' % symbol, 'Driver Cost (%s)' % symbol,
+                   'Fuel Cost (%s)' % symbol, 'Other Cost (%s)' % symbol,
+                   'Maintenance (%s)' % symbol, 'Profit (%s)' % symbol,
+                   'Margin%']
+        row = 3
+        for col, header in enumerate(headers, 1):
+            cell = summary.cell(row=row, column=col, value=header)
+            cell.font = head_font
+            cell.fill = head_fill
+            cell.border = border
+        row += 1
+        totals = data['totals']
+        row = put(summary, row, [
+            'PERIOD TOTAL', totals['count'], totals['revenue'], totals['driver'],
+            totals['fuel'], totals['other'], totals['maintenance'],
+            totals['profit'], round(totals['margin'], 1)], bold=True,
+            fill=total_fill)
+        for group in data['groups']:
+            group_totals = group['totals']
+            row = put(summary, row, [
+                group['label'], group_totals['count'], group_totals['revenue'],
+                group_totals['driver'], group_totals['fuel'],
+                group_totals['other'], group_totals['maintenance'],
+                group_totals['profit'], round(group_totals['margin'], 1)])
+        for col, width in zip('ABCDEFGHI', (34, 9, 14, 14, 13, 13, 14, 14, 9)):
+            summary.column_dimensions[col].width = width
+        summary.freeze_panes = 'A4'
+
+        detail = book.create_sheet('Detail')
+        headers = ['Date', 'Reference', 'Truck', 'Client', 'Type',
+                   'Revenue (%s)' % symbol, 'Driver Cost (%s)' % symbol,
+                   'Fuel Cost (%s)' % symbol, 'Other Cost (%s)' % symbol,
+                   'Maintenance (%s)' % symbol, 'Profit (%s)' % symbol,
+                   'Margin%']
+        row = 1
+        for col, header in enumerate(headers, 1):
+            cell = detail.cell(row=row, column=col, value=header)
+            cell.font = head_font
+            cell.fill = head_fill
+            cell.border = border
+        row += 1
+        for group in data['groups']:
+            row = put(detail, row, [group['label']], bold=True,
+                      fill=PatternFill('solid', fgColor='E2EFDA'))
+            for line in group['rows']:
+                row = put(detail, row, [
+                    line['date'] and str(line['date']) or '',
+                    line['reference'], line['truck'], line['client'],
+                    line['kind'], line['revenue'], line['driver'], line['fuel'],
+                    line['other'], line['maintenance'], line['profit'],
+                    round(line['margin'], 1) if line['revenue'] else ''])
+            group_totals = group['totals']
+            row = put(detail, row, [
+                '', '', '', '', 'Subtotal', group_totals['revenue'],
+                group_totals['driver'], group_totals['fuel'],
+                group_totals['other'], group_totals['maintenance'],
+                group_totals['profit'], round(group_totals['margin'], 1)],
+                bold=True)
+        for col, width in zip('ABCDEFGHIJKL',
+                              (12, 24, 16, 30, 20, 14, 14, 13, 13, 14, 14, 9)):
+            detail.column_dimensions[col].width = width
+        detail.freeze_panes = 'A2'
+
+        stream = io.BytesIO()
+        book.save(stream)
+        self.xlsx_file = base64.b64encode(stream.getvalue())
+        self.xlsx_filename = '%s %s to %s.xlsx' % (
+            self._way4tech_report_title(), self.date_from, self.date_to)
+        return {
+            'type': 'ir.actions.act_url',
+            'url': '/web/content/%s/%s/xlsx_file/%s?download=true' % (
+                self._name, self.id, self.xlsx_filename),
+            'target': 'self',
+        }
+
+    def _way4tech_report_title(self):
+        return (_('Truck-wise Profitability Report')
+                if self.report_type == 'truck'
+                else _('Customer-wise Profitability Report'))
+
+    def _way4tech_group_heading(self):
+        return _('Truck') if self.report_type == 'truck' else _('Customer')
 
     def action_print_report(self):
         self.ensure_one()

@@ -51,6 +51,14 @@ class FleetVehicleLogServices(models.Model):
              '• Tyres — tyre replacement or rotation\n'
              '• Other — any other maintenance type',
     )
+    way4tech_not_maintenance = fields.Boolean(
+        string='Not a Maintenance Cost',
+        readonly=True, copy=False,
+        help='Set on a log that Odoo created by itself when a bill carrying a '
+             'vehicle was posted, such as a vehicle purchase. The cost on it is '
+             'the price of the vehicle, not maintenance, so the Profitability '
+             'Report leaves it out.',
+    )
     way4tech_bill_id = fields.Many2one(
         comodel_name='account.move',
         string='Vendor Bill',
@@ -109,6 +117,18 @@ class FleetVehicleLogServices(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """2026-10-08: Odoo's own account_fleet creates a maintenance log for
+        every line carrying a vehicle when a vendor bill is posted, so posting
+        the truck purchase bill produced eight logs whose "maintenance cost" was
+        the price of the truck, and the standard code then locked them against
+        deletion. A maintenance log belongs to its own maintenance bill and to
+        nothing else, so a log arriving with a bill line attached is not created
+        at all. Our own Create Vendor Bill never sets that field; it fills
+        way4tech_bill_id instead."""
+        vals_list = [vals for vals in vals_list
+                     if not vals.get('account_move_line_id')]
+        if not vals_list:
+            return self.browse()
         # Auto-assign service_type_id if not set (required by fleet module)
         default_service_type = None
         for vals in vals_list:

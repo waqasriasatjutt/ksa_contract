@@ -27,6 +27,10 @@
                            help="Leave empty to include all clients."/>
                 </group>
                 <footer>
+                    <button name="action_export_xlsx"
+                            type="object"
+                            string="Download Excel"
+                            class="btn-secondary"/>
                     <button name="action_print_report"
                             type="object"
                             string="Print PDF Report"

@@ -146,7 +146,13 @@
                                     optional_columns="platform_id,valid_days,orders_completed,order_adjustment,bonus,petrol_allowance"
                                 >
                                     <field name="sequence" widget="handle"/>
-                                    <field name="employee_name"/>
+                                    <!-- 2026-10-08: Employee Name and Employee held
+                                         the same value side by side. The linked
+                                         Employee is the one that matters; the
+                                         imported text stays on the record, and on
+                                         the line's own form, for matching and for
+                                         the error messages. -->
+                                    <field name="employee_name" column_invisible="1"/>
                                     <field name="employee_id"/>
                                     <field name="platform_id" optional="show"/>
                                     <field name="valid_days" optional="show"/>

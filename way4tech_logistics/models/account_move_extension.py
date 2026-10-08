@@ -297,3 +297,28 @@ class AccountMoveWay4Tech(models.Model):
         except Exception:
             # Never interrupt the user flow for email failures
             pass
+
+    def _post(self, soft=True):
+        """A number is never handed to two documents.
+
+        2026-10-08: an invoice that was posted, reset to draft and left sitting
+        keeps the number it was given. If another invoice is posted in the
+        meantime it takes that same number, and the two then print alike. This
+        was reported against the Manpower module but it is not a module
+        behaviour: it happens in every journal and in core Accounting too, which
+        is why it showed up in three journals of the WoodPecker company. A draft
+        whose number has since been taken is cleared here, so Odoo gives it the
+        next free one as it posts. A posted document is never renumbered.
+        """
+        for move in self:
+            if move.state != 'draft' or not move.name or move.name == '/':
+                continue
+            taken = self.sudo().search_count([
+                ('name', '=', move.name),
+                ('journal_id', '=', move.journal_id.id),
+                ('company_id', '=', move.company_id.id),
+                ('id', '!=', move.id),
+            ])
+            if taken:
+                move.name = False
+        return super()._post(soft)

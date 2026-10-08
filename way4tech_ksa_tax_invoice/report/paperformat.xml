@@ -11,11 +11,13 @@
              margin_bottom widened from 20 to 30 for the footer image band.
              2026-10-03: 6mm read as ~17pt of blank page above the letterhead,
              which the client measured against a reference invoice that starts
-             at the top. 2mm keeps the content clear of the printable edge. -->
-        <field name="margin_top">2</field>
+             at the top. 2026-10-08: 2mm was too close to the edge for an
+             office printer, so 5mm, and the same 5mm top / 6mm sides are used
+             by every report including the landscape ones. -->
+        <field name="margin_top">5</field>
         <field name="margin_bottom">30</field>
-        <field name="margin_left">7</field>
-        <field name="margin_right">7</field>
+        <field name="margin_left">6</field>
+        <field name="margin_right">6</field>
         <field name="header_line" eval="False"/>
         <field name="header_spacing">0</field>
         <field name="dpi">90</field>
