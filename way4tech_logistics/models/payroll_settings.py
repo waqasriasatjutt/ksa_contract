@@ -99,6 +99,13 @@ class PayrollSettings(models.Model):
         check_company=True,
         help='Asset account for loans given to employees.',
     )
+    petrol_supplier_id = fields.Many2one(
+        'res.partner',
+        string='Petrol / Wallet Supplier',
+        help='Shown as the partner on the single combined petrol line of a '
+             'salary posting, for example Aldrees Petroleum & Transport. '
+             'Optional; leave empty and the line carries no partner.',
+    )
     fuel_deduction_account_id = fields.Many2one(
         'account.account',
         string='Fuel Deduction Account',

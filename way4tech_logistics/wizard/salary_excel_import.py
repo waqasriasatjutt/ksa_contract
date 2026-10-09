@@ -122,7 +122,12 @@ class SalaryExcelImport(models.TransientModel):
     )
     excel_file = fields.Binary(
         string='Excel File (.xlsx)',
-        required=True,
+        # 2026-10-08: not required at the field level. Odoo validates every
+        # required field before it runs ANY button on the form, so marking this
+        # required made Download Template answer "Missing required fields" and
+        # ask for the file you came to download the template for. The import
+        # itself still refuses to run without a file.
+        required=False,
     )
     file_name = fields.Char(string='File Name')
     format_html = fields.Html(

@@ -59,6 +59,7 @@
                                 <field name="perf_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
                                 <field name="advance_account_id" domain="[('company_ids', 'in', [company_id])]"/>
                                 <field name="loan_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                                <field name="petrol_supplier_id"/>
                                 <field name="fuel_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
                                 <field name="sim_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
                                 <field name="traffic_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>

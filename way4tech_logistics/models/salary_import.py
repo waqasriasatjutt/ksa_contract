@@ -251,78 +251,145 @@ class SalaryImport(models.Model):
                 or employee.user_partner_id
                 or employee.user_id.partner_id) or self.env['res.partner']
 
-    def action_post_to_accounting(self):
-        """
-        Simple direct posting: create one journal entry for all employee
-        salary lines in this import. No payslips, no salary rules, no tax.
+    # 2026-10-09: what each column on a salary line posts to. The account is
+    # a field on Payroll & Accounting Setup, so every company sets its own and
+    # a company added later is no different.
+    #   earning   - the company owes the rider more: credit the rider
+    #   deduction - the rider owes the company: debit the rider
+    SALARY_COMPONENTS = [
+        ('fixed_salary', 'Basic Salary', 'salary_expense_account_id', 'earning'),
+        ('order_adjustment', 'Order Adjustment', 'salary_expense_account_id', 'earning'),
+        ('bonus', 'Bonus', 'bonus_expense_account_id', 'earning'),
+        ('petrol_allowance', 'Petrol Allowance', 'petrol_expense_account_id', 'earning'),
+        ('on_time_deduction', 'On-Time Deduction', 'perf_deduction_account_id', 'deduction'),
+        ('food_damage_deduction', 'Food Damage Deduction', 'perf_deduction_account_id', 'deduction'),
+        ('miss_day_penalty', 'Miss Day Penalty', 'perf_deduction_account_id', 'deduction'),
+        ('order_rejection_deduction', 'Order Rejection Deduction', 'perf_deduction_account_id', 'deduction'),
+        ('misc_deduction', 'Misc Deduction', 'perf_deduction_account_id', 'deduction'),
+        ('advance_deduction', 'Advance', 'advance_account_id', 'deduction'),
+        ('fuel_deduction', 'Fuel', 'fuel_deduction_account_id', 'deduction'),
+        ('sim_charges', 'SIM Charges', 'sim_deduction_account_id', 'deduction'),
+        ('loan', 'Loan Installment', 'loan_account_id', 'deduction'),
+        ('traffic_violation', 'Traffic Violation', 'traffic_deduction_account_id', 'deduction'),
+        ('rent', 'Rent', 'rent_deduction_account_id', 'deduction'),
+    ]
 
-        Journal entry:
-          Dr  Salary Expense Account   (per employee, net_payable)
-          Cr  Salary Payable Account   (per employee, net_payable)
+    def action_post_to_accounting(self):
+        """One journal entry for the sheet, built the way the client books it
+        by hand.
+
+        Rider side: the rider payable account carries one line per rider, with
+        the rider as partner, so each rider's balance stays readable.
+        Shared side: an account that is the same for everyone - salary expense,
+        the petrol wallet, loans - carries ONE combined line for its total,
+        however many riders there are.
+        Label: every line carries this sheet's reference, not a rider's name.
+
+        2026-10-09: before this, the sheet posted only the NET of each rider to
+        two fixed accounts and repeated the shared side once per rider, so a
+        sheet carrying only loans posted nothing at all and a petrol run
+        produced two lines per rider. Each column now posts to its own account
+        and a column left at zero adds no line.
         """
         self.ensure_one()
         if self.state not in ('draft', 'imported'):
             raise UserError(_('This salary sheet has already been posted.'))
 
         settings = self.env['way4tech.payroll.settings'].get_for_company(self.company_id.id)
-        if not settings.salary_expense_account_id:
-            raise UserError(_('Set the Salary Expense Account in Settings → Payroll & Accounting Setup.'))
-        if not settings.salary_payable_account_id:
-            raise UserError(_('Set the Salary Payable Account in Settings → Payroll & Accounting Setup.'))
         if not settings.payroll_journal_id:
             raise UserError(_('Set the Payroll Journal in Settings → Payroll & Accounting Setup.'))
+        if not settings.salary_payable_account_id:
+            raise UserError(_(
+                'Set the Salary Payable Account in Settings → Payroll & '
+                'Accounting Setup. It is the account each rider is posted to.'))
 
         valid_lines = self.line_ids.filtered(
-            lambda l: not l.has_error and l.employee_id and l.net_payable > 0
-        )
+            lambda l: not l.has_error and l.employee_id)
         if not valid_lines:
-            raise UserError(_('No valid employee lines with a net salary amount to post.'))
+            raise UserError(_('No employee lines to post.'))
 
         currency = self.company_id.currency_id
-        debit_acc_id = settings.salary_expense_account_id.id
-        credit_acc_id = settings.salary_payable_account_id.id
+        # shared side: account -> signed total (+ debit, - credit)
+        shared = {}
+        # rider side: employee -> signed total on the payable account
+        per_rider = {}
+        missing = []
+        posted_columns = []
 
-        # 2026-10-03: the import's own Analytic Distribution first, then the
-        # single account kept for records set up before, then the company
-        # default distribution and finally its single account.
+        for field, label, setting_field, direction in self.SALARY_COMPONENTS:
+            total = sum(line[field] or 0.0 for line in valid_lines)
+            if currency.is_zero(total):
+                continue            # a column at zero adds no line
+            account = settings[setting_field]
+            if not account:
+                missing.append(label)
+                continue
+            posted_columns.append(label)
+            for line in valid_lines:
+                amount = currency.round(line[field] or 0.0)
+                if currency.is_zero(amount):
+                    continue
+                sign = 1.0 if direction == 'earning' else -1.0
+                # earning: debit the shared expense, credit the rider
+                shared[account] = shared.get(account, 0.0) + sign * amount
+                per_rider[line.employee_id] = per_rider.get(line.employee_id, 0.0) - sign * amount
+
+        if missing:
+            raise UserError(_(
+                'These columns have amounts but no account set in Settings '
+                '→ Payroll & Accounting Setup, so the sheet cannot be '
+                'posted:\n\n%s\n\nSet an account for each, then post again.'
+            ) % '\n'.join('  - %s' % label for label in missing))
+        if not posted_columns:
+            raise UserError(_(
+                'Every column on this sheet is zero, so there is nothing to '
+                'post.'))
+
         analytic_distribution = self._way4tech_analytic_dist(
             self.analytic_account_id,
             settings.analytic_distribution,
             settings.default_analytic_account_id,
         ) or {}
 
-        # Rebuild lines with analytic if available
         move_lines = []
-        for line in valid_lines:
-            # 2026-10-03: name the employee on both journal lines. Only
-            # employees with a linked user carried a partner before, so most
-            # payroll lines reached the ledger with no counterparty at all.
-            partner_id = self._way4tech_employee_partner(line.employee_id).id or False
-            amount = currency.round(line.net_payable)
-            debit_vals = {
-                'name': line.employee_id.name,
-                'account_id': debit_acc_id,
-                'debit': amount,
-                'credit': 0.0,
+        # the shared side: one line per account, whatever the rider count
+        for account, balance in shared.items():
+            balance = currency.round(balance)
+            if currency.is_zero(balance):
+                continue
+            vals = {
+                'name': self.name,
+                'account_id': account.id,
+                'debit': balance if balance > 0 else 0.0,
+                'credit': -balance if balance < 0 else 0.0,
                 'tax_ids': [],
-                'partner_id': partner_id,
             }
-            credit_vals = {
-                'name': line.employee_id.name,
-                'account_id': credit_acc_id,
-                'debit': 0.0,
-                'credit': amount,
+            if account == settings.fuel_deduction_account_id and settings.petrol_supplier_id:
+                vals['partner_id'] = settings.petrol_supplier_id.id
+            if analytic_distribution and account.account_type.startswith('expense'):
+                vals['analytic_distribution'] = analytic_distribution
+            move_lines.append((0, 0, vals))
+
+        # the rider side: one line each, so every rider's balance is readable
+        payable_id = settings.salary_payable_account_id.id
+        for employee, balance in per_rider.items():
+            balance = currency.round(balance)
+            if currency.is_zero(balance):
+                continue
+            move_lines.append((0, 0, {
+                'name': self.name,
+                'account_id': payable_id,
+                'debit': balance if balance > 0 else 0.0,
+                'credit': -balance if balance < 0 else 0.0,
                 'tax_ids': [],
-                'partner_id': partner_id,
-            }
-            if analytic_distribution:
-                debit_vals['analytic_distribution'] = analytic_distribution
-            move_lines += [(0, 0, debit_vals), (0, 0, credit_vals)]
+                'partner_id': self._way4tech_employee_partner(employee).id or False,
+            }))
 
         move_vals = {
             'move_type': 'entry',
-            'narration': _('Salary — %s  |  %s to %s') % (
-                self.name, self.period_start, self.period_end),
+            'narration': _('Salary — %s  |  %s to %s  |  %s') % (
+                self.name, self.period_start, self.period_end,
+                ', '.join(dict.fromkeys(posted_columns))),
             'ref': self.name,
             'journal_id': settings.payroll_journal_id.id,
             'date': self.period_end,
@@ -346,8 +413,8 @@ class SalaryImport(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Salary Journal Entry'),
             'res_model': 'account.move',
-            'res_id': move.id,
             'view_mode': 'form',
+            'res_id': move.id,
             'target': 'current',
         }
 
