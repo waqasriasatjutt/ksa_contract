@@ -403,7 +403,11 @@ class SalaryExcelImport(models.TransientModel):
 
         return {'type': 'ir.actions.act_window_close'}
 
-    @api.model
+    # 2026-10-11: NOT @api.model. A button on a form calls its method with the
+    # record, and a model-level method has no room for it, so the download
+    # answered "takes 1 positional argument but 2 were given". It only surfaced
+    # once the Excel file stopped being required, because before that the form
+    # refused to run the button at all.
     def action_download_template(self):
         """Generate and return a sample salary import XLSX template."""
         if not openpyxl:

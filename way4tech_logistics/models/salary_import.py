@@ -256,22 +256,28 @@ class SalaryImport(models.Model):
     # a company added later is no different.
     #   earning   - the company owes the rider more: credit the rider
     #   deduction - the rider owes the company: debit the rider
+    #
+    # 2026-10-11: the last column says whether that account is posted one line
+    # PER RIDER. An account every rider shares - salary expense, the petrol
+    # wallet - is one combined line. Loan and Advance are a balance owed by one
+    # named rider, so each rider keeps a line of their own and the outstanding
+    # amount is readable straight from Accounting.
     SALARY_COMPONENTS = [
-        ('fixed_salary', 'Basic Salary', 'salary_expense_account_id', 'earning'),
-        ('order_adjustment', 'Order Adjustment', 'salary_expense_account_id', 'earning'),
-        ('bonus', 'Bonus', 'bonus_expense_account_id', 'earning'),
-        ('petrol_allowance', 'Petrol Allowance', 'petrol_expense_account_id', 'earning'),
-        ('on_time_deduction', 'On-Time Deduction', 'perf_deduction_account_id', 'deduction'),
-        ('food_damage_deduction', 'Food Damage Deduction', 'perf_deduction_account_id', 'deduction'),
-        ('miss_day_penalty', 'Miss Day Penalty', 'perf_deduction_account_id', 'deduction'),
-        ('order_rejection_deduction', 'Order Rejection Deduction', 'perf_deduction_account_id', 'deduction'),
-        ('misc_deduction', 'Misc Deduction', 'perf_deduction_account_id', 'deduction'),
-        ('advance_deduction', 'Advance', 'advance_account_id', 'deduction'),
-        ('fuel_deduction', 'Fuel', 'fuel_deduction_account_id', 'deduction'),
-        ('sim_charges', 'SIM Charges', 'sim_deduction_account_id', 'deduction'),
-        ('loan', 'Loan Installment', 'loan_account_id', 'deduction'),
-        ('traffic_violation', 'Traffic Violation', 'traffic_deduction_account_id', 'deduction'),
-        ('rent', 'Rent', 'rent_deduction_account_id', 'deduction'),
+        ('fixed_salary', 'Basic Salary', 'salary_expense_account_id', 'earning', False),
+        ('order_adjustment', 'Order Adjustment', 'salary_expense_account_id', 'earning', False),
+        ('bonus', 'Bonus', 'bonus_expense_account_id', 'earning', False),
+        ('petrol_allowance', 'Petrol Allowance', 'petrol_expense_account_id', 'earning', False),
+        ('on_time_deduction', 'On-Time Deduction', 'perf_deduction_account_id', 'deduction', False),
+        ('food_damage_deduction', 'Food Damage Deduction', 'perf_deduction_account_id', 'deduction', False),
+        ('miss_day_penalty', 'Miss Day Penalty', 'perf_deduction_account_id', 'deduction', False),
+        ('order_rejection_deduction', 'Order Rejection Deduction', 'perf_deduction_account_id', 'deduction', False),
+        ('misc_deduction', 'Misc Deduction', 'perf_deduction_account_id', 'deduction', False),
+        ('advance_deduction', 'Advance', 'advance_account_id', 'deduction', True),
+        ('fuel_deduction', 'Fuel', 'fuel_deduction_account_id', 'deduction', False),
+        ('sim_charges', 'SIM Charges', 'sim_deduction_account_id', 'deduction', False),
+        ('loan', 'Loan Installment', 'loan_account_id', 'deduction', True),
+        ('traffic_violation', 'Traffic Violation', 'traffic_deduction_account_id', 'deduction', False),
+        ('rent', 'Rent', 'rent_deduction_account_id', 'deduction', False),
     ]
 
     def action_post_to_accounting(self):
@@ -281,8 +287,9 @@ class SalaryImport(models.Model):
         Rider side: the rider payable account carries one line per rider, with
         the rider as partner, so each rider's balance stays readable.
         Shared side: an account that is the same for everyone - salary expense,
-        the petrol wallet, loans - carries ONE combined line for its total,
-        however many riders there are.
+        the petrol wallet - carries ONE combined line for its total, however
+        many riders there are. Loan and Advance are the exception: they are a
+        balance owed by one named rider, so they too keep a line per rider.
         Label: every line carries this sheet's reference, not a rider's name.
 
         2026-10-09: before this, the sheet posted only the NET of each rider to
@@ -311,12 +318,14 @@ class SalaryImport(models.Model):
         currency = self.company_id.currency_id
         # shared side: account -> signed total (+ debit, - credit)
         shared = {}
+        # the accounts that stay per rider: (account, employee) -> signed total
+        named = {}
         # rider side: employee -> signed total on the payable account
-        per_rider = {}
+        rider_totals = {}
         missing = []
         posted_columns = []
 
-        for field, label, setting_field, direction in self.SALARY_COMPONENTS:
+        for field, label, setting_field, direction, per_rider in self.SALARY_COMPONENTS:
             total = sum(line[field] or 0.0 for line in valid_lines)
             if currency.is_zero(total):
                 continue            # a column at zero adds no line
@@ -330,9 +339,14 @@ class SalaryImport(models.Model):
                 if currency.is_zero(amount):
                     continue
                 sign = 1.0 if direction == 'earning' else -1.0
-                # earning: debit the shared expense, credit the rider
-                shared[account] = shared.get(account, 0.0) + sign * amount
-                per_rider[line.employee_id] = per_rider.get(line.employee_id, 0.0) - sign * amount
+                # earning: debit the expense side, credit the rider
+                if per_rider:
+                    key = (account, line.employee_id)
+                    named[key] = named.get(key, 0.0) + sign * amount
+                else:
+                    shared[account] = shared.get(account, 0.0) + sign * amount
+                rider_totals[line.employee_id] = (
+                    rider_totals.get(line.employee_id, 0.0) - sign * amount)
 
         if missing:
             raise UserError(_(
@@ -370,9 +384,23 @@ class SalaryImport(models.Model):
                 vals['analytic_distribution'] = analytic_distribution
             move_lines.append((0, 0, vals))
 
+        # loan and advance: a line per rider on their own account
+        for (account, employee), balance in named.items():
+            balance = currency.round(balance)
+            if currency.is_zero(balance):
+                continue
+            move_lines.append((0, 0, {
+                'name': self.name,
+                'account_id': account.id,
+                'debit': balance if balance > 0 else 0.0,
+                'credit': -balance if balance < 0 else 0.0,
+                'tax_ids': [],
+                'partner_id': self._way4tech_employee_partner(employee).id or False,
+            }))
+
         # the rider side: one line each, so every rider's balance is readable
         payable_id = settings.salary_payable_account_id.id
-        for employee, balance in per_rider.items():
+        for employee, balance in rider_totals.items():
             balance = currency.round(balance)
             if currency.is_zero(balance):
                 continue

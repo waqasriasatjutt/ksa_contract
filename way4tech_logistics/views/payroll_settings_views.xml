@@ -46,21 +46,38 @@
                                        domain="[('company_ids', 'in', [company_id])]"
                                        help="Liability account credited for each employee (amount owed). Typically '2100 - Salaries Payable'."/>
                             </group>
-                            <!-- HIDDEN payroll salary-rule accounts — remove invisible="1" to re-enable -->
-                            <group string="Earnings — Extra Expense Accounts" invisible="1">
+                            <!-- 2026-10-11: these were hidden from the days when
+                                 payroll ran on salary rules. Since each column of a
+                                 salary sheet now posts to its own account, they are
+                                 what makes that possible, so they are on the page. -->
+                            <div class="alert alert-info" role="alert" style="margin-top:8px;">
+                                Each column of a salary sheet posts to its own account
+                                below. Fill in the ones you use; a column you never fill
+                                needs no account. Every rider is posted to the
+                                <strong>Salary Payable Account</strong> above, one line
+                                each, so their balances stay readable.
+                            </div>
+                            <group string="Earnings — one combined line each">
                                 <field name="bonus_expense_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
-                                       help="Bonus expense. Leave blank to use Salary Expense account."/>
+                                       help="Bonus column. Leave blank to use the Salary Expense account."/>
                                 <field name="petrol_expense_account_id"
                                        domain="[('company_ids', 'in', [company_id])]"
-                                       help="Petrol allowance. Leave blank to use Salary Expense account."/>
+                                       help="Petrol Allowance column, the allowance paid TO the rider. Leave blank to use the Salary Expense account."/>
                             </group>
-                            <group string="Deduction Recovery Accounts" invisible="1">
-                                <field name="perf_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
-                                <field name="advance_account_id" domain="[('company_ids', 'in', [company_id])]"/>
-                                <field name="loan_account_id" domain="[('company_ids', 'in', [company_id])]"/>
-                                <field name="petrol_supplier_id"/>
-                                <field name="fuel_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
+                            <group string="Deductions — one line per rider">
+                                <field name="loan_account_id" domain="[('company_ids', 'in', [company_id])]"
+                                       help="Loan Installment column. Posted one line per rider so each rider's outstanding loan shows in Accounting."/>
+                                <field name="advance_account_id" domain="[('company_ids', 'in', [company_id])]"
+                                       help="Advance column. Posted one line per rider so each rider's outstanding advance shows in Accounting."/>
+                            </group>
+                            <group string="Deductions — one combined line each">
+                                <field name="fuel_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"
+                                       help="Fuel column, fuel the company paid for on the rider's behalf. This is the wallet or supplier account, for example Aldrees Wallet."/>
+                                <field name="petrol_supplier_id"
+                                       help="Optional. Shown as the partner on the single combined fuel line, for example Aldrees Petroleum &amp; Transport."/>
+                                <field name="perf_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"
+                                       help="On-Time, Food Damage, Miss Day, Order Rejection and Misc Deduction columns all post here."/>
                                 <field name="sim_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
                                 <field name="traffic_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
                                 <field name="rent_deduction_account_id" domain="[('company_ids', 'in', [company_id])]"/>
