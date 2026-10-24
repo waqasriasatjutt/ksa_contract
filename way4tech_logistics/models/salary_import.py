@@ -423,10 +423,16 @@ class SalaryImport(models.Model):
         currency = self.company_id.currency_id
         # shared side: account -> signed total (+ debit, - credit)
         shared = {}
-        # the accounts that stay per rider: (account, employee) -> signed total
+        # the accounts that stay per rider: (account, partner) -> signed total
         named = {}
-        # rider side: employee -> signed total on the payable account
+        # rider side: partner -> signed total on the payable account
         rider_totals = {}
+
+        def rider_partner(line):
+            """2026-10-20: the line's own contact first. A sheet can now name a
+            contact and no employee, and keying on an empty employee merged
+            every one of them into a single unnamed line."""
+            return line.partner_id or self._way4tech_employee_partner(line.employee_id)
         missing = []
         posted_columns = []
 
@@ -445,13 +451,14 @@ class SalaryImport(models.Model):
                     continue
                 sign = 1.0 if direction == 'earning' else -1.0
                 # earning: debit the expense side, credit the rider
+                partner = rider_partner(line)
                 if per_rider:
-                    key = (account, line.employee_id)
+                    key = (account, partner)
                     named[key] = named.get(key, 0.0) + sign * amount
                 else:
                     shared[account] = shared.get(account, 0.0) + sign * amount
-                rider_totals[line.employee_id] = (
-                    rider_totals.get(line.employee_id, 0.0) - sign * amount)
+                rider_totals[partner] = (
+                    rider_totals.get(partner, 0.0) - sign * amount)
 
         if missing:
             raise UserError(_(
@@ -490,7 +497,7 @@ class SalaryImport(models.Model):
             move_lines.append((0, 0, vals))
 
         # loan and advance: a line per rider on their own account
-        for (account, employee), balance in named.items():
+        for (account, partner), balance in named.items():
             balance = currency.round(balance)
             if currency.is_zero(balance):
                 continue
@@ -500,12 +507,12 @@ class SalaryImport(models.Model):
                 'debit': balance if balance > 0 else 0.0,
                 'credit': -balance if balance < 0 else 0.0,
                 'tax_ids': [],
-                'partner_id': self._way4tech_employee_partner(employee).id or False,
+                'partner_id': partner.id or False,
             }))
 
         # the rider side: one line each, so every rider's balance is readable
         payable_id = settings.salary_payable_account_id.id
-        for employee, balance in rider_totals.items():
+        for partner, balance in rider_totals.items():
             balance = currency.round(balance)
             if currency.is_zero(balance):
                 continue
@@ -515,7 +522,7 @@ class SalaryImport(models.Model):
                 'debit': balance if balance > 0 else 0.0,
                 'credit': -balance if balance < 0 else 0.0,
                 'tax_ids': [],
-                'partner_id': self._way4tech_employee_partner(employee).id or False,
+                'partner_id': partner.id or False,
             }))
 
         return self._way4tech_create_salary_move(
