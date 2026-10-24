@@ -48,6 +48,26 @@ class SalaryImport(models.Model):
         comodel_name='account.analytic.account',
         string='Analytic Account',
     )
+    # 2026-10-20: filled once, in the first data row of the sheet. They decide
+    # the one combined line and the reference of the whole entry, so the client
+    # controls both from the sheet instead of from a setting.
+    combine_account_id = fields.Many2one(
+        'account.account', string='Combine Account', check_company=True,
+        help='Column V. The account of the single combined line.',
+    )
+    combine_partner_id = fields.Many2one(
+        'res.partner', string='Combine Partner',
+        help='Column W. The partner shown on the combined line.',
+    )
+    combine_label = fields.Char(
+        string='Combine Label',
+        help='Column Y. The label of the combined line, word for word.',
+    )
+    sheet_reference = fields.Char(
+        string='Sheet Reference',
+        help="Column X. Becomes the Reference of the journal entry, word for "
+             "word. This is not the entry number.",
+    )
     company_id = fields.Many2one(
         comodel_name='res.company',
         string='Company',
@@ -280,6 +300,84 @@ class SalaryImport(models.Model):
         ('rent', 'Rent', 'rent_deduction_account_id', 'deduction', False),
     ]
 
+    def _way4tech_sheet_drives_posting(self):
+        """True when the sheet itself says where every line goes.
+
+        2026-10-20: the client fills an Account against each person and one
+        Combine Account for the whole sheet, so a fuel run can charge riders to
+        their payable and an office employee to a fuel expense in the same
+        entry. A sheet without those columns still posts from the accounts on
+        Payroll and Accounting Setup, so nothing already in use changes.
+        """
+        self.ensure_one()
+        return bool(self.combine_account_id
+                    and self.line_ids.filtered(lambda l: l.account_id))
+
+    def _way4tech_post_from_sheet(self, settings):
+        """Every line on the account, contact and label the sheet gave it, and
+        one combined line carrying the total."""
+        self.ensure_one()
+        currency = self.company_id.currency_id
+        reference = self.sheet_reference or self.name
+
+        # rows sharing an account, a contact and a label become one line
+        grouped, order = {}, []
+        for line in self.line_ids.filtered(lambda l: not l.has_error and l.account_id):
+            amount = 0.0
+            for field, _lbl, _setting, direction, _per in self.SALARY_COMPONENTS:
+                value = line[field] or 0.0
+                if value:
+                    amount += value if direction == 'earning' else -value
+            if currency.is_zero(currency.round(amount)):
+                continue
+            key = (line.account_id, line.partner_id, line.label or reference)
+            if key not in grouped:
+                order.append(key)
+            grouped[key] = grouped.get(key, 0.0) + amount
+
+        if not grouped:
+            raise UserError(_(
+                'Every line on this sheet is zero, so there is nothing to post.'))
+
+        analytic = self._way4tech_analytic_dist(
+            self.analytic_account_id,
+            settings.analytic_distribution,
+            settings.default_analytic_account_id,
+        ) or {}
+
+        move_lines, total = [], 0.0
+        for key in order:
+            account, partner, label = key
+            amount = currency.round(grouped[key])
+            if currency.is_zero(amount):
+                continue
+            total += amount
+            # an earning is owed to the person, so it credits their account;
+            # a deduction is owed by them, so it debits it
+            vals = {
+                'name': label,
+                'account_id': account.id,
+                'debit': -amount if amount < 0 else 0.0,
+                'credit': amount if amount > 0 else 0.0,
+                'tax_ids': [],
+                'partner_id': partner.id if partner else False,
+            }
+            if analytic and account.account_type.startswith('expense'):
+                vals['analytic_distribution'] = analytic
+            move_lines.append((0, 0, vals))
+
+        total = currency.round(total)
+        if not currency.is_zero(total):
+            move_lines.append((0, 0, {
+                'name': self.combine_label or reference,
+                'account_id': self.combine_account_id.id,
+                'debit': total if total > 0 else 0.0,
+                'credit': -total if total < 0 else 0.0,
+                'tax_ids': [],
+                'partner_id': self.combine_partner_id.id or False,
+            }))
+        return move_lines, reference
+
     def action_post_to_accounting(self):
         """One journal entry for the sheet, built the way the client books it
         by hand.
@@ -311,9 +409,16 @@ class SalaryImport(models.Model):
                 'Accounting Setup. It is the account each rider is posted to.'))
 
         valid_lines = self.line_ids.filtered(
-            lambda l: not l.has_error and l.employee_id)
+            lambda l: not l.has_error and (l.partner_id or l.employee_id))
         if not valid_lines:
-            raise UserError(_('No employee lines to post.'))
+            raise UserError(_('No lines to post.'))
+
+        if self._way4tech_sheet_drives_posting():
+            move_lines, reference = self._way4tech_post_from_sheet(settings)
+            return self._way4tech_create_salary_move(
+                settings, move_lines, reference,
+                _('Salary %s  |  %s to %s') % (
+                    self.name, self.period_start, self.period_end))
 
         currency = self.company_id.currency_id
         # shared side: account -> signed total (+ debit, - credit)
@@ -413,12 +518,26 @@ class SalaryImport(models.Model):
                 'partner_id': self._way4tech_employee_partner(employee).id or False,
             }))
 
+        return self._way4tech_create_salary_move(
+            settings, move_lines, self.sheet_reference or self.name,
+            _('Salary %s  |  %s to %s  |  %s') % (
+                self.name, self.period_start, self.period_end,
+                ', '.join(dict.fromkeys(posted_columns))))
+
+    def _way4tech_create_salary_move(self, settings, move_lines, reference, narration):
+        """Create and post the entry.
+
+        2026-10-20: the Reference is the client's own text from the sheet when
+        they gave one. The entry NUMBER is left entirely to the journal's own
+        sequence, so a journal whose numbering was once typed by hand keeps
+        carrying that pattern; the way to a clean number is a journal of its
+        own, set as the Payroll Journal.
+        """
+        self.ensure_one()
         move_vals = {
             'move_type': 'entry',
-            'narration': _('Salary — %s  |  %s to %s  |  %s') % (
-                self.name, self.period_start, self.period_end,
-                ', '.join(dict.fromkeys(posted_columns))),
-            'ref': self.name,
+            'narration': narration,
+            'ref': reference,
             'journal_id': settings.payroll_journal_id.id,
             'date': self.period_end,
             'company_id': self.company_id.id,

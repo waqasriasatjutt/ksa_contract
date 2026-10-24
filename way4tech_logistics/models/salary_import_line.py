@@ -17,6 +17,28 @@ class SalaryImportLine(models.Model):
 
     # ── Employee identification ───────────────────────────────────────────────
     employee_name = fields.Char(string='Employee Name')
+    # 2026-10-20: the client books these people as Contacts, not as Employees,
+    # the same way core Accounting does. Column A of the sheet is matched to a
+    # contact and that contact is the partner of the line. The employee link
+    # below is still filled when a matching employee exists, so loan recovery
+    # and the deduction ledger keep working.
+    partner_id = fields.Many2one(
+        'res.partner', string='Contact',
+        help='Matched from column A of the sheet. This is the partner the '
+             'journal line is posted against.',
+    )
+    account_id = fields.Many2one(
+        'account.account', string='Account', check_company=True,
+        help='Matched from column B of the sheet by account code. The line is '
+             'posted to this account. Left empty, the accounts on Payroll and '
+             'Accounting Setup are used instead.',
+    )
+    label = fields.Char(
+        string='Label',
+        help='Column U of the sheet, used word for word as the label of this '
+             "line in the journal entry. Left empty, the sheet's reference is "
+             'used.',
+    )
     employee_id = fields.Many2one(
         comodel_name='hr.employee',
         string='Employee',

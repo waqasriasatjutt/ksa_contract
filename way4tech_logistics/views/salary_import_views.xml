@@ -109,6 +109,13 @@
                         <group>
                             <field name="accounting_move_id" readonly="1"
                                    help="The journal entry created when you click Post to Accounting."/>
+                            <!-- 2026-10-20: taken from the single-value columns
+                                 of the sheet (V, W, X, Y). They decide the one
+                                 combined line and the entry's Reference. -->
+                            <field name="sheet_reference" readonly="1"/>
+                            <field name="combine_account_id" readonly="1"/>
+                            <field name="combine_partner_id" readonly="1"/>
+                            <field name="combine_label" readonly="1"/>
                             <!-- 2026-10-03: analytic was showing twice. The
                                  Analytic Distribution at the top of the form is
                                  the one to use; the single account stays on the
@@ -153,7 +160,13 @@
                                          the line's own form, for matching and for
                                          the error messages. -->
                                     <field name="employee_name" column_invisible="1"/>
-                                    <field name="employee_id"/>
+                                    <!-- 2026-10-20: the sheet now names the
+                                         contact, the account and the label for
+                                         every line, so they are on the list. -->
+                                    <field name="partner_id" optional="show"/>
+                                    <field name="employee_id" optional="hide"/>
+                                    <field name="account_id" optional="show"/>
+                                    <field name="label" optional="show"/>
                                     <field name="platform_id" optional="show"/>
                                     <field name="valid_days" optional="show"/>
                                     <field name="orders_completed" optional="show"/>
@@ -178,7 +191,10 @@
                                     <group>
                                         <group string="Employee">
                                             <field name="employee_name"/>
+                                            <field name="partner_id"/>
                                             <field name="employee_id"/>
+                                            <field name="account_id"/>
+                                            <field name="label"/>
                                             <field name="note"/>
                                         </group>
                                         <group string="Platform &amp; Work Data">
